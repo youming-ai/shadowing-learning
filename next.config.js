@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
-  // 图片优化配置 - Vercel 支持完整的图片优化
+  output: "standalone",
+
+  // 图片优化配置
   images: {
     remotePatterns: [
       {
@@ -10,21 +12,8 @@ const nextConfig = {
         port: "3000",
         pathname: "/api/placeholder/**",
       },
-      {
-        protocol: "https",
-        hostname: "shadowing-learning.vercel.app",
-      },
-      {
-        protocol: "https",
-        hostname: "vercel.app",
-      },
     ],
     formats: ["image/webp", "image/avif"],
-  },
-
-  // 环境变量配置
-  env: {
-    NEXT_PUBLIC_DEPLOYMENT_PLATFORM: "vercel",
   },
 
   // 压缩和性能
@@ -82,12 +71,4 @@ const nextConfig = {
   ],
 };
 
-// 分析模式
-if (process.env.ANALYZE === "true") {
-  const withBundleAnalyzer = require("@next/bundle-analyzer")({
-    enabled: process.env.ANALYZE === "true",
-  });
-  module.exports = withBundleAnalyzer(nextConfig);
-} else {
-  module.exports = nextConfig;
-}
+module.exports = nextConfig;

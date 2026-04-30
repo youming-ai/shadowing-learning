@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranscriptionStatus } from "@/hooks/api/useTranscription";
+import { useFileStatusManager } from "@/hooks/useFileStatus";
 import { DBUtils } from "@/lib/db/db";
 import type { FileRow, Segment, TranscriptRow } from "@/types/db/database";
 
-// AudioURLCache管理 - 使用 WeakMap 防止Memory泄漏
 const audioUrlCache = new WeakMap<Blob, string>();
-const activeAudioUrls = new Set<string>();
 
 function createAudioUrl(blob: Blob): string {
   const cachedUrl = audioUrlCache.get(blob);
@@ -16,23 +15,26 @@ function createAudioUrl(blob: Blob): string {
 
   const url = URL.createObjectURL(blob);
   audioUrlCache.set(blob, url);
-  activeAudioUrls.add(url);
-
   return url;
 }
 
-// Query键
+function revokeAudioUrl(blob: Blob) {
+  const url = audioUrlCache.get(blob);
+  if (url) {
+    URL.revokeObjectURL(url);
+    audioUrlCache.delete(blob);
+  }
+}
+
 export const playerKeys = {
   all: ["player"] as const,
   file: (fileId: number) => [...playerKeys.all, "file", fileId] as const,
 };
 
-// GetFile数据Query
 function useFileQuery(fileId: number) {
   return useQuery({
     queryKey: playerKeys.file(fileId),
     queryFn: async () => {
-      // Through DBUtils GetFile
       const file = await DBUtils.getFile(fileId);
       if (!file) {
         throw new Error("File not found");
@@ -60,25 +62,54 @@ interface UsePlayerDataQueryReturn {
   retry: () => void;
 }
 
-/** * 播放器数据Query Hook - Simplified版 * 只负责GetFile和Transcription数据*/
 export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
   const parsedFileId = parseInt(fileId, 10);
 
-  // GetFile数据
   const fileQuery = useFileQuery(parsedFileId);
   const file = fileQuery.data?.file || null;
   const audioUrl = fileQuery.data?.audioUrl || null;
 
-  // GetTranscriptionstate
   const transcriptionQuery = useTranscriptionStatus(parsedFileId);
   const transcript = transcriptionQuery.data?.transcript || null;
   const segments = transcriptionQuery.data?.segments || [];
 
-  // 只等待File加载完成
+  const { startTranscription } = useFileStatusManager(parsedFileId);
+  const autoTranscribingRef = useRef(false);
+
+  useEffect(() => {
+    if (autoTranscribingRef.current) return;
+    if (fileQuery.isLoading || fileQuery.error) return;
+    if (transcriptionQuery.isLoading) return;
+
+    const hasTranscript = transcript !== null;
+    const isProcessing = transcript?.status === "processing";
+
+    if (!hasTranscript && !isProcessing) {
+      autoTranscribingRef.current = true;
+      startTranscription().finally(() => {
+        autoTranscribingRef.current = false;
+      });
+    }
+  }, [
+    transcript,
+    fileQuery.isLoading,
+    fileQuery.error,
+    transcriptionQuery.isLoading,
+    startTranscription,
+  ]);
+
+  useEffect(() => {
+    const blob = file?.blob;
+    return () => {
+      if (blob) {
+        revokeAudioUrl(blob);
+      }
+    };
+  }, [file?.blob]);
+
   const loading = fileQuery.isLoading;
   const error = fileQuery.error?.message || null;
 
-  // 重试函数
   const retry = useCallback(() => {
     fileQuery.refetch();
     transcriptionQuery.refetch();

@@ -45,10 +45,9 @@ describe("FileUpload Component", () => {
   });
 
   it("shows loading state when uploading", () => {
-    render(<FileUpload {...defaultProps} isUploading={true} uploadProgress={45} />);
+    render(<FileUpload {...defaultProps} isUploading={true} />);
 
     expect(screen.getByText(/Uploading/i)).toBeInTheDocument();
-    expect(screen.getByText("45%")).toBeInTheDocument();
   });
 
   it("applies theme classes based on state", () => {

@@ -219,7 +219,6 @@ describe("useTranscription Hook", () => {
           await result.current.mutateAsync({
             fileId: 1,
             language: "en",
-            maxRetries: 1, // Prevent retry loops
           });
         } catch (_error) {
           // Error is expected
@@ -269,7 +268,6 @@ describe("useTranscription Hook", () => {
         .mutateAsync({
           fileId: 1,
           language: "en",
-          maxRetries: 2,
         })
         .catch(() => {});
 

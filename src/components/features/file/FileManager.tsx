@@ -19,7 +19,8 @@ interface FileManagerProps {
 export default function FileManager({ className }: FileManagerProps) {
   // 基础state
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedCount, setUploadedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Hooks
   const { files, addFiles, deleteFile } = useFiles();
@@ -42,7 +43,8 @@ export default function FileManager({ className }: FileManagerProps) {
     async (selectedFiles: File[]) => {
       try {
         setIsUploading(true);
-        setUploadProgress(0);
+        setUploadedCount(0);
+        setTotalCount(0);
 
         // CheckFile数量限制
         const currentFileCount = files?.length || 0;
@@ -63,34 +65,27 @@ export default function FileManager({ className }: FileManagerProps) {
           toast.warning(`只能添加 ${remainingSlots} 个文件，已达到最大限制`);
         }
 
-        // 模拟upload进度
-        const progressInterval = setInterval(() => {
-          setUploadProgress((prev) => {
-            if (prev >= 90) {
-              clearInterval(progressInterval);
-              return 90;
-            }
-            return prev + 10;
-          });
-        }, 200);
+        setTotalCount(filesToAdd.length);
 
-        await addFiles(filesToAdd);
-
-        clearInterval(progressInterval);
-        setUploadProgress(100);
+        await addFiles(filesToAdd, {
+          onProgress: (uploaded, total) => {
+            setUploadedCount(uploaded);
+            setTotalCount(total);
+          },
+        });
 
         const { toast } = await import("sonner");
         toast.success(`成功上传 ${filesToAdd.length} 个文件`);
 
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadProgress(0);
-        }, 1000);
+        setIsUploading(false);
+        setUploadedCount(0);
+        setTotalCount(0);
       } catch (error) {
         const { toast } = await import("sonner");
         toast.error(`文件上传失败: ${error instanceof Error ? error.message : "未知错误"}`);
         setIsUploading(false);
-        setUploadProgress(0);
+        setUploadedCount(0);
+        setTotalCount(0);
       }
     },
     [addFiles, files?.length],
@@ -112,7 +107,8 @@ export default function FileManager({ className }: FileManagerProps) {
         <FileUpload
           onFilesSelected={handleFilesSelected}
           isUploading={isUploading}
-          uploadProgress={uploadProgress}
+          uploadedCount={uploadedCount}
+          totalCount={totalCount}
           currentFileCount={files?.length || 0}
           maxFiles={5}
         />

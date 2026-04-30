@@ -5,32 +5,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { TranscriptionLanguageCode } from "@/components/layout/contexts/TranscriptionLanguageContext";
 import { useTranscriptionLanguage } from "@/components/layout/contexts/TranscriptionLanguageContext";
 import { useTranscription } from "@/hooks/api/useTranscription";
+import { filesKeys } from "@/hooks/db/useFiles";
 import { DBUtils, db } from "@/lib/db/db";
+import { mapTranscriptStatusToFileStatus } from "@/lib/utils/file-status-manager";
 import { handleTranscriptionError } from "@/lib/utils/transcription-error-handler";
 import { getTranscriptionQueue } from "@/lib/utils/transcription-queue";
 import { FileStatus } from "@/types/db/database";
 
-// Query键定义
 export const fileStatusKeys = {
   all: ["fileStatus"] as const,
   forFile: (fileId: number) => [...fileStatusKeys.all, "file", fileId] as const,
 };
-
-/** * TranscriptRow.status -> FileStatus 映射*/
-function mapTranscriptStatusToFileStatus(
-  status: "pending" | "processing" | "completed" | "failed" | undefined,
-): FileStatus {
-  switch (status) {
-    case "processing":
-      return FileStatus.TRANSCRIBING;
-    case "completed":
-      return FileStatus.COMPLETED;
-    case "failed":
-      return FileStatus.ERROR;
-    default:
-      return FileStatus.UPLOADED;
-  }
-}
 
 /** * GetFilestate * 完全基于 TranscriptRow.status 判断state*/
 export function useFileStatus(fileId: number) {
@@ -100,6 +85,7 @@ export function useFileStatusManager(fileId: number) {
         queryClient.invalidateQueries({
           queryKey: fileStatusKeys.forFile(fileId),
         });
+        queryClient.invalidateQueries({ queryKey: filesKeys.all });
       } catch {
         // 静默ProcessstateUpdateFailed，不影响用户体验
       }

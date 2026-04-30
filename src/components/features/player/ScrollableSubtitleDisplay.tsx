@@ -12,18 +12,6 @@ interface ScrollableSubtitleDisplayProps {
   className?: string;
 }
 
-// Debug: Check segments 数据
-function debugSegments(segments: Segment[]) {
-  if (segments.length > 0) {
-    console.log("🔍 Segments data check:", {
-      totalSegments: segments.length,
-      firstSegment: segments[0],
-      hasTranslation: segments.some((s) => s.translation),
-      hasNormalizedText: segments.some((s) => s.normalizedText),
-    });
-  }
-}
-
 interface FuriganaEntry {
   text: string;
   reading: string;
@@ -35,6 +23,26 @@ interface Token {
   romaji?: string;
   start?: number;
   end?: number;
+}
+
+/**
+ * 沿 DOM 树向上查找最近的可滚动祖先元素。
+ * 用于判断字幕是否已经在滚动视口内可见。
+ */
+function findScrollParent(element: HTMLElement): HTMLElement | null {
+  let current: HTMLElement | null = element.parentElement;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const overflowY = style.overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      current.scrollHeight > current.clientHeight
+    ) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return document.scrollingElement as HTMLElement | null;
 }
 
 function normalizeFurigana(rawFurigana: unknown): FuriganaEntry[] {
@@ -102,9 +110,6 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
     const safeCurrentTime =
       Number.isFinite(currentTime) && !Number.isNaN(currentTime) ? currentTime : 0;
 
-    // Debug: 输出 segments 信息To控制台
-    debugSegments(segments);
-
     const findActiveSegmentIndex = useCallback(() => {
       return segments.findIndex(
         (segment) => safeCurrentTime >= segment.start && safeCurrentTime <= segment.end,
@@ -126,39 +131,34 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
         clearTimeout(scrollTimeoutRef.current);
       }
 
-      // delay滚动以确保DOMUpdate完成
+      // 实际滚动容器是 ScrollableSubtitleDisplay 的最近 overflow 祖先（通常是 <main>）。
+      // 之前的实现错把 .player-subtitle-container 当滚动容器，但它没设 overflow。
+      // 改用 scrollIntoView，由浏览器自动查找滚动祖先；同时手动检查可见性避免抖动。
       scrollTimeoutRef.current = setTimeout(
         () => {
-          if (!containerRef.current || !activeSegmentRef.current) {
+          const activeElement = activeSegmentRef.current;
+          if (!activeElement) return;
+
+          const scrollParent = findScrollParent(activeElement);
+          if (!scrollParent) return;
+
+          const elementRect = activeElement.getBoundingClientRect();
+          const parentRect = scrollParent.getBoundingClientRect();
+
+          const fullyVisible =
+            elementRect.top >= parentRect.top && elementRect.bottom <= parentRect.bottom;
+
+          if (fullyVisible) {
             return;
           }
 
-          const container = containerRef.current;
-          const activeElement = activeSegmentRef.current;
-
-          const containerRect = container.getBoundingClientRect();
-          const activeRect = activeElement.getBoundingClientRect();
-
-          const relativeTop = activeRect.top - containerRect.top;
-          const containerHeight = containerRect.height;
-          const elementHeight = activeRect.height;
-
-          const targetScrollTop = relativeTop - containerHeight / 2 + elementHeight / 2;
-
-          const currentScrollTop = container.scrollTop;
-          const isVisible =
-            targetScrollTop >= currentScrollTop &&
-            targetScrollTop + elementHeight <= currentScrollTop + containerHeight;
-
-          if (!isVisible) {
-            container.scrollTo({
-              top: Math.max(0, targetScrollTop),
-              behavior: isPlaying ? "smooth" : "auto",
-            });
-          }
+          activeElement.scrollIntoView({
+            block: "center",
+            behavior: isPlaying ? "smooth" : "auto",
+          });
         },
         isPlaying ? 100 : 0,
-      ); // 播放时稍微delay以确保平滑
+      );
 
       return () => {
         if (scrollTimeoutRef.current) {

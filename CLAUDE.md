@@ -280,9 +280,7 @@ GROQ_API_KEY=your_groq_api_key          # Primary AI service
 
 Optional configuration:
 ```env
-TRANSCRIPTION_TIMEOUT_MS=180000          # Transcription timeout
-TRANSCRIPTION_RETRY_COUNT=2             # Retry attempts
-TRANSCRIPTION_MAX_CONCURRENCY=2          # Concurrent processing
+NEXT_PUBLIC_APP_URL=http://localhost:3000 # Used for metadata, robots, and sitemap
 ```
 
 ## Development Workflow

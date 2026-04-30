@@ -4,6 +4,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { apiSuccess } from "@/lib/utils/api-response";
 import { performanceLogger } from "@/lib/utils/logger";
 
+export const runtime = "nodejs";
+
 // Memory存储性能数据（生产环境应使用database或外部服务）
 const performanceStore = new Map<string, StoredPerformanceData[]>();
 const MAX_DAYS_TO_KEEP = 7; // keep最近 7 天数据
@@ -149,6 +151,21 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const adminToken = process.env.PERFORMANCE_ADMIN_TOKEN;
+    const authHeader = request.headers.get("authorization");
+
+    if (process.env.NODE_ENV === "production") {
+      if (!adminToken || authHeader !== `Bearer ${adminToken}`) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Not found",
+          },
+          { status: 404 },
+        );
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
     const sessionId = searchParams.get("session");

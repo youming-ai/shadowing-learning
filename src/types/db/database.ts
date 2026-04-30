@@ -53,6 +53,7 @@ export interface WordTimestamp {
 export interface Segment {
   id?: number;
   transcriptId: number;
+  segmentIndex?: number;
   start: number;
   end: number;
   text: string;

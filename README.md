@@ -20,7 +20,7 @@
 - **⏱️ 时间戳字幕**: 精确的时间戳和分段显示
 - **🔄 自动处理**: 智能文本增强和后处理
 - **🎮 交互式播放器**: 同步音频和字幕播放
-- **📊 进度跟踪**: 实时转录进度显示
+- **📊 状态跟踪**: 基于本地数据库和查询缓存同步转录状态
 
 ### 🚀 技术亮点
 - **⚡ 高性能**: 优化的网络请求和缓存策略
@@ -140,10 +140,8 @@ shadowing-learning/
 # AI 服务配置
 GROQ_API_KEY=your_groq_api_key
 
-# 可选配置
-TRANSCRIPTION_TIMEOUT_MS=180000
-TRANSCRIPTION_RETRY_COUNT=2
-TRANSCRIPTION_MAX_CONCURRENCY=2
+# 应用 URL，用于 metadata、robots 和 sitemap
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ### 主要配置文件
@@ -199,16 +197,16 @@ pnpm test
 # 生成覆盖率报告
 pnpm test:coverage
 
-# 性能测试
-./scripts/performance-test.sh
 ```
 
-## 📚 文档
+## 📚 工作流文档
 
-- [API 文档](./docs/api.md) - 完整的 API 参考
-- [组件文档](./docs/components.md) - 组件使用指南
-- [优化报告](./FINAL_OPTIMIZATION_REPORT.md) - 详细优化记录
-- [部署指南](./docs/deployment.md) - 部署相关说明
+完整的开发、数据、Git 和部署流程文档。
+
+- [开发工作流](./docs/DEVELOPMENT.md) - 开发环境、命令和最佳实践
+- [数据流程](./docs/DATA-FLOW.md) - 数据存储、处理和流转
+- [Git 工作流](./docs/GIT-WORKFLOW.md) - 分支策略、提交规范和 PR 流程
+- [架构文档](./docs/ARCHITECTURE.md) - 技术栈、组件结构和 API 概览
 
 ## 🤝 贡献
 
