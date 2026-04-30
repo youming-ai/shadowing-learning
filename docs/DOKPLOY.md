@@ -19,6 +19,11 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 
 ## Dokploy Setup
 
+The repository ships with both a `Dockerfile` and a `docker-compose.yml`,
+so either deployment mode in Dokploy works:
+
+### Option A — Dockerfile mode (recommended for single container)
+
 1. Create a new application in Dokploy.
 2. Select Git repository deployment.
 3. Use Dockerfile build mode.
@@ -26,6 +31,17 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 5. Add the required environment variables.
 6. Attach your domain and enable HTTPS.
 7. Deploy.
+
+### Option B — Docker Compose mode
+
+1. Create a new application in Dokploy and choose Compose deployment.
+2. Select Git repository deployment; Dokploy reads `docker-compose.yml`
+   from the repo root.
+3. Add the required environment variables in Dokploy. They are
+   injected into the compose build/runtime via the `${VAR}` interpolation
+   used in `docker-compose.yml`.
+4. Attach your domain to the `app` service on port `3000`.
+5. Deploy.
 
 ## Notes
 
