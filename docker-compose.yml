@@ -4,8 +4,10 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # 不向宿主机绑定端口：Dokploy/Traefik 通过 docker 网络访问 expose 的端口，
+    # 用 ports 会和已运行实例（或同机器上其他服务）抢占 0.0.0.0:3000。
+    expose:
+      - "3000"
     environment:
       NODE_ENV: production
       GROQ_API_KEY: ${GROQ_API_KEY}
