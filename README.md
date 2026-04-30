@@ -1,17 +1,15 @@
-# umuo.app
+# Shadowing Learning
 
 <div align="center">
 
-![umuo.app Logo](https://via.placeholder.com/200x80/1a1a1a/ffffff?text=umuo.app)
-
 **AI驱动的语言学习应用 - 专注于影子练习的音频转录工具**
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/umuo/umuo-app)
-[![License](https://img.shields.io/badge/license-ISC-blue.svg)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js-15.5.3-black.svg)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-blue.svg)](https://www.typescriptlang.org/)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/youming-ai/shadowing-learning)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0.7-black.svg)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue.svg)](https://www.typescriptlang.org/)
 
-[功能演示](https://umuo.app) | [文档](./docs) | [API 参考](./docs/api.md) | [组件文档](./docs/components.md)
+[功能演示](https://shadowing-learning.vercel.app) | [文档](./docs/ARCHITECTURE.md) | [开发指南](./CLAUDE.md)
 
 </div>
 
@@ -22,7 +20,7 @@
 - **⏱️ 时间戳字幕**: 精确的时间戳和分段显示
 - **🔄 自动处理**: 智能文本增强和后处理
 - **🎮 交互式播放器**: 同步音频和字幕播放
-- **📊 进度跟踪**: 实时转录进度显示
+- **📊 状态跟踪**: 基于本地数据库和查询缓存同步转录状态
 
 ### 🚀 技术亮点
 - **⚡ 高性能**: 优化的网络请求和缓存策略
@@ -50,8 +48,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/umuo/umuo-app.git
-cd umuo-app
+git clone https://github.com/youming-ai/shadowing-learning.git
+cd shadowing-learning
 
 # 安装依赖
 pnpm install
@@ -111,7 +109,7 @@ pnpm clean            # 清理构建产物
 ## 🏗️ 项目结构
 
 ```
-umuo-app/
+shadowing-learning/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/               # API 路由
@@ -142,10 +140,8 @@ umuo-app/
 # AI 服务配置
 GROQ_API_KEY=your_groq_api_key
 
-# 可选配置
-TRANSCRIPTION_TIMEOUT_MS=180000
-TRANSCRIPTION_RETRY_COUNT=2
-TRANSCRIPTION_MAX_CONCURRENCY=2
+# 应用 URL，用于 metadata、robots 和 sitemap
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ### 主要配置文件
@@ -201,16 +197,16 @@ pnpm test
 # 生成覆盖率报告
 pnpm test:coverage
 
-# 性能测试
-./scripts/performance-test.sh
 ```
 
-## 📚 文档
+## 📚 工作流文档
 
-- [API 文档](./docs/api.md) - 完整的 API 参考
-- [组件文档](./docs/components.md) - 组件使用指南
-- [优化报告](./FINAL_OPTIMIZATION_REPORT.md) - 详细优化记录
-- [部署指南](./docs/deployment.md) - 部署相关说明
+完整的开发、数据、Git 和部署流程文档。
+
+- [开发工作流](./docs/DEVELOPMENT.md) - 开发环境、命令和最佳实践
+- [数据流程](./docs/DATA-FLOW.md) - 数据存储、处理和流转
+- [Git 工作流](./docs/GIT-WORKFLOW.md) - 分支策略、提交规范和 PR 流程
+- [架构文档](./docs/ARCHITECTURE.md) - 技术栈、组件结构和 API 概览
 
 ## 🤝 贡献
 
@@ -234,7 +230,7 @@ pnpm test:coverage
 
 ## 📄 许可证
 
-本项目采用 [ISC 许可证](LICENSE)。
+本项目采用 [MIT 许可证](LICENSE)。
 
 ## 🙏 致谢
 
@@ -249,9 +245,9 @@ pnpm test:coverage
 
 ## 📞 联系
 
-- 项目主页: [https://umuo.app](https://umuo.app)
-- 问题反馈: [GitHub Issues](https://github.com/umuo/umuo-app/issues)
-- 功能建议: [GitHub Discussions](https://github.com/umuo/umuo-app/discussions)
+- 项目主页: [https://shadowing-learning.vercel.app](https://shadowing-learning.vercel.app)
+- 问题反馈: [GitHub Issues](https://github.com/youming-ai/shadowing-learning/issues)
+- 功能建议: [GitHub Discussions](https://github.com/youming-ai/shadowing-learning/discussions)
 
 ---
 
@@ -259,6 +255,6 @@ pnpm test:coverage
 
 **🌟 如果这个项目对你有帮助，请给我们一个 Star！**
 
-Made with ❤️ by umuo.app Team
+Made with ❤️ by Shadowing Learning Team
 
 </div>

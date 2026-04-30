@@ -25,7 +25,58 @@ function classifyError(error: unknown, context: TranscriptionErrorContext): Reco
   const errorMessage = error instanceof Error ? error.message : String(error);
   const lowerMessage = errorMessage.toLowerCase();
 
-  // 网络相关Error - 可重试
+  const httpStatus = getErrorStatusCode(error);
+  const errorCode = getErrorCode(error);
+
+  if (httpStatus === 429 || errorCode === "RATE_LIMIT_EXCEEDED" || errorCode === "QUOTA_EXCEEDED") {
+    return {
+      canRecover: true,
+      retryDelay: calculateRetryDelay(context.attempt, 30000),
+      maxRetries: 3,
+      action: "retry",
+      userMessage: "API请求频率过高，等待后重试...",
+      technicalMessage: `Rate limit exceeded: ${errorMessage}`,
+    };
+  }
+
+  if (
+    httpStatus === 401 ||
+    httpStatus === 403 ||
+    errorCode === "INVALID_API_KEY" ||
+    errorCode === "API_KEY_MISSING"
+  ) {
+    return {
+      canRecover: false,
+      retryDelay: 0,
+      maxRetries: 0,
+      action: "abort",
+      userMessage: "API密钥配置错误，请检查设置",
+      technicalMessage: `Authentication error (${httpStatus ?? errorCode}): ${errorMessage}`,
+    };
+  }
+
+  if (httpStatus && httpStatus >= 500 && httpStatus !== 501) {
+    return {
+      canRecover: true,
+      retryDelay: calculateRetryDelay(context.attempt, 5000),
+      maxRetries: 3,
+      action: "retry",
+      userMessage: "服务器暂时繁忙，正在重试...",
+      technicalMessage: `Temporary server error (${httpStatus}): ${errorMessage}`,
+    };
+  }
+
+  if (httpStatus && httpStatus >= 400 && httpStatus < 500) {
+    return {
+      canRecover: false,
+      retryDelay: 0,
+      maxRetries: 0,
+      action: "abort",
+      userMessage: getFileErrorUserMessage(lowerMessage),
+      technicalMessage: `Client error (${httpStatus}): ${errorMessage}`,
+    };
+  }
+
   if (isNetworkError(lowerMessage)) {
     return {
       canRecover: true,
@@ -37,55 +88,6 @@ function classifyError(error: unknown, context: TranscriptionErrorContext): Reco
     };
   }
 
-  // API 限流Error - 可重试，但需要更长delay
-  if (isRateLimitError(lowerMessage)) {
-    return {
-      canRecover: true,
-      retryDelay: calculateRetryDelay(context.attempt, 30000), // 30seconds基础delay
-      maxRetries: 3,
-      action: "retry",
-      userMessage: "API请求频率过高，等待后重试...",
-      technicalMessage: `Rate limit exceeded: ${errorMessage}`,
-    };
-  }
-
-  // server临时Error - 可重试
-  if (isTemporaryServerError(lowerMessage)) {
-    return {
-      canRecover: true,
-      retryDelay: calculateRetryDelay(context.attempt, 5000),
-      maxRetries: 3,
-      action: "retry",
-      userMessage: "服务器暂时繁忙，正在重试...",
-      technicalMessage: `Temporary server error: ${errorMessage}`,
-    };
-  }
-
-  // File相关Error - 不可重试，需要用户干预
-  if (isFileError(lowerMessage)) {
-    return {
-      canRecover: false,
-      retryDelay: 0,
-      maxRetries: 0,
-      action: "abort",
-      userMessage: getFileErrorUserMessage(lowerMessage),
-      technicalMessage: `File error: ${errorMessage}`,
-    };
-  }
-
-  // 认证Error - 不可重试，需要配置修复
-  if (isAuthenticationError(lowerMessage)) {
-    return {
-      canRecover: false,
-      retryDelay: 0,
-      maxRetries: 0,
-      action: "abort",
-      userMessage: "API密钥配置错误，请检查设置",
-      technicalMessage: `Authentication error: ${errorMessage}`,
-    };
-  }
-
-  // timeoutError - 可重试，但增加timeout时间
   if (isTimeoutError(lowerMessage)) {
     return {
       canRecover: true,
@@ -97,7 +99,17 @@ function classifyError(error: unknown, context: TranscriptionErrorContext): Reco
     };
   }
 
-  // 未知Error - 有限重试
+  if (isAuthenticationError(lowerMessage)) {
+    return {
+      canRecover: false,
+      retryDelay: 0,
+      maxRetries: 0,
+      action: "abort",
+      userMessage: "API密钥配置错误，请检查设置",
+      technicalMessage: `Authentication error: ${errorMessage}`,
+    };
+  }
+
   return {
     canRecover: true,
     retryDelay: calculateRetryDelay(context.attempt, 8000),
@@ -106,6 +118,22 @@ function classifyError(error: unknown, context: TranscriptionErrorContext): Reco
     userMessage: "遇到未知错误，正在尝试恢复...",
     technicalMessage: `Unknown error: ${errorMessage}`,
   };
+}
+
+function getErrorStatusCode(error: unknown): number | undefined {
+  if (typeof error === "object" && error !== null && "statusCode" in error) {
+    const status = (error as { statusCode?: unknown }).statusCode;
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
 }
 
 function isNetworkError(message: string): boolean {
@@ -119,33 +147,12 @@ function isNetworkError(message: string): boolean {
   );
 }
 
-function isRateLimitError(message: string): boolean {
+function isTimeoutError(message: string): boolean {
   return (
-    message.includes("rate limit") ||
-    message.includes("too many requests") ||
-    message.includes("quota exceeded") ||
-    message.includes("429")
-  );
-}
-
-function isTemporaryServerError(message: string): boolean {
-  return (
-    message.includes("502") ||
-    message.includes("503") ||
-    message.includes("504") ||
-    message.includes("bad gateway") ||
-    message.includes("service unavailable") ||
-    message.includes("gateway timeout")
-  );
-}
-
-function isFileError(message: string): boolean {
-  return (
-    message.includes("file too large") ||
-    message.includes("invalid format") ||
-    message.includes("unsupported") ||
-    message.includes("corrupted") ||
-    message.includes("400")
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("abort") ||
+    message.includes("408")
   );
 }
 
@@ -156,15 +163,6 @@ function isAuthenticationError(message: string): boolean {
     message.includes("authentication") ||
     message.includes("401") ||
     message.includes("403")
-  );
-}
-
-function isTimeoutError(message: string): boolean {
-  return (
-    message.includes("timeout") ||
-    message.includes("timed out") ||
-    message.includes("abort") ||
-    message.includes("408")
   );
 }
 
@@ -300,6 +298,10 @@ export async function smartRetry<T>(
       retryManager.resetRetry(context.fileId);
       return result;
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
+
       // 分classError
       const strategy = classifyError(error, context);
 

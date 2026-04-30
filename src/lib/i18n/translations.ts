@@ -1,4 +1,4 @@
-// Translation system for Umuo App
+// Translation system for Shadowing Learning App
 export interface TranslationKey {
   // Navigation
   "nav.home": string;

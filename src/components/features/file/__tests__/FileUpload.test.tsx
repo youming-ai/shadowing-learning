@@ -3,12 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import FileUpload from "../FileUpload";
 
 // Mock dependencies
-vi.mock("@/hooks/db/useFiles", () => ({
-  useFileUpload: () => ({
-    uploadFiles: vi.fn(),
-    isUploading: false,
-    error: null,
-    clearError: vi.fn(),
+vi.mock("@/components/layout/contexts/I18nContext", () => ({
+  useI18n: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        "file.upload.dragDrop": "Drag and drop audio files",
+        "file.upload.orClick": "or click to select",
+        "file.upload.uploading": "Uploading...",
+        "file.upload.selectFiles": "Select Files",
+        "file.upload.maxFilesReached": "Max files reached",
+      };
+      return translations[key] || key;
+    },
   }),
 }));
 
@@ -23,7 +29,7 @@ vi.mock("@/lib/utils/logger", () => ({
 
 describe("FileUpload Component", () => {
   const defaultProps = {
-    onUploadComplete: vi.fn(),
+    onFilesSelected: vi.fn(),
     className: "",
   };
 
@@ -34,66 +40,25 @@ describe("FileUpload Component", () => {
   it("renders upload area correctly", () => {
     render(<FileUpload {...defaultProps} />);
 
-    expect(screen.getByText(/drag and drop audio files/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drag and drop audio files/i)).toBeInTheDocument();
     expect(screen.getByText(/or click to select/i)).toBeInTheDocument();
-    expect(screen.getByText(/supported formats/i)).toBeInTheDocument();
-  });
-
-  it("displays supported file formats", () => {
-    render(<FileUpload {...defaultProps} />);
-
-    expect(screen.getByText(/MP3, WAV, M4A, FLAC/i)).toBeInTheDocument();
   });
 
   it("shows loading state when uploading", () => {
-    vi.mocked(require("@/hooks/db/useFiles")).useFileUpload.mockReturnValue({
-      uploadFiles: vi.fn(),
-      isUploading: true,
-      error: null,
-      clearError: vi.fn(),
-    });
+    render(<FileUpload {...defaultProps} isUploading={true} />);
 
-    render(<FileUpload {...defaultProps} />);
-
-    expect(screen.getByText(/uploading/i)).toBeInTheDocument();
+    expect(screen.getByText(/Uploading/i)).toBeInTheDocument();
   });
 
-  it("displays error message when upload fails", () => {
-    const errorMessage = "Upload failed";
-    vi.mocked(require("@/hooks/db/useFiles")).useFileUpload.mockReturnValue({
-      uploadFiles: vi.fn(),
-      isUploading: false,
-      error: errorMessage,
-      clearError: vi.fn(),
-    });
-
-    render(<FileUpload {...defaultProps} />);
-
-    expect(screen.getByText(errorMessage)).toBeInTheDocument();
+  it("applies theme classes based on state", () => {
+    const { container } = render(<FileUpload {...defaultProps} isUploading={true} />);
+    const uploadArea = container.querySelector(".upload-area");
+    expect(uploadArea).toHaveClass("disabled");
   });
 
-  it("calls clearError when error message is clicked", async () => {
-    const clearError = vi.fn();
-    vi.mocked(require("@/hooks/db/useFiles")).useFileUpload.mockReturnValue({
-      uploadFiles: vi.fn(),
-      isUploading: false,
-      error: "Upload failed",
-      clearError,
-    });
+  it("displays max files reached message when limit exceeded", () => {
+    render(<FileUpload {...defaultProps} currentFileCount={5} maxFiles={5} />);
 
-    render(<FileUpload {...defaultProps} />);
-
-    const errorMessage = screen.getByText("Upload failed");
-    errorMessage.click();
-
-    expect(clearError).toHaveBeenCalled();
-  });
-
-  it("applies custom className when provided", () => {
-    const customClass = "custom-upload-class";
-    render(<FileUpload {...defaultProps} className={customClass} />);
-
-    const container = screen.getByTestId("file-upload-container");
-    expect(container).toHaveClass(customClass);
+    expect(screen.getAllByText(/Max files reached/i).length).toBeGreaterThan(0);
   });
 });

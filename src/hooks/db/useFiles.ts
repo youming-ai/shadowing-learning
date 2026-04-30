@@ -1,102 +1,111 @@
-/** * SimplifiedFile管理hook * RemovedcomplexFileupload逻辑，keep基本functionality*/
-
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { DBUtils } from "@/lib/db/db";
 import type { FileRow } from "@/types/db/database";
+
+export const filesKeys = {
+  all: ["files"] as const,
+};
+
+export interface AddFilesOptions {
+  onProgress?: (uploaded: number, total: number) => void;
+}
 
 export interface UseFilesReturn {
   files: FileRow[];
   isLoading: boolean;
-  loadFiles: () => Promise<void>;
   refreshFiles: () => Promise<void>;
-  addFiles: (files: File[]) => Promise<void>;
+  addFiles: (files: File[], options?: AddFilesOptions) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   error: string | null;
 }
 
 export function useFiles(): UseFilesReturn {
-  const [files, setFiles] = useState<FileRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const loadFiles = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const allFiles = await DBUtils.getAllFiles();
-      setFiles(allFiles);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "加载文件失败";
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const {
+    data: files = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: filesKeys.all,
+    queryFn: async () => {
+      return await DBUtils.getAllFiles();
+    },
+    staleTime: 0,
+    gcTime: 1000 * 60 * 30,
+  });
+
+  const errorMessage = error instanceof Error ? error.message : null;
 
   const refreshFiles = useCallback(async () => {
-    await loadFiles();
-  }, [loadFiles]);
+    await refetch();
+  }, [refetch]);
 
-  const addFiles = useCallback(
-    async (newFiles: File[]) => {
-      try {
-        setError(null);
-
-        for (const file of newFiles) {
-          const now = new Date();
-          const fileRow: Omit<FileRow, "id"> = {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            blob: file,
-            isChunked: false,
-            uploadedAt: now, // 使用database schema in定义field名
-            updatedAt: now,
-          };
-
-          await DBUtils.addFile(fileRow);
-        }
-
-        await loadFiles();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "添加文件失败";
-        setError(errorMessage);
-        throw err;
+  const addFilesMutation = useMutation({
+    mutationFn: async ({
+      files: newFiles,
+      options,
+    }: {
+      files: File[];
+      options?: AddFilesOptions;
+    }) => {
+      const total = newFiles.length;
+      options?.onProgress?.(0, total);
+      let uploaded = 0;
+      for (const file of newFiles) {
+        const now = new Date();
+        await DBUtils.addFile({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          blob: file,
+          isChunked: false,
+          uploadedAt: now,
+          updatedAt: now,
+        });
+        uploaded += 1;
+        options?.onProgress?.(uploaded, total);
       }
     },
-    [loadFiles],
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: filesKeys.all });
+    },
+  });
+
+  const addFiles = useCallback(
+    async (newFiles: File[], options?: AddFilesOptions) => {
+      await addFilesMutation.mutateAsync({ files: newFiles, options });
+    },
+    [addFilesMutation],
   );
+
+  const deleteFileMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await DBUtils.deleteFile(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: filesKeys.all });
+    },
+  });
 
   const deleteFile = useCallback(
     async (fileId: string) => {
-      try {
-        setError(null);
-        const id = parseInt(fileId, 10);
-        if (!Number.isNaN(id)) {
-          await DBUtils.deleteFile(id);
-          await loadFiles(); // 重新加载File列table
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "删除文件失败";
-        setError(errorMessage);
-        throw err;
+      const id = parseInt(fileId, 10);
+      if (!Number.isNaN(id)) {
+        await deleteFileMutation.mutateAsync(id);
       }
     },
-    [loadFiles],
+    [deleteFileMutation],
   );
-
-  // 初始加载
-  useEffect(() => {
-    loadFiles();
-  }, [loadFiles]);
 
   return {
     files,
     isLoading,
-    loadFiles,
     refreshFiles,
     addFiles,
     deleteFile,
-    error,
+    error: errorMessage,
   };
 }

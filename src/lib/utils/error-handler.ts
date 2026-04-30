@@ -13,7 +13,7 @@ import { type RetryOptions, withRetry } from "./retry-utils";
 // Re-export LogLevel for backward compatibility
 export { LogLevel };
 
-// Error监控API扩展
+// 错误监控 API 扩展
 export interface ExtendedErrorMonitor {
   logError(error: AppError, context?: ErrorContext): void;
   logInfo(message: string, context?: ErrorContext): void;
@@ -21,7 +21,7 @@ export interface ExtendedErrorMonitor {
   flush?(): Promise<void>;
 }
 
-// 本地存储Error日志
+// 本地存储错误日志
 export interface ErrorLogEntry {
   id: string;
   timestamp: number;
@@ -32,20 +32,20 @@ export interface ErrorLogEntry {
   stack?: string;
 }
 
-// 全局Error监控实例
+// 全局错误监控实例
 let globalErrorMonitor: ErrorMonitor | null = null;
 
-// Set全局Error监控
+// 设置全局错误监控
 export function setErrorMonitor(monitor: ErrorMonitor): void {
   globalErrorMonitor = monitor;
 }
 
-// Get全局Error监控
+// 获取全局错误监控
 export function getErrorMonitor(): ErrorMonitor | null {
   return globalErrorMonitor;
 }
 
-// 创建Error
+// 创建错误
 export function createError(
   code: ErrorCode,
   message: string,
@@ -55,7 +55,7 @@ export function createError(
 ): AppError {
   const errorCode = ErrorCodes[code];
 
-  // 安全Get stack property
+  // 安全获取 stack 属性
   let stack: string | undefined;
   try {
     const testError = new Error();
@@ -77,7 +77,7 @@ export function createError(
   };
 }
 
-// recordErrorTo控制台和监控服务
+// 记录错误到控制台和监控服务
 export function logError(error: AppError, context?: string): void {
   const errorContext: ErrorContext = {
     timestamp: Date.now(),
@@ -93,16 +93,16 @@ export function logError(error: AppError, context?: string): void {
     ? `[${context}] ${error.code}: ${error.message}`
     : `${error.code}: ${error.message}`;
 
-  // 发送ToError监控服务
+  // 发送到错误监控服务
   if (globalErrorMonitor) {
     globalErrorMonitor.logError(error, errorContext);
   }
 
-  // 本地存储Error日志
+  // 本地存储错误日志
   logErrorLocally(error, errorContext);
 }
 
-// Checkis否a应用Error
+// 检查是否为应用错误
 export function isAppError(error: unknown): error is AppError {
   return (
     typeof error === "object" &&
@@ -113,7 +113,7 @@ export function isAppError(error: unknown): error is AppError {
   );
 }
 
-// ProcessError
+// 处理错误
 export function handleError(error: unknown, context?: string): AppError {
   if (isAppError(error)) {
     logError(error, context);
@@ -142,7 +142,7 @@ export function handleError(error: unknown, context?: string): AppError {
   return appError;
 }
 
-// 静默ProcessError（不record日志）
+// 静默处理错误（不记录日志）
 export function handleSilently(error: unknown, _context?: string): AppError {
   if (isAppError(error)) {
     return error;
@@ -160,7 +160,7 @@ export function handleSilently(error: unknown, _context?: string): AppError {
   );
 }
 
-// 显示用户友好Error消息
+// 显示用户友好错误消息
 export function showErrorToast(error: AppError | unknown): void {
   const appError = isAppError(error) ? error : handleError(error);
 
@@ -168,27 +168,27 @@ export function showErrorToast(error: AppError | unknown): void {
   toast.error(userMessage);
 }
 
-// 显示Success消息
+// 显示成功消息
 export function showSuccessToast(message: string): void {
   toast.success(message);
 }
 
-// ValidateError
+// 验证错误
 export function validationError(message: string, details?: Record<string, unknown>): AppError {
   return createError("apiValidationError", message, details, 400);
 }
 
-// 未找ToError
+// 未找到错误
 export function notFoundError(message: string, details?: Record<string, unknown>): AppError {
   return createError("fileNotFound", message, details, 404);
 }
 
-// 内部serverError
+// 内部服务器错误
 export function internalError(message: string, details?: Record<string, unknown>): AppError {
   return createError("internalServerError", message, details, 500);
 }
 
-// 网络Error
+// 网络错误
 export function networkError(
   message: string = "Network error occurred",
   details?: Record<string, unknown>,
@@ -201,22 +201,22 @@ export function databaseError(message: string, details?: Record<string, unknown>
   return createError("dbQueryFailed", message, details, 500);
 }
 
-// FileuploadError
+// 文件上传错误
 export function fileUploadError(message: string, details?: Record<string, unknown>): AppError {
   return createError("fileUploadFailed", message, details, 400);
 }
 
-// AudioProcessError
+// 音频处理错误
 export function audioProcessingError(message: string, details?: Record<string, unknown>): AppError {
   return createError("audioProcessingError", message, details, 500);
 }
 
-// TranscriptionError
+// 转录错误
 export function transcriptionError(message: string, details?: Record<string, unknown>): AppError {
   return createError("transcriptionFailed", message, details, 500);
 }
 
-// APIError
+// API 错误
 export function apiError(
   message: string,
   statusCode: number = 500,
@@ -225,7 +225,7 @@ export function apiError(
   return createError("apiValidationError", message, details, statusCode);
 }
 
-// 本地Error日志存储
+// 本地错误日志存储
 function logErrorLocally(error: AppError, context: ErrorContext): void {
   try {
     const logs = getLocalErrorLogs();
@@ -241,7 +241,7 @@ function logErrorLocally(error: AppError, context: ErrorContext): void {
 
     logs.push(entry);
 
-    // 只keep最近100条Error日志
+    // 只保留最近 100 条错误日志
     if (logs.length > 100) {
       logs.splice(0, logs.length - 100);
     }
@@ -250,7 +250,7 @@ function logErrorLocally(error: AppError, context: ErrorContext): void {
   } catch (_storageError) {}
 }
 
-// Get本地Error日志
+// 获取本地错误日志
 export function getLocalErrorLogs(): ErrorLogEntry[] {
   try {
     const logs = localStorage.getItem("app_error_logs");
@@ -260,12 +260,12 @@ export function getLocalErrorLogs(): ErrorLogEntry[] {
   }
 }
 
-// 清除本地Error日志
+// 清除本地错误日志
 export function clearLocalErrorLogs(): void {
   localStorage.removeItem("app_error_logs");
 }
 
-// 生成ErrorID
+// 生成错误 ID
 function generateErrorId(): string {
   return `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
@@ -280,7 +280,7 @@ function getErrorStack(error: unknown): string | undefined {
   return undefined;
 }
 
-// 带重试ErrorProcess
+// 带重试的错误处理
 export async function handleWithRetry<T>(
   fn: () => Promise<T>,
   retryOptions?: RetryOptions,

@@ -1,5 +1,0 @@
-# Next.js redirects
-/home  /  301
-
-# API rewrites for Next.js compatibility
-/api/health/route  /api/health  200

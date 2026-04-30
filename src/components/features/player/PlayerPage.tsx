@@ -20,7 +20,8 @@ import type { Segment } from "@/types/db/database";
 
 export default function PlayerPageComponent({ fileId }: { fileId: string }) {
   const router = useRouter();
-  const { file, segments, audioUrl, loading, error, retry } = usePlayerDataQuery(fileId);
+  const { file, segments, transcript, audioUrl, loading, error, retry } =
+    usePlayerDataQuery(fileId);
 
   const {
     audioPlayerState,
@@ -40,6 +41,9 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
   } = useAudioPlayer();
 
   const audioRef = useRef<HTMLAudioElement>(null);
+  // 跟踪 audio 元素最近一次通过 timeupdate 自报的时间。
+  // 用于区分 state.currentTime 是来自 audio（不要回写）还是外部 seek（需要回写）。
+  const lastReportedAudioTimeRef = useRef(0);
   const [volume, setVolume] = useState(1);
   const subtitleContainerId = useId();
 
@@ -92,11 +96,20 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
   useEffect(() => {
     if (!audioRef.current) return;
 
-    const currentTime = audioRef.current.currentTime;
-    const diff = Math.abs(currentTime - audioPlayerState.currentTime);
+    const stateTime = audioPlayerState.currentTime;
+    const lastReported = lastReportedAudioTimeRef.current;
 
-    if (diff > 0.1) {
-      audioRef.current.currentTime = audioPlayerState.currentTime;
+    // 如果 state 与 audio 最近自报值一致，说明这次 state 变化由 timeupdate 触发，
+    // 不要回写 audio.currentTime（否则会和 audio 内部计时形成反馈循环导致进度卡住）。
+    if (Math.abs(stateTime - lastReported) < 0.05) {
+      return;
+    }
+
+    // 否则是外部 seek（点击进度条 / 跳段 / 段落点击），同步到 audio 元素。
+    const audioTime = audioRef.current.currentTime;
+    if (Math.abs(audioTime - stateTime) > 0.1) {
+      audioRef.current.currentTime = stateTime;
+      lastReportedAudioTimeRef.current = stateTime;
     }
   }, [audioPlayerState.currentTime]);
 
@@ -106,6 +119,7 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
 
     const handleTimeUpdate = () => {
       const current = sanitizeNumber(audio.currentTime, 0);
+      lastReportedAudioTimeRef.current = current;
       updatePlayerState({ currentTime: current });
     };
 
@@ -239,6 +253,10 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
             isPlaying={audioPlayerState.isPlaying}
             onSegmentClick={handleSegmentClick}
           />
+        ) : transcript?.status === "processing" || transcript?.status === "pending" ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center text-sm text-[var(--secondary-text-color)] dark:text-[var(--text-color)]/70">
+            <p>正在转录中，请稍候...</p>
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-12 text-center text-sm text-[var(--secondary-text-color)] dark:text-[var(--text-color)]/70">
             <p>暂无字幕内容，请先在主页转录此文件</p>

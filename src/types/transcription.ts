@@ -124,6 +124,7 @@ export class TranscriptionError extends Error {
     message: string,
     public code: string,
     public details?: Record<string, unknown>,
+    public statusCode?: number,
   ) {
     super(message);
     this.name = "TranscriptionError";

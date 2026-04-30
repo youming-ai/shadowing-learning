@@ -11,7 +11,7 @@ export class AppDatabase extends Dexie {
   segments!: Table<Segment>;
 
   constructor() {
-    super("umuo-app-db");
+    super("shadowing-learning-db");
 
     // Define schema
     this.version(3).stores({

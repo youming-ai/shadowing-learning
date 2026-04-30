@@ -16,6 +16,8 @@ import {
 } from "@/lib/utils/rate-limiter";
 import type { GroqTranscriptionResponse, TranscriptionSegment } from "@/types/transcription";
 
+export const runtime = "nodejs";
+
 // Zod schemas for validation
 const transcribeQuerySchema = z.object({
   fileId: z.string().min(1, "fileId is required"),

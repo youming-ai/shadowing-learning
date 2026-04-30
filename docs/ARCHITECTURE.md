@@ -1,485 +1,241 @@
-# Umuo App Architecture Documentation
+# Architecture
 
-This document provides a comprehensive overview of the Umuo App architecture, including design decisions, patterns, and best practices.
+## Overview
 
-## 🏗️ Overview
+Shadowing Learning is an offline-first language learning app for shadowing practice. Users upload audio locally, transcribe it through Groq Whisper, enrich transcript segments through Groq chat completions, and practice with a synchronized audio/subtitle player.
 
-Umuo App is a language learning application focused on shadowing practice with AI-powered audio transcription. The architecture is designed for scalability, maintainability, and developer productivity.
+## Tech Stack
 
-## 📊 Architecture Diagram
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Framework | Next.js 16 App Router | Routing, layouts, API routes |
+| UI | React 19, shadcn/ui, Radix UI | Component system |
+| Language | TypeScript strict mode | Type safety |
+| Styling | Tailwind CSS, CSS variables | Design tokens and themes |
+| State | TanStack Query v5 | Query cache, mutations, invalidation |
+| Storage | Dexie v4 / IndexedDB | Local-first persistence |
+| AI | Groq SDK | Whisper transcription and text enhancement |
+| Testing | Vitest, React Testing Library | Unit and integration tests |
+
+## Directory Structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (React 19)                       │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐│
-│  │   Components    │  │     Hooks       │  │    Contexts     ││
-│  │   - Features    │  │   - API Hooks   │  │   - Theme       ││
-│  │   - Layout      │  │   - DB Hooks    │  │   - Language    ││
-│  │   - UI          │  │   - UI Hooks    │  │                 ││
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  State Management Layer                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐│
-│  │  TanStack Query │  │   React Hooks   │  │    IndexedDB    ││
-│  │  - Server State │  │  - Local State  │  │  - Client DB    ││
-│  │  - Caching      │  │  - Effects      │  │  - Dexie ORM    ││
-│  │  - Synchronization│ │                 │  │                 ││
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     API Layer (Next.js)                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐│
-│  │   /api/transcribe│  │ /api/postprocess │  │  /api/health    ││
-│  │  - Groq SDK     │  │  - Text Norm.    │  │  - Monitoring   ││
-│  │  - Whisper V3   │  │  - Translation   │  │                 ││
-│  │  - Rate Limiting│  │  - Annotations   │  │                 ││
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   External Services                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐│
-│  │    Groq API     │  │    Vercel       │  │   Browser APIs  ││
-│  │  - Whisper      │  │  - Analytics     │  │  - Audio API    ││
-│  │  - LLM Models   │  │  - Speed Insights│  │  - IndexedDB    ││
-│  │  - Text Processing│ │  - Deployment   │  │  - File System  ││
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘│
-└─────────────────────────────────────────────────────────────┘
+src/
+  app/
+    api/                  # transcribe, postprocess, progress, performance
+    player/[fileId]/      # dynamic player route
+    settings/             # settings route
+    account/              # account route
+  components/
+    features/
+      file/               # FileManager, FileUpload, FileCard, StatsCards
+      player/             # PlayerPage, controls, subtitles, fallback states
+      settings/           # settings sections and layout
+    layout/
+      contexts/           # I18n, Theme, TranscriptionLanguage
+      providers/          # QueryProvider
+    ui/                   # shared primitives and app UI
+    transcription/        # transcription loading UI
+  hooks/
+    api/                  # useTranscription, useApiMonitoring
+    db/                   # useFiles
+    player/               # usePlayerDataQuery
+    ui/                   # audio and keyboard hooks
+  lib/
+    ai/                   # groq-transcription-utils, server-progress, text-postprocessor
+    db/                   # Dexie database and subtitle sync
+    utils/                # api response, errors, retry, queue, rate limiting, monitoring
+    config/               # routes, URL helpers
+  types/
+    db/                   # FileRow, TranscriptRow, Segment
+    api/                  # API errors
+    ui/                   # theme types
+    transcription.ts      # transcription/Groq response types
 ```
 
-## 🏛️ Core Architectural Principles
+## Component Architecture
 
-### 1. Separation of Concerns
+### Player Components
 
-Each layer has distinct responsibilities:
-- **Presentation Layer**: UI components and user interactions
-- **Business Logic Layer**: Hooks and state management
-- **Data Access Layer**: Database operations and API calls
-- **Service Layer**: External integrations
+| Component | Purpose |
+|-----------|---------|
+| PlayerPage | Main player interface; consumes player data and audio hooks |
+| ScrollableSubtitleDisplay | Time-synced subtitle display with current segment highlighting |
+| PlayerFooter | Seek, playback, loop, speed, and volume controls |
+| PlayerPageLayout | Player page structure |
+| PlayerFallbackStates | Loading, missing-file, and error states |
+| PlayerErrorBoundary | Error boundary around player route |
 
-### 2. Data Flow
+### File Management Components
+
+| Component | Purpose |
+|-----------|---------|
+| FileManager | Upload area, file list, sorting by upload time, delete/play/transcribe actions |
+| FileUpload | Drag-and-drop/select file input with format and count validation |
+| FileCard | Per-file status and action buttons |
+| StatsCards | File statistics overview |
+
+### Layout/UI Components
+
+| Component | Purpose |
+|-----------|---------|
+| QueryProvider | TanStack Query client and devtools |
+| I18nContext | UI translation state |
+| ThemeContext | Theme persistence and switching |
+| TranscriptionLanguageContext | Learning/native language preferences |
+| Navigation | Main navigation |
+| ErrorBoundary | Generic React error boundary |
+| ThemeToggle / LanguageToggle | UI preferences |
+
+## State Management
+
+### Layers
+
+```mermaid
+graph TB
+    subgraph "React Component State"
+        A[Audio element state]
+        B[Upload loading state]
+        C[Theme/language state]
+    end
+
+    subgraph "TanStack Query"
+        D[useFiles]
+        E[useFileStatus]
+        F[useTranscription]
+        G[useTranscriptionStatus]
+        H[usePlayerDataQuery]
+    end
+
+    subgraph "IndexedDB / Dexie"
+        I[files]
+        J[transcripts]
+        K[segments]
+    end
+
+    B --> D
+    D --> I
+    E --> J
+    F --> J
+    F --> K
+    G --> J
+    G --> K
+    H --> I
+    H --> G
+    A --> H
+```
+
+### Query Keys
 
 ```typescript
-// Unidirectional data flow
-User Action → Component → Hook → API/DB → State Update → UI Re-render
-```
+filesKeys = {
+  all: ["files"],
+}
 
-### 3. Type Safety
+transcriptionKeys = {
+  all: ["transcription"],
+  forFile: (fileId) => ["transcription", "file", fileId],
+  progress: (fileId) => ["transcription", "file", fileId, "progress"],
+}
 
-- **TypeScript**: Strict mode enabled
-- **Zod Schemas**: Runtime validation for API inputs
-- **Typed Database**: Full TypeScript integration with IndexedDB
+playerKeys = {
+  all: ["player"],
+  file: (fileId) => ["player", "file", fileId],
+}
 
-## 🗄️ Database Architecture
-
-### Schema Design
-
-```typescript
-// Database version 3 with enhanced features
-interface DatabaseSchema {
-  files: {
-    id: number;
-    name: string;
-    size: number;
-    type: string;
-    blob: Blob;
-    uploadedAt: Date;
-    updatedAt: Date;
-  };
-
-  transcripts: {
-    id: number;
-    fileId: number;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
-    language: string;
-    rawText: string;
-    processingTime: number;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-
-  segments: {
-    id: number;
-    transcriptId: number;
-    start: number;
-    end: number;
-    text: string;
-    wordTimestamps: WordTimestamp[];
-    normalizedText: string;
-    translation: string;
-    annotations: Annotation[];
-    furigana: string;
-    createdAt: Date;
-    updatedAt: Date;
-  };
+fileStatusKeys = {
+  all: ["fileStatus"],
+  forFile: (fileId) => ["fileStatus", "file", fileId],
 }
 ```
 
-### Data Access Layer
+### Cache Timing
 
-Unified through `DBUtils` class:
+| Scope | staleTime | gcTime |
+|-------|-----------|--------|
+| QueryProvider default | 15 minutes | 30 minutes |
+| useFiles | 0 | 30 minutes |
+| useTranscriptionStatus | 1 minute | 10 minutes |
+| useFileStatus | 5 minutes | 15 minutes |
+| player file query | 10 minutes | 30 minutes |
 
-```typescript
-// Simplified, type-safe database operations
-export const DBUtils = {
-  // Generic CRUD
-  async add<T>(table: Table<T, number>, item: Omit<T, 'id'>): Promise<number>
-  async get<T>(table: Table<T, number>, id: number): Promise<T | undefined>
-  async update<T>(table: Table<T, number>, id: number, changes: Partial<T>): Promise<number>
-  async delete<T>(table: Table<T, number>, id: number): Promise<void>
+## Storage Schema
 
-  // Specialized operations
-  async addFile(file: Omit<FileRow, 'id'>): Promise<number>
-  async getSegmentsByTranscriptId(transcriptId: number): Promise<Segment[]>
-  async findSegmentsByTimeRange(transcriptId: number, start: number, end: number): Promise<Segment[]>
-}
+Database version: 3
+
+| Table | Key Fields |
+|-------|------------|
+| files | id, name, size, type, blob, isChunked, duration, uploadedAt, updatedAt |
+| transcripts | id, fileId, status, rawText, language, duration, error, processingTime, createdAt, updatedAt |
+| segments | id, transcriptId, start, end, text, normalizedText, translation, romaji, annotations, furigana, wordTimestamps, createdAt, updatedAt |
+
+`TranscriptRow.status` is the source of truth for file transcription state. `FileRow` does not store status.
+
+## API Surface
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| /api/transcribe | POST | Validate audio request, rate-limit, call Groq Whisper, return transcript segments |
+| /api/postprocess | POST | Normalize text, translate, add annotations/furigana through Groq chat completions |
+| /api/progress/[fileId] | GET | Read best-effort in-memory server progress |
+| /api/performance | GET | Performance and monitoring data |
+
+## Transcription Architecture
+
+```mermaid
+sequenceDiagram
+    participant UI
+    participant Status as useFileStatusManager
+    participant Mut as useTranscription
+    participant Retry as smartRetry
+    participant API as /api/transcribe
+    participant Groq as Groq SDK
+    participant DB as IndexedDB
+    participant Post as /api/postprocess
+    participant Query as Query Cache
+
+    UI->>Status: startTranscription()
+    Status->>DB: transcript status=processing
+    Status->>Mut: mutateAsync()
+    Mut->>Retry: callTranscribeAPI()
+    Retry->>API: POST audio FormData
+    API->>Groq: Whisper transcription
+    Groq-->>API: verbose_json
+    API-->>Mut: segments + metadata
+    Mut->>DB: save transcript and replace segments
+    Mut->>Post: async post-process segments
+    Post->>Groq: chat completion
+    Post-->>Mut: enhanced segments
+    Mut->>DB: update enhanced fields
+    Mut->>Query: invalidate transcription/player queries
 ```
 
-## 🔄 State Management Architecture
+## Player Data Flow
 
-### TanStack Query Integration
+`usePlayerDataQuery(fileId)` loads the audio file and transcript data, creates a Blob object URL, and automatically starts transcription when the file has no transcript.
 
-```typescript
-// Query keys structure
-export const transcriptionKeys = {
-  all: ['transcription'] as const,
-  forFile: (fileId: number) => [...transcriptionKeys.all, 'file', fileId] as const,
-  progress: (fileId: number) => [...transcriptionKeys.forFile(fileId), 'progress'] as const,
-};
+Object URLs are cached per Blob and revoked when the Blob changes or the player unmounts.
 
-// Hook example
-export function useTranscriptionStatus(fileId: number) {
-  return useQuery({
-    queryKey: transcriptionKeys.forFile(fileId),
-    queryFn: async () => {
-      const transcript = await DBUtils.findTranscriptByFileId(fileId);
-      if (transcript?.id) {
-        const segments = await DBUtils.getSegmentsByTranscriptIdOrdered(transcript.id);
-        return { transcript, segments };
-      }
-      return { transcript: null, segments: [] };
-    },
-    staleTime: 1000 * 60 * 15, // 15 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
-  });
-}
-```
+## Error Handling
 
-### Context Management
+- API routes return normalized success/error envelopes through `apiSuccess` and `apiError`.
+- `smartRetry` handles retryable transcription errors with exponential backoff and jitter.
+- Abort errors are not retried.
+- `handleTranscriptionError` maps technical failures to user-facing toast messages.
+- Player and app-level error boundaries prevent cascading render failures.
 
-```typescript
-// Theme context for UI theming
-const ThemeContext = createContext<ThemeContextType>({
-  theme: 'dark',
-  setTheme: () => {},
-});
+## Environment Variables
 
-// Language context for transcription settings
-const TranscriptionLanguageContext = createContext<{
-  learningLanguage: TranscriptionLanguage;
-  setLearningLanguage: (language: TranscriptionLanguage) => void;
-}>({});
-```
+Only two application-specific variables are currently used:
 
-## 🤖 AI Integration Architecture
+| Variable | Required | Used By |
+|----------|----------|---------|
+| GROQ_API_KEY | Yes | `/api/transcribe`, `/api/postprocess`, text post-processing utilities |
+| NEXT_PUBLIC_APP_URL | No | metadata, robots, sitemap; defaults to localhost |
 
-### Groq SDK Integration
+## Performance Notes
 
-```typescript
-// Direct SDK integration for performance
-const transcription = await groq.audio.transcriptions.create({
-  file: audioFile,
-  model: "whisper-large-v3-turbo",
-  temperature: 0,
-  response_format: "verbose_json",
-  language: normalizedLanguage,
-  timestamp_granularities: ["word", "segment"],
-});
-```
-
-### Post-Processing Pipeline
-
-```
-Raw Transcription → Normalization → Translation → Annotations → Storage
-```
-
-### Error Handling & Recovery
-
-```typescript
-// Comprehensive error handling with retry logic
-class NetworkResilienceManager {
-  async executeWithResilience<T>(
-    operation: () => Promise<T>,
-    config: Partial<RetryConfig> = {}
-  ): Promise<T>
-}
-```
-
-## 🧩 Component Architecture
-
-### Feature-Based Organization
-
-```
-src/components/features/
-├── file/           # File management features
-│   ├── FileUpload.tsx
-│   ├── FileManager.tsx
-│   └── FileCard.tsx
-├── player/         # Audio player features
-│   ├── PlayerPage.tsx
-│   ├── ScrollableSubtitleDisplay.tsx
-│   └── AudioControls.tsx
-└── settings/       # Settings features
-    └── LearningLanguageSection.tsx
-```
-
-### Component Patterns
-
-#### 1. Container/Presentational Pattern
-
-```typescript
-// Container component (handles logic)
-const PlayerContainer: React.FC = () => {
-  const { file, segments, loading } = usePlayerData(fileId);
-  return <PlayerDisplay file={file} segments={segments} loading={loading} />;
-};
-
-// Presentational component (handles UI)
-const PlayerDisplay: React.FC<PlayerProps> = ({ file, segments, loading }) => {
-  if (loading) return <LoadingSpinner />;
-  return <PlayerUI file={file} segments={segments} />;
-};
-```
-
-#### 2. Compound Component Pattern
-
-```typescript
-// Card component with compound parts
-<Card>
-  <Card.Header>
-    <Card.Title>Audio File</Card.Title>
-  </Card.Header>
-  <Card.Body>
-    <Card.Content>File content here</Card.Content>
-  </Card.Body>
-  <Card.Footer>
-    <Card.Actions>
-      <Button onClick={handlePlay}>Play</Button>
-    </Card.Actions>
-  </Card.Footer>
-</Card>
-```
-
-## 🔐 Security Architecture
-
-### API Security
-
-```typescript
-// Rate limiting with sliding window
-const rateLimitResult = checkRateLimit(`transcribe:${clientId}`, rateLimitConfig);
-
-// Input validation with Zod
-const validatedInput = transcribeSchema.safeParse(requestBody);
-
-// Error handling without information leakage
-const errorMessage = isProduction
-  ? "Service temporarily unavailable"
-  : error.message;
-```
-
-### Client-Side Security
-
-```typescript
-// Sanitize user inputs
-const sanitizeFileName = (name: string): string => {
-  return name.replace(/[^a-zA-Z0-9.-]/g, '_');
-};
-
-// Validate file types
-const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/m4a'];
-if (!allowedTypes.includes(file.type)) {
-  throw new Error('Invalid file type');
-}
-```
-
-## ⚡ Performance Optimizations
-
-### Memory Management
-
-```typescript
-// WeakMap for audio URL caching to prevent memory leaks
-const audioUrlCache = new WeakMap<Blob, string>();
-
-// Cleanup on component unmount
-useEffect(() => {
-  return () => {
-    audioUrl && URL.revokeObjectURL(audioUrl);
-  };
-}, [audioUrl]);
-```
-
-### Database Optimization
-
-```typescript
-// Batch processing for large datasets
-const BATCH_SIZE = 100;
-for (let i = 0; i < segments.length; i += BATCH_SIZE) {
-  const batch = segments.slice(i, i + BATCH_SIZE);
-  await DBUtils.bulkAdd(db.segments, batch);
-}
-```
-
-### Caching Strategy
-
-```typescript
-// Multi-level caching
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,  // 5 minutes
-      gcTime: 1000 * 60 * 10,    // 10 minutes
-      retry: 3,
-    },
-  },
-});
-```
-
-## 🚀 Deployment Architecture
-
-### Vercel Integration
-
-```
-GitHub → Vercel (Automatic Deployment)
-    ↓
-Build Process
-    ↓
-Production Deployment
-    ↓
-Edge CDN Distribution
-```
-
-### Environment Configuration
-
-```typescript
-// Environment-specific behavior
-const isProduction = process.env.NODE_ENV === 'production';
-const isDevelopment = process.env.NODE_ENV === 'development';
-
-// Feature flags
-const ENABLE_ANALYTICS = isProduction;
-const ENABLE_DEBUG_TOOLS = isDevelopment;
-```
-
-## 📈 Monitoring & Analytics
-
-### Performance Monitoring
-
-```typescript
-// Web Vitals tracking
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
-
-getCLS(console.log);
-getFID(console.log);
-getFCP(console.log);
-getLCP(console.log);
-getTTFB(console.log);
-```
-
-### Error Monitoring
-
-```typescript
-// Centralized error reporting
-const handleError = (error: Error, context: string) => {
-  console.error(`[${context}] ${error.message}`, error);
-
-  // Send to monitoring service in production
-  if (isProduction) {
-    analytics.track('error', {
-      message: error.message,
-      context,
-      stack: error.stack,
-    });
-  }
-};
-```
-
-## 🔄 Migration Strategy
-
-### Database Migrations
-
-```typescript
-// Versioned migrations with fallback handling
-this.version(3)
-  .stores({
-    files: "++id, name, size, type, uploadedAt, updatedAt",
-    transcripts: "++id, fileId, status, language, createdAt, updatedAt",
-    segments: "++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana"
-  })
-  .upgrade(async () => {
-    // Migration logic
-    await migrateToVersion3();
-  });
-```
-
-### API Versioning
-
-```typescript
-// Future-proof API design
-app.use('/api/v1', v1Router);
-app.use('/api/v2', v2Router);
-
-// Backward compatibility
-app.use('/api', (req, res, next) => {
-  req.url = `/v1${req.url}`;
-  next();
-});
-```
-
-## 📚 Best Practices
-
-### Code Organization
-
-1. **Single Responsibility**: Each function/component does one thing well
-2. **Dependency Injection**: Use hooks and context for dependencies
-3. **Error Boundaries**: Implement proper error boundaries
-4. **Loading States**: Always show loading states for async operations
-
-### Performance Guidelines
-
-1. **Lazy Loading**: Use React.lazy for route components
-2. **Memoization**: Use useMemo/useMemo for expensive computations
-3. **Bundle Analysis**: Regular bundle size analysis
-4. **Image Optimization**: Use Next.js Image component
-
-### Security Guidelines
-
-1. **Input Validation**: Validate all user inputs
-2. **Output Sanitization**: Sanitize all outputs
-3. **Rate Limiting**: Implement rate limiting on all APIs
-4. **HTTPS Only**: Enforce HTTPS in production
-
-## 🔮 Future Architecture Considerations
-
-### Scalability
-
-- **Microservices**: Consider microservices for specific features
-- **Caching Layer**: Redis for distributed caching
-- **CDN**: Global content delivery network
-- **Load Balancing**: Multiple server instances
-
-### Technology Evolution
-
-- **WebAssembly**: For audio processing
-- **Service Workers**: For offline functionality
-- **WebRTC**: For real-time features
-- **GraphQL**: For complex data queries
-
----
-
-This architecture documentation serves as a living document. As the application evolves, this document should be updated to reflect architectural changes and decisions.
+- IndexedDB writes use transactions and batch inserts for segments.
+- Query invalidation keeps UI synchronized after uploads, status changes, transcription completion, and post-processing completion.
+- Audio object URLs are explicitly revoked to avoid browser memory leaks.
+- Server progress is best-effort in-memory state and should not be treated as durable progress storage.

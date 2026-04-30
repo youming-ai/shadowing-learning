@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "../styles/globals.css";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { I18nProvider } from "@/components/layout/contexts/I18nContext";
 import { ThemeProvider } from "@/components/layout/contexts/ThemeContext";
 import { TranscriptionLanguageProvider } from "@/components/layout/contexts/TranscriptionLanguageContext";
@@ -16,7 +14,7 @@ export const metadata: Metadata = {
   title: "影子跟读",
   description: "Web-based language shadowing learning application",
   manifest: "/manifest.json",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://umuo.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   openGraph: {
     type: "website",
     locale: "zh_CN",
@@ -103,8 +101,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ThemeDebuggerToggle />
               <PwaRegister />
               <ToastContainer>{null}</ToastContainer>
-              <SpeedInsights />
-              <Analytics />
             </I18nProvider>
           </TranscriptionLanguageProvider>
         </ThemeProvider>

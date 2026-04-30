@@ -118,8 +118,8 @@ const TranscriptionLanguageContext = createContext<TranscriptionLanguageContextT
   undefined,
 );
 
-const STORAGE_KEY = "umuo-transcription-language";
-const LEARNING_LANGUAGE_KEY = "umuo-learning-language";
+const STORAGE_KEY = "shadowing-learning-transcription-language";
+const LEARNING_LANGUAGE_KEY = "shadowing-learning-language";
 const DEFAULT_LANGUAGE: TranscriptionLanguageCode = "zh-CN";
 
 export function useTranscriptionLanguage() {

@@ -27,7 +27,6 @@ export const API_ENDPOINTS = {
   TRANSCRIBE: "/api/transcribe",
   POSTPROCESS: "/api/postprocess",
   HEALTH: "/api/health",
-  PROGRESS: "/api/progress",
 } as const;
 
 export const CACHE_TIMES = {
@@ -36,13 +35,12 @@ export const CACHE_TIMES = {
   SHORT: 60 * 1000, // 1 分钟
 } as const;
 
-export const SUPPORTED_AUDIO_FORMATS = [
-  "audio/mp3",
-  "audio/wav",
-  "audio/m4a",
-  "audio/mpeg",
-  "audio/x-m4a",
-] as const;
+export {
+  isValidAudioFile,
+  MAX_FILES,
+  SUPPORTED_AUDIO_EXTENSIONS,
+  SUPPORTED_AUDIO_TYPES,
+} from "./utils/file-validation";
 
 export const TRANSCRIPTION_LANGUAGES = {
   JAPANESE: "ja",

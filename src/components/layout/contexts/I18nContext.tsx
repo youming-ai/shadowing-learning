@@ -52,12 +52,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = (language: string) => {
     setCurrentLanguage(language);
     // Save to localStorage for persistence
-    localStorage.setItem("umuo-ui-language", language);
+    localStorage.setItem("shadowing-learning-ui-language", language);
   };
 
   // Load saved language from localStorage on mount
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("umuo-ui-language");
+    const savedLanguage = localStorage.getItem("shadowing-learning-ui-language");
     if (savedLanguage && translations[savedLanguage]) {
       setCurrentLanguage(savedLanguage);
     }

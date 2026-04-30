@@ -5,6 +5,8 @@ import { apiError, apiFromError, apiSuccess } from "@/lib/utils/api-response";
 import { validationError } from "@/lib/utils/error-handler";
 import { apiLogger } from "@/lib/utils/logger";
 
+export const runtime = "nodejs";
+
 // Groq 模型配置
 const GROQ_CHAT_MODEL = "llama-3.3-70b-versatile";
 
@@ -42,6 +44,7 @@ interface PostProcessResult {
   furigana?: string;
   start: number;
   end: number;
+  segmentIndex: number;
 }
 
 const postProcessSchema = z.object({
@@ -50,6 +53,7 @@ const postProcessSchema = z.object({
       text: z.string(),
       start: z.number(),
       end: z.number(),
+      segmentIndex: z.number().optional(),
       wordTimestamps: z
         .array(
           z.object({
@@ -239,14 +243,14 @@ function parseGroqResponse(responseText: string): GroqPostProcessResponse {
 }
 
 async function postProcessSegmentWithGroq(
-  segment: { text: string; start: number; end: number },
+  segment: { text: string; start: number; end: number; segmentIndex: number },
   sourceLanguage: string,
   options: {
     targetLanguage?: string;
     enableAnnotations?: boolean;
     enableFurigana?: boolean;
   },
-) {
+): Promise<PostProcessResult> {
   const startTime = Date.now();
 
   try {
@@ -291,6 +295,7 @@ async function postProcessSegmentWithGroq(
       furigana: parsed.furigana,
       start: segment.start,
       end: segment.end,
+      segmentIndex: segment.segmentIndex,
     };
   } catch (error) {
     const processingTime = Date.now() - startTime;
@@ -303,14 +308,14 @@ async function postProcessSegmentWithGroq(
 
 // batchProcess短文本以减少API调用次数，使用 AI SDK
 async function postProcessShortTextsBatch(
-  shortTextSegments: Array<{ text: string; start: number; end: number }>,
+  shortTextSegments: Array<{ text: string; start: number; end: number; segmentIndex: number }>,
   _sourceLanguage: string,
   _options: {
     targetLanguage?: string;
     enableAnnotations?: boolean;
     enableFurigana?: boolean;
   },
-) {
+): Promise<PostProcessResult[]> {
   if (shortTextSegments.length === 0) return [];
 
   apiLogger.debug(`AI SDK批量处理 ${shortTextSegments.length} 个短文本segments`);
@@ -390,6 +395,7 @@ Return format (JSON):
           furigana: processedSegment?.furigana || "",
           start: originalSegment.start,
           end: originalSegment.end,
+          segmentIndex: originalSegment.segmentIndex,
         };
       });
     }
@@ -406,6 +412,7 @@ Return format (JSON):
       furigana: "",
       start: segment.start,
       end: segment.end,
+      segmentIndex: segment.segmentIndex,
     }));
   } catch (error) {
     const processingTime = Date.now() - startTime;
@@ -420,19 +427,20 @@ Return format (JSON):
       furigana: "",
       start: segment.start,
       end: segment.end,
+      segmentIndex: segment.segmentIndex,
     }));
   }
 }
 
 async function postProcessSegmentsWithGroq(
-  segments: Array<{ text: string; start: number; end: number }>,
+  segments: Array<{ text: string; start: number; end: number; segmentIndex: number }>,
   sourceLanguage: string,
   options: {
     targetLanguage?: string;
     enableAnnotations?: boolean;
     enableFurigana?: boolean;
   },
-) {
+): Promise<PostProcessResult[]> {
   const finalOptions = { ...defaultOptions, ...options };
 
   // 智能性能优化：动态调整并发参数
@@ -460,13 +468,13 @@ async function postProcessSegmentsWithGroq(
   apiLogger.debug(`开始后处理 ${segments.length} 个segments，使用 ${MAX_CONCURRENT} 并发`);
   const startTime = Date.now();
 
-  // 分离短文本和长文本
+  // 分离短文本和长文本（保留 segmentIndex 用于回填原序）
   const shortTextSegments = segments.filter((seg) => seg.text.length <= SHORT_TEXT_THRESHOLD);
   const longTextSegments = segments.filter((seg) => seg.text.length > SHORT_TEXT_THRESHOLD);
 
   apiLogger.debug(`短文本: ${shortTextSegments.length} 个，长文本: ${longTextSegments.length} 个`);
 
-  const allResults: PostProcessResult[] = [];
+  const collected: PostProcessResult[] = [];
 
   // batchProcess短文本
   if (shortTextSegments.length > 0) {
@@ -475,7 +483,7 @@ async function postProcessSegmentsWithGroq(
       sourceLanguage,
       finalOptions,
     );
-    allResults.push(...shortTextResults);
+    collected.push(...shortTextResults);
     apiLogger.debug(`短文本批量处理完成: ${shortTextResults.length} 个`);
   }
 
@@ -507,25 +515,29 @@ async function postProcessSegmentsWithGroq(
             furigana: "",
             start: segment.start,
             end: segment.end,
-          };
+            segmentIndex: segment.segmentIndex,
+          } satisfies PostProcessResult;
         }
       });
 
       const batchResults = await Promise.allSettled(batchPromises);
 
-      for (const result of batchResults) {
+      for (let i = 0; i < batchResults.length; i++) {
+        const result = batchResults[i];
         if (result.status === "fulfilled") {
-          allResults.push(result.value);
+          collected.push(result.value);
         } else {
+          const original = batch[i];
           apiLogger.warn("Long text batch result rejected:", result.reason);
-          allResults.push({
-            originalText: "",
-            normalizedText: "",
+          collected.push({
+            originalText: original.text,
+            normalizedText: original.text,
             translation: "",
             annotations: undefined,
             furigana: "",
-            start: 0,
-            end: 0,
+            start: original.start,
+            end: original.end,
+            segmentIndex: original.segmentIndex,
           });
         }
       }
@@ -539,12 +551,33 @@ async function postProcessSegmentsWithGroq(
     }
   }
 
+  // 按 segmentIndex 还原原始顺序
+  const ordered: PostProcessResult[] = new Array(segments.length);
+  const byIndex = new Map<number, PostProcessResult>();
+  for (const result of collected) {
+    byIndex.set(result.segmentIndex, result);
+  }
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const found = byIndex.get(segment.segmentIndex);
+    ordered[i] = found ?? {
+      originalText: segment.text,
+      normalizedText: segment.text,
+      translation: "",
+      annotations: undefined,
+      furigana: "",
+      start: segment.start,
+      end: segment.end,
+      segmentIndex: segment.segmentIndex,
+    };
+  }
+
   const endTime = Date.now();
   apiLogger.debug(
-    `后处理完成，总耗时: ${endTime - startTime}ms，处理了 ${allResults.length} 个segments`,
+    `后处理完成，总耗时: ${endTime - startTime}ms，处理了 ${ordered.length} 个segments`,
   );
 
-  return allResults;
+  return ordered;
 }
 
 export async function POST(request: NextRequest) {
@@ -594,15 +627,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const processedSegments = await postProcessSegmentsWithGroq(segments, language, {
+    // 为每个 segment 注入稳定的 segmentIndex（client 提供的优先，否则用数组下标）
+    const indexedSegments = segments.map((segment, index) => ({
+      text: segment.text,
+      start: segment.start,
+      end: segment.end,
+      segmentIndex: typeof segment.segmentIndex === "number" ? segment.segmentIndex : index,
+    }));
+
+    const processedSegments = await postProcessSegmentsWithGroq(indexedSegments, language, {
       targetLanguage,
       enableAnnotations,
       enableFurigana,
     });
 
-    // Return processed segments with original metadata preserved
+    // 此时 processedSegments 已按 indexedSegments 顺序排好，与 segments 一一对应
     const finalSegments = processedSegments.map((processedSegment, index) => ({
-      ...segments[index], // Preserve original segment data
+      ...segments[index], // Preserve original segment data (text/start/end/wordTimestamps...)
+      segmentIndex: processedSegment.segmentIndex,
       normalizedText: processedSegment.normalizedText,
       translation: processedSegment.translation,
       annotations: processedSegment.annotations,

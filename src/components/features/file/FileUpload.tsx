@@ -3,23 +3,26 @@
 import { useCallback, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/components/layout/contexts/I18nContext";
+import { checkFileSignature, isValidAudioFile, MAX_FILES } from "@/lib/utils/file-validation";
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
   isUploading?: boolean;
-  uploadProgress?: number;
+  uploadedCount?: number;
+  totalCount?: number;
   className?: string;
-  currentFileCount?: number; // 当前已uploadFile数量
-  maxFiles?: number; // 最大File数量限制
+  currentFileCount?: number;
+  maxFiles?: number;
 }
 
 export default function FileUpload({
   onFilesSelected,
   isUploading = false,
-  uploadProgress = 0,
+  uploadedCount = 0,
+  totalCount = 0,
   className = "",
   currentFileCount = 0,
-  maxFiles = 5,
+  maxFiles = MAX_FILES,
 }: FileUploadProps) {
   const { t } = useI18n();
   const [isDragActive, setIsDragActive] = useState(false);
@@ -27,34 +30,50 @@ export default function FileUpload({
   const uploadDescriptionId = useId();
 
   const handleFiles = useCallback(
-    (files: FileList | null) => {
+    async (files: FileList | File[] | null) => {
       if (!files) return;
 
       const fileArray = Array.from(files);
       setIsDragActive(false);
 
-      // Fileclass型过滤
-      const audioFiles = fileArray.filter((file) => {
-        const validTypes = [
-          "audio/mp3",
-          "audio/mpeg",
-          "audio/wav",
-          "audio/x-wav",
-          "audio/m4a",
-          "audio/mp4",
-          "audio/ogg",
-          "audio/flac",
-        ];
-        return validTypes.includes(file.type) || file.name.match(/\.(mp3|wav|m4a|ogg|flac)$/i);
-      });
+      // 第一道：扩展名 / MIME 过滤
+      const candidates = fileArray.filter(isValidAudioFile);
 
-      if (audioFiles.length === 0) {
+      if (candidates.length === 0) {
         toast.error("没有有效的音频文件");
         return;
       }
 
-      if (audioFiles.length < fileArray.length) {
-        toast.warning(`${fileArray.length - audioFiles.length} 个文件不是支持的音频格式，已忽略`);
+      // 第二道：magic-number 校验（防止伪装文件）
+      const signatureChecks = await Promise.all(
+        candidates.map(async (file) => ({
+          file,
+          check: await checkFileSignature(file),
+        })),
+      );
+
+      const audioFiles = signatureChecks
+        .filter(({ check }) => check.isValid)
+        .map(({ file }) => file);
+
+      const malicious = signatureChecks.filter(
+        ({ check }) => check.reason === "MALICIOUS_SIGNATURE",
+      );
+      if (malicious.length > 0) {
+        toast.error(`${malicious.length} 个文件被识别为可疑类型，已拒绝上传`);
+      }
+
+      const skipped = candidates.length - audioFiles.length - malicious.length;
+      if (skipped > 0) {
+        toast.warning(`${skipped} 个文件无法识别为有效音频，已忽略`);
+      }
+
+      const totalIgnored = fileArray.length - audioFiles.length;
+      if (audioFiles.length === 0) {
+        if (totalIgnored > 0 && malicious.length === 0 && skipped === 0) {
+          toast.error("没有有效的音频文件");
+        }
+        return;
       }
 
       // CheckFile数量限制
@@ -115,9 +134,11 @@ export default function FileUpload({
 
   const handleFileInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      handleFiles(event.target.files);
+      // 在清空 input 之前先快照成数组，避免 FileList 被释放后 magic-number 校验拿不到内容
+      const snapshot = event.target.files ? Array.from(event.target.files) : [];
       // 清空input以允许重复选择相同File
       event.target.value = "";
+      handleFiles(snapshot);
     },
     [handleFiles],
   );
@@ -173,7 +194,11 @@ export default function FileUpload({
               <p className="text-xl font-bold text-[var(--text-primary)]">
                 {t("file.upload.uploading")}
               </p>
-              <p className="text-md text-[var(--text-secondary)]">{uploadProgress}%</p>
+              {totalCount > 0 && (
+                <p className="text-md text-[var(--text-secondary)]">
+                  {uploadedCount} / {totalCount}
+                </p>
+              )}
             </div>
           </div>
         ) : (

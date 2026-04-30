@@ -28,3 +28,9 @@ coverage/
 
 # Temp
 .cache/
+
+# Other package managers (project uses pnpm)
+bun.lock
+bun.lockb
+package-lock.json
+yarn.lock

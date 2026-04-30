@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-umuo.app is a language learning application focused on shadowing practice with AI-powered audio transcription. The application processes audio files, generates transcripts with timestamps, and provides an interactive player for language learning.
+Shadowing Learning is a language learning application focused on shadowing practice with AI-powered audio transcription. The application processes audio files, generates transcripts with timestamps, and provides an interactive player for language learning.
 
 ## Core Architecture
 
@@ -280,9 +280,7 @@ GROQ_API_KEY=your_groq_api_key          # Primary AI service
 
 Optional configuration:
 ```env
-TRANSCRIPTION_TIMEOUT_MS=180000          # Transcription timeout
-TRANSCRIPTION_RETRY_COUNT=2             # Retry attempts
-TRANSCRIPTION_MAX_CONCURRENCY=2          # Concurrent processing
+NEXT_PUBLIC_APP_URL=http://localhost:3000 # Used for metadata, robots, and sitemap
 ```
 
 ## Development Workflow
