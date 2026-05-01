@@ -292,7 +292,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                           >
                             {token.reading ? (
                               <ruby className="player-word-surface">
-                                <rb>{token.word}</rb>
+                                <span>{token.word}</span>
                                 <rt>{token.reading}</rt>
                               </ruby>
                             ) : (
