@@ -1,17 +1,12 @@
-/** * SimplifiedTranscriptionclass型定义 * Removedcomplex抽象层，keepcorefunctionality*/
+import type { ProcessingStatus, WordTimestamp } from "@/types/db/database";
 
-// Transcription片段和单词class型
 export interface TranscriptionSegment {
   id: number;
   start: number;
   end: number;
   text: string;
   confidence?: number;
-  wordTimestamps?: Array<{
-    word: string;
-    start: number;
-    end: number;
-  }>;
+  wordTimestamps?: WordTimestamp[];
 }
 
 export interface ProcessedSegment extends TranscriptionSegment {
@@ -47,7 +42,7 @@ export interface TranscriptionOptions {
   language?: string;
   prompt?: string;
   onProgress?: (progress: {
-    status: "pending" | "processing" | "completed" | "failed";
+    status: ProcessingStatus;
     progress: number;
     message?: string;
     error?: string;
@@ -59,7 +54,20 @@ export interface TranscriptionProgress {
   fileId: number;
   status: TranscriptionStatus;
   progress: number;
-  message: string;
+  message?: string;
+  error?: string;
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  estimatedDuration?: number;
+  actualDuration?: number;
+  result?: {
+    text: string;
+    duration?: number;
+    segmentsCount: number;
+    language?: string;
+  };
+  options: TranscriptionOptions;
 }
 
 // Groq SDK response（verbose_json）in包含结构
@@ -96,25 +104,7 @@ export interface TranscriptionTask {
   duration?: number;
   status: TranscriptionStatus;
   priority: "low" | "normal" | "high" | "urgent";
-  progress: {
-    fileId: number;
-    status: TranscriptionStatus;
-    progress: number;
-    message?: string;
-    error?: string;
-    createdAt: Date;
-    startedAt?: Date;
-    completedAt?: Date;
-    estimatedDuration?: number;
-    actualDuration?: number;
-    result?: {
-      text: string;
-      duration?: number;
-      segmentsCount: number;
-      language?: string;
-    };
-    options: TranscriptionOptions;
-  };
+  progress: TranscriptionProgress;
   options?: TranscriptionOptions;
 }
 

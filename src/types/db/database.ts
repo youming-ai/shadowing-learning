@@ -1,46 +1,33 @@
-/** * 统一文件状态枚举 */
-export enum FileStatus {
-  UPLOADED = "uploaded", // 已上传，待转录
-  TRANSCRIBING = "transcribing", // 转录中
-  COMPLETED = "completed", // 转录完成
-  ERROR = "error", // 转录失败
-}
-
 export interface FileRow {
   id?: number;
   name: string;
   size: number;
   type: string;
-  blob?: Blob; // 对于大文件，此字段可能为空
-  isChunked?: boolean; // 是否使用分块存储
-  chunkSize?: number; // 每个分块大小
-  totalChunks?: number; // 总分块数
+  blob?: Blob;
+  isChunked?: boolean;
+  chunkSize?: number;
+  totalChunks?: number;
   duration?: number;
-  uploadedAt: Date; // 与数据库模式保持一致
+  uploadedAt: Date;
   updatedAt: Date;
-  // 注意: 状态完全由 TranscriptRow.status 管理，不再存储在 FileRow
 }
+
+export type ProcessingStatus = "pending" | "processing" | "completed" | "failed";
 
 export interface TranscriptRow {
   id?: number;
   fileId: number;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: ProcessingStatus;
   rawText?: string;
   text?: string;
   language?: string;
   duration?: number;
   error?: string;
   processingTime?: number;
+  postProcessStatus?: "pending" | "completed" | "failed";
+  postProcessError?: string;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface AudioPlayerState {
-  currentTime: number;
-  duration: number;
-  isPlaying: boolean;
-  volume: number;
-  isMuted: boolean;
 }
 
 export interface WordTimestamp {
@@ -75,8 +62,6 @@ export interface TranscriptWithSegments extends TranscriptRow {
   segments: Segment[];
 }
 
-export type ProcessingStatus = "pending" | "processing" | "completed" | "failed";
-
 export interface DatabaseStats {
   totalFiles: number;
   totalTranscripts: number;
@@ -88,3 +73,5 @@ export interface DatabaseStats {
     failed: number;
   };
 }
+
+export type { AudioPlayerState } from "../player";

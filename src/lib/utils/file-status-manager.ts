@@ -1,57 +1,53 @@
 /** * 统一Filestate管理器 * 消除 FileRow.status 和 TranscriptRow.status 不一致问题 * 以 TranscriptRow.status a唯一真实数据源 (Single Source of Truth)*/
 
 import { db } from "@/lib/db/db";
-import { FileStatus } from "@/types/db/database";
+import type { ProcessingStatus } from "@/types/db/database";
 
-export type TranscriptStatus = "pending" | "processing" | "completed" | "failed";
+export type FileDisplayStatus = "uploaded" | "transcribing" | "completed" | "error";
 
-/** * Filestate映射器 * 将 TranscriptRow.status 映射To FileStatus*/
-export function mapTranscriptStatusToFileStatus(status: TranscriptStatus | undefined): FileStatus {
+export function mapProcessingStatusToFileStatus(
+  status: ProcessingStatus | undefined,
+): FileDisplayStatus {
   switch (status) {
     case "processing":
-      return FileStatus.TRANSCRIBING;
+      return "transcribing";
     case "completed":
-      return FileStatus.COMPLETED;
+      return "completed";
     case "failed":
-      return FileStatus.ERROR;
+      return "error";
     default:
-      return FileStatus.UPLOADED;
+      return "uploaded";
   }
 }
 
-/** * GetFile真实state * 始终基于 TranscriptRow.status，不依赖 FileRow.status*/
 export async function getFileRealStatus(fileId: number): Promise<{
-  status: FileStatus;
+  status: FileDisplayStatus;
   transcriptId?: number;
   transcript?: any;
 }> {
   try {
-    // GetTranscriptionrecord
     const transcripts = await db.transcripts.where("fileId").equals(fileId).toArray();
     const transcript = transcripts.length > 0 ? transcripts[0] : null;
 
-    // If没有Transcriptionrecord，stateas UPLOADED
     if (!transcript) {
-      return { status: FileStatus.UPLOADED };
+      return { status: "uploaded" };
     }
 
-    // 返回基于Transcriptionrecordstate
     return {
-      status: mapTranscriptStatusToFileStatus(transcript.status),
+      status: mapProcessingStatusToFileStatus(transcript.status),
       transcriptId: transcript.id,
       transcript,
     };
   } catch (error) {
     console.error("获取文件真实状态失败:", error);
-    // 出错时返回Errorstate
-    return { status: FileStatus.ERROR };
+    return { status: "error" };
   }
 }
 
 /** * UpdateTranscriptionstate（统一Update入口） * 只Update TranscriptRow，不Update FileRow.status*/
 export async function updateTranscriptionStatus(
   fileId: number,
-  status: TranscriptStatus,
+  status: ProcessingStatus,
   error?: string,
   additionalData?: Partial<any>,
 ): Promise<number | undefined> {
@@ -91,33 +87,28 @@ export async function updateTranscriptionStatus(
   }
 }
 
-/** * batchGetFilestate * 优化性能，减少databaseQuery次数*/
-export async function getFilesStatus(fileIds: number[]): Promise<Map<number, FileStatus>> {
+export async function getFilesStatus(fileIds: number[]): Promise<Map<number, FileDisplayStatus>> {
   try {
-    // batchQueryTranscriptionrecord
     const transcripts = await db.transcripts.where("fileId").anyOf(fileIds).toArray();
 
-    const statusMap = new Map<number, FileStatus>();
+    const statusMap = new Map<number, FileDisplayStatus>();
 
-    // 初始化所有Fileas UPLOADED state
     fileIds.forEach((fileId) => {
-      statusMap.set(fileId, FileStatus.UPLOADED);
+      statusMap.set(fileId, "uploaded");
     });
 
-    // Update有TranscriptionrecordFilestate
     transcripts.forEach((transcript) => {
       if (transcript.fileId) {
-        statusMap.set(transcript.fileId, mapTranscriptStatusToFileStatus(transcript.status));
+        statusMap.set(transcript.fileId, mapProcessingStatusToFileStatus(transcript.status));
       }
     });
 
     return statusMap;
   } catch (error) {
     console.error("批量获取文件状态失败:", error);
-    // 出错时返回Errorstate
-    const errorMap = new Map<number, FileStatus>();
+    const errorMap = new Map<number, FileDisplayStatus>();
     fileIds.forEach((fileId) => {
-      errorMap.set(fileId, FileStatus.ERROR);
+      errorMap.set(fileId, "error");
     });
     return errorMap;
   }
@@ -152,11 +143,11 @@ export async function cleanupFailedTranscriptions(olderThanDays: number = 7): Pr
 
 /** * stateValidate器 * Validatestate转换i否合法*/
 export function isValidStatusTransition(
-  fromStatus: TranscriptStatus | undefined,
-  toStatus: TranscriptStatus,
+  fromStatus: ProcessingStatus | undefined,
+  toStatus: ProcessingStatus,
 ): boolean {
   // 允许state转换
-  const validTransitions: Record<string, TranscriptStatus[]> = {
+  const validTransitions: Record<string, ProcessingStatus[]> = {
     undefined: ["pending", "processing"], // 初始state
     pending: ["processing", "failed"],
     processing: ["completed", "failed"],
@@ -171,7 +162,7 @@ export function isValidStatusTransition(
 /** * 安全stateUpdate * 带stateValidateUpdate函数*/
 export async function safeUpdateTranscriptionStatus(
   fileId: number,
-  toStatus: TranscriptStatus,
+  toStatus: ProcessingStatus,
   error?: string,
   additionalData?: Partial<any>,
 ): Promise<number | undefined> {

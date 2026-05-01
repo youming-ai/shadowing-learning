@@ -5,7 +5,7 @@
 
 export type {
   FileRow,
-  FileStatus,
+  ProcessingStatus,
   Segment,
   TranscriptRow,
 } from "../types/db/database";

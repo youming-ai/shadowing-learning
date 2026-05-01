@@ -112,7 +112,9 @@ export const DBUtils = {
     items: Array<{ id: number; changes: Partial<T> }>,
   ): Promise<number[]> {
     try {
-      return await Promise.all(items.map(({ id, changes }) => table.update(id, changes as any)));
+      return await db.transaction("rw", table, async () => {
+        return await Promise.all(items.map(({ id, changes }) => table.update(id, changes as any)));
+      });
     } catch (error) {
       throw handleError(error, `DBUtils.bulkUpdate`);
     }
@@ -200,15 +202,22 @@ export const DBUtils = {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
       const oldFiles = await db.files.where("uploadedAt").below(cutoffDate).toArray();
 
-      // Delete files and their related data
-      for (const file of oldFiles) {
-        if (file.id) {
-          await this.deleteFile(file.id);
+      await db.transaction("rw", db.files, db.transcripts, db.segments, async () => {
+        for (const file of oldFiles) {
+          if (file.id) {
+            const transcripts = await db.transcripts.where("fileId").equals(file.id).toArray();
+            for (const transcript of transcripts) {
+              if (transcript.id) {
+                await db.segments.where("transcriptId").equals(transcript.id).delete();
+              }
+            }
+            await db.transcripts.where("fileId").equals(file.id).delete();
+            await db.files.delete(file.id);
+          }
         }
-      }
+      });
 
       return oldFiles.length;
     } catch (error) {
@@ -305,40 +314,38 @@ export const DBUtils = {
     },
   ): Promise<void> {
     try {
-      // Add timestamps
       const segmentsWithTimestamps = segments.map((segment) => ({
         ...segment,
         createdAt: new Date(),
         updatedAt: new Date(),
       }));
 
-      // For small batches, use bulkAdd directly
-      if (segmentsWithTimestamps.length <= 50) {
-        await this.bulkAdd(db.segments, segmentsWithTimestamps);
-        return;
-      }
-
-      // For large batches, use simplified batch processing
-      const batchSize = options?.batchSize || 50;
-      for (let i = 0; i < segmentsWithTimestamps.length; i += batchSize) {
-        const batch = segmentsWithTimestamps.slice(i, i + batchSize);
-        await this.bulkAdd(db.segments, batch);
-
-        // Simple progress reporting
-        if (options?.onProgress) {
-          const progress = Math.min(
-            100,
-            Math.floor(((i + batch.length) / segmentsWithTimestamps.length) * 100),
-          );
-          options.onProgress({
-            processed: i + batch.length,
-            total: segmentsWithTimestamps.length,
-            percentage: progress,
-            status: "processing",
-            message: `Processing ${i + batch.length}/${segmentsWithTimestamps.length}`,
-          });
+      return await db.transaction("rw", db.segments, async () => {
+        if (segmentsWithTimestamps.length <= 50) {
+          await db.segments.bulkAdd(segmentsWithTimestamps as Segment[]);
+          return;
         }
-      }
+
+        const batchSize = options?.batchSize || 50;
+        for (let i = 0; i < segmentsWithTimestamps.length; i += batchSize) {
+          const batch = segmentsWithTimestamps.slice(i, i + batchSize);
+          await db.segments.bulkAdd(batch as Segment[]);
+
+          if (options?.onProgress) {
+            const progress = Math.min(
+              100,
+              Math.floor(((i + batch.length) / segmentsWithTimestamps.length) * 100),
+            );
+            options.onProgress({
+              processed: i + batch.length,
+              total: segmentsWithTimestamps.length,
+              percentage: progress,
+              status: "processing",
+              message: `Processing ${i + batch.length}/${segmentsWithTimestamps.length}`,
+            });
+          }
+        }
+      });
     } catch (error) {
       throw handleError(error, "DBUtils.addSegments");
     }

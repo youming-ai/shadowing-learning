@@ -2,11 +2,11 @@
 
 "use client";
 
+import type { FileDisplayStatus } from "@/lib/utils/file-status-manager";
 import type { FileRow } from "@/types/db/database";
-import { FileStatus } from "@/types/db/database";
 
 interface FileCardProps {
-  file: FileRow & { status: FileStatus }; // status 必须由父component传入
+  file: FileRow & { status: FileDisplayStatus }; // status 必须由父component传入
   onPlay?: (fileId: number) => void;
   onDelete?: (fileId: number) => void;
   onTranscribe?: (fileId: number) => void;
@@ -22,21 +22,21 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
     const status = file.status;
 
     switch (status) {
-      case FileStatus.TRANSCRIBING:
+      case "transcribing":
         return {
           icon: "loading",
           color: "status-processing",
           label: "正在转录...",
           type: "音频",
         };
-      case FileStatus.COMPLETED:
+      case "completed":
         return {
           icon: "check_circle",
           color: "status-success",
           label: "转录成功",
           type: "字幕",
         };
-      case FileStatus.ERROR:
+      case "error":
         return {
           icon: "warning",
           color: "status-warning",
@@ -59,7 +59,7 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
     const fileStatus = file.status;
 
     switch (fileStatus) {
-      case FileStatus.COMPLETED:
+      case "completed":
         return (
           <>
             <button
@@ -80,7 +80,7 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
             </button>
           </>
         );
-      case FileStatus.TRANSCRIBING:
+      case "transcribing":
         return (
           <>
             <div className="w-10 h-10 animate-spin rounded-full border-4 border-dashed border-blue-500"></div>
@@ -94,7 +94,7 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
             </button>
           </>
         );
-      case FileStatus.ERROR:
+      case "error":
         return (
           <>
             <button

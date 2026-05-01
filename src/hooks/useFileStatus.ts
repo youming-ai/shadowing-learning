@@ -7,10 +7,10 @@ import { useTranscriptionLanguage } from "@/components/layout/contexts/Transcrip
 import { useTranscription } from "@/hooks/api/useTranscription";
 import { filesKeys } from "@/hooks/db/useFiles";
 import { DBUtils, db } from "@/lib/db/db";
-import { mapTranscriptStatusToFileStatus } from "@/lib/utils/file-status-manager";
+import type { FileDisplayStatus } from "@/lib/utils/file-status-manager";
+import { mapProcessingStatusToFileStatus } from "@/lib/utils/file-status-manager";
 import { handleTranscriptionError } from "@/lib/utils/transcription-error-handler";
 import { getTranscriptionQueue } from "@/lib/utils/transcription-queue";
-import { FileStatus } from "@/types/db/database";
 
 export const fileStatusKeys = {
   all: ["fileStatus"] as const,
@@ -25,7 +25,7 @@ export function useFileStatus(fileId: number) {
       // 从 DBUtils GetFile信息
       const file = await DBUtils.getFile(fileId);
       if (!file) {
-        return { status: FileStatus.ERROR, error: "File not found" };
+        return { status: "error" as FileDisplayStatus, error: "File not found" };
       }
 
       // Through DBUtils CheckTranscriptionrecord
@@ -33,8 +33,8 @@ export function useFileStatus(fileId: number) {
 
       // 完全基于 TranscriptRow.status 确定state
       const status = transcript
-        ? mapTranscriptStatusToFileStatus(transcript.status)
-        : FileStatus.UPLOADED;
+        ? mapProcessingStatusToFileStatus(transcript.status)
+        : ("uploaded" as FileDisplayStatus);
 
       return {
         status,
