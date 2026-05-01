@@ -124,7 +124,11 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    // audioUrl gates the conditional <audio> element. Without it as a dep, the
+    // effect's first run sees audioRef.current === null, returns, and never
+    // re-runs when the audio element finally mounts — so timeupdate/play/pause
+    // listeners never attach and currentTime stays at 0.
+    if (!audio || !audioUrl) return;
 
     const handleTimeUpdate = () => {
       const current = sanitizeNumber(audio.currentTime, 0);
@@ -145,7 +149,7 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
     };
 
     const handleEnded = () => {
-      const duration = sanitizeNumber(audio.duration, audioPlayerState.duration);
+      const duration = sanitizeNumber(audio.duration, file?.duration ?? 0);
       updatePlayerState({ isPlaying: false, currentTime: duration });
       onClearLoop();
     };
@@ -173,7 +177,7 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
     };
-  }, [updatePlayerState, sanitizeNumber, file?.duration, audioPlayerState.duration, onClearLoop]);
+  }, [audioUrl, updatePlayerState, sanitizeNumber, file?.duration, onClearLoop]);
 
   const handleSegmentClick = (segment: Segment) => {
     handleSeek(segment.start);
