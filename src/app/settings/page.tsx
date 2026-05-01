@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import SettingsPage from "@/components/features/settings/SettingsPage";
 import Navigation from "@/components/ui/Navigation";
+
+export const metadata: Metadata = {
+  title: "设置",
+  description: "调整影子跟读的语言、主题和转录偏好。",
+  robots: { index: false, follow: false },
+  alternates: { canonical: "/settings" },
+};
 
 export default function SettingsRoute() {
   return (
