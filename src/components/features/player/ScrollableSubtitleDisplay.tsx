@@ -287,7 +287,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                         return (
                           <div
                             key={`${segment.id ?? index}-token-${tokenIndex}-${token.word}`}
-                            className="word-group"
+                            className={cn("player-word-group", isTokenActive && "active")}
                             data-testid={isTokenActive ? "active-word" : undefined}
                           >
                             <span className="player-word-surface">{token.word}</span>

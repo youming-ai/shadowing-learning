@@ -121,6 +121,40 @@ describe("ScrollableSubtitleDisplay Component", () => {
     expect(screen.getAllByTestId("subtitle-card")[1]).toHaveClass("highlight");
   });
 
+  it("highlights the active word within the active segment", () => {
+    const segmentsWithWords: Segment[] = [
+      {
+        id: 1,
+        transcriptId: 1,
+        start: 0,
+        end: 4,
+        text: "hello world foo bar",
+        wordTimestamps: [
+          { word: "hello", start: 0, end: 1 },
+          { word: "world", start: 1, end: 2 },
+          { word: "foo", start: 2, end: 3 },
+          { word: "bar", start: 3, end: 4 },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    render(
+      <ScrollableSubtitleDisplay
+        segments={segmentsWithWords}
+        currentTime={1.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    );
+
+    const activeWords = screen.getAllByTestId("active-word");
+    expect(activeWords).toHaveLength(1);
+    expect(activeWords[0]).toHaveTextContent("world");
+    expect(activeWords[0]).toHaveClass("active");
+  });
+
   it("finds active segment quickly for large arrays", () => {
     const manySegments: Segment[] = Array.from({ length: 1000 }, (_, i) => ({
       id: i,
