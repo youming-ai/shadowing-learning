@@ -49,12 +49,14 @@ export function useTranscriptionStatus(fileId: number) {
         return {
           transcript,
           segments,
+          postProcessStatus: transcript.postProcessStatus,
         };
       }
 
       return {
         transcript: null,
         segments: [],
+        postProcessStatus: undefined,
       };
     },
     staleTime: 1000 * 60 * 1,
@@ -158,7 +160,7 @@ async function saveTranscriptionResults(
 
 async function postProcessTranscription(
   transcriptId: number,
-  _fileId: number,
+  fileId: number,
   segments: Array<{ start: number; end: number; text: string; segmentIndex?: number }>,
   sourceLanguage: string,
   targetLanguage: string,
@@ -171,6 +173,11 @@ async function postProcessTranscription(
 
   console.log(`🔄 开始后处理 ${segments.length} 个 segments`);
   console.log(`   源语言(音频): ${sourceLanguage} → 目标语言(翻译): ${targetLanguage}`);
+
+  await DBUtils.update(db.transcripts, transcriptId, {
+    postProcessStatus: "pending",
+    postProcessError: undefined,
+  });
 
   try {
     const response = await fetch("/api/postprocess", {
@@ -246,7 +253,7 @@ async function postProcessTranscription(
     // 那会触发 file blob 重新读取并生成新的 audioUrl，导致 audio 元素 load() 重置播放。
     if (queryClient) {
       queryClient.invalidateQueries({
-        queryKey: transcriptionKeys.forFile(_fileId),
+        queryKey: transcriptionKeys.forFile(fileId),
       });
     }
   } catch (error) {

@@ -60,6 +60,7 @@ interface UsePlayerDataQueryReturn {
   loading: boolean;
   error: string | null;
   retry: () => void;
+  postProcessStatus: "pending" | "completed" | "failed" | undefined;
 }
 
 export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
@@ -72,6 +73,7 @@ export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
   const transcriptionQuery = useTranscriptionStatus(parsedFileId);
   const transcript = transcriptionQuery.data?.transcript || null;
   const segments = transcriptionQuery.data?.segments || [];
+  const postProcessStatus = transcriptionQuery.data?.postProcessStatus;
 
   const { startTranscription } = useFileStatusManager(parsedFileId);
   const autoTranscribingRef = useRef(false);
@@ -123,5 +125,6 @@ export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
     loading,
     error,
     retry,
+    postProcessStatus,
   };
 }
