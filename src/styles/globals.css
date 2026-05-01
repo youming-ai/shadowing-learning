@@ -53,7 +53,7 @@
     --brand-500: #22c55e;
     --brand-600: #166534;
     --brand-700: #15803d;
-    --brand-800: #166534;
+    --brand-800: #14532d;
     --brand-900: #14532d;
 
     /* 中性色 */
@@ -617,8 +617,10 @@
       border-color 0.3s ease;
   }
 
-  /* 为所有使用主题变量的元素添加过渡动画 */
-  * {
+  html,
+  body,
+  [data-theme],
+  .theme-transition {
     transition:
       background-color 0.3s ease,
       color 0.3s ease,
@@ -921,12 +923,6 @@
     border-radius: var(--radius-card);
   }
 
-  .upload-area {
-    @apply rounded-2xl border-2 border-dashed px-6 py-16 text-center;
-    border-color: var(--state-success-border);
-    background-color: transparent;
-  }
-
   .upload-area.disabled {
     opacity: 0.5;
     pointer-events: none;
@@ -1106,7 +1102,7 @@
 
   .btn-play {
     @apply flex items-center justify-center rounded-full h-12 w-12 text-white transition-all;
-    background-color: var(--success-color);
+    background-color: var(--color-success);
     box-shadow: 0 4px 0 0 var(--state-success-strong);
     border-radius: var(--radius-pill);
   }
@@ -1118,7 +1114,7 @@
 
   .btn-retry {
     @apply flex items-center justify-center rounded-xl h-12 px-6 text-white text-sm font-bold uppercase tracking-wider transition-all;
-    background-color: var(--warning-color);
+    background-color: var(--color-warning);
     box-shadow: 0 4px 0 0 var(--state-warning-strong);
     border-radius: var(--radius-control);
   }
