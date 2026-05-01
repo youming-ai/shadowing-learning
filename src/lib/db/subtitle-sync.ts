@@ -273,7 +273,7 @@ export function renderSubtitle(subtitle: Subtitle, showTranslation: boolean = fa
 
 function addSafeFurigana(text: string, furigana: string): string {
   try {
-    if (!furigana || !furigana.trim()) {
+    if (!furigana?.trim()) {
       return sanitizeHtml(text, SUBTITLE_SANITIZE_OPTIONS);
     }
 

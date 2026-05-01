@@ -100,7 +100,8 @@ export function ListLoadingState({ count = 3 }: { count?: number }) {
   return (
     <div className="space-y-4">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={`skeleton-${Date.now()}-${index}`} className="animate-pulse space-y-3">
+        // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders are interchangeable; using the index is the simplest stable key (Date.now() in the previous form forced re-mounts on every render).
+        <div key={`skeleton-${index}`} className="animate-pulse space-y-3">
           <div className="h-32 bg-muted rounded-lg"></div>
           <div className="space-y-2">
             <div className="h-4 bg-muted rounded w-3/4"></div>

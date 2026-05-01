@@ -286,6 +286,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
 
                         return (
                           <div
+                            // biome-ignore lint/suspicious/noArrayIndexKey: tokens come from a single segment's wordTimestamps and never reorder; word strings can repeat (e.g. "the"), so position-based key is the stable choice.
                             key={`${segment.id ?? index}-token-${tokenIndex}-${token.word}`}
                             className={cn("player-word-group", isTokenActive && "active")}
                             data-testid={isTokenActive ? "active-word" : undefined}
@@ -307,6 +308,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                       {lines.length > 0 ? (
                         lines.map((line, lineIndex) => (
                           <p
+                            // biome-ignore lint/suspicious/noArrayIndexKey: lines come from a fixed split of the segment's text and never reorder; line content can repeat across a segment, so position-based key is correct.
                             key={`${segment.id ?? index}-line-${lineIndex}`}
                             className="player-subtitle-original"
                           >

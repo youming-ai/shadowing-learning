@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-/** * 支持Translation目标Language（母语） * Transcription完成后，将Transcription内容Translation成用户母语*/
+/** * 支持的语言列表 - 用作母语（翻译目标）以及通用语言代号。 * 音频源语言不再由 settings 决定，而是由 Whisper auto-detect。*/
 export const SUPPORTED_LANGUAGES = {
   "zh-CN": {
     code: "zh-CN",
@@ -31,34 +31,9 @@ export const SUPPORTED_LANGUAGES = {
   },
 } as const;
 
-/** * 支持TranscriptionLanguage（目标Language） * Audio/视频原始Language，传给 Whisper API 进行语音识别*/
-export const TRANSCRIPTION_LANGUAGES = {
-  "zh-CN": {
-    code: "zh-CN",
-    name: "简体中文",
-    flag: "🇨🇳",
-  },
-  "zh-TW": {
-    code: "zh-TW",
-    name: "繁體中文",
-    flag: "🇹🇼",
-  },
-  en: {
-    code: "en",
-    name: "English",
-    flag: "🇺🇸",
-  },
-  ja: {
-    code: "ja",
-    name: "日本語",
-    flag: "🇯🇵",
-  },
-  ko: {
-    code: "ko",
-    name: "한국어",
-    flag: "🇰🇷",
-  },
-} as const;
+// 历史命名保留：仍在被 LearningLanguageSection / 其他文件引用做语言列表展示用，
+// 与 SUPPORTED_LANGUAGES 一致即可，不再代表"音频转录语言"。
+export const TRANSCRIPTION_LANGUAGES = SUPPORTED_LANGUAGES;
 
 /** * Get浏览器默认Language*/
 export function getBrowserLanguage(): string {
@@ -66,17 +41,14 @@ export function getBrowserLanguage(): string {
 
   const browserLang = navigator.language || (navigator as any).userLanguage;
 
-  // Check完整Language代码i否在支持Language列tablein
-  if (browserLang in TRANSCRIPTION_LANGUAGES) {
+  if (browserLang in SUPPORTED_LANGUAGES) {
     return browserLang;
   }
 
-  // SimplifiedLanguage代码（只取主要Language部分）
   const mainLang = browserLang.split("-")[0];
 
-  // 映射To支持Language代码
   const languageMap: Record<string, string> = {
-    zh: "zh-CN", // 默认简体in文
+    zh: "zh-CN",
     en: "en",
     ja: "ja",
     ko: "ko",
@@ -85,42 +57,31 @@ export function getBrowserLanguage(): string {
   return languageMap[mainLang] || "en";
 }
 
-/** * 学习Language配置class型*/
+/** * 学习语言配置：仅保留母语（=翻译目标语言）。 * 音频源语言由 Whisper auto-detect 决定，不再让用户在 settings 中指定。*/
 export interface LearningLanguageConfig {
-  /** 母语Language - Transcription时Translation目标Language*/
+  /** 母语：转录后翻译要翻成的目标语言（也用于 UI 文案）。*/
   nativeLanguage: string;
-  /** 目标Language - Transcription时API使用Language*/
-  targetLanguage: string;
 }
 
-export type TranscriptionLanguageCode = keyof typeof TRANSCRIPTION_LANGUAGES;
+export type TranscriptionLanguageCode = keyof typeof SUPPORTED_LANGUAGES;
 
 interface TranscriptionLanguageContextType {
-  /** 当前TranscriptionLanguage代码*/
-  language: TranscriptionLanguageCode;
-  /** SetTranscriptionLanguage*/
-  setLanguage: (language: TranscriptionLanguageCode) => void;
-  /** GetLanguage配置*/
-  getLanguageConfig: (
-    code: TranscriptionLanguageCode,
-  ) => (typeof TRANSCRIPTION_LANGUAGES)[TranscriptionLanguageCode];
-  /** 学习Language配置*/
+  /** 学习语言配置（仅母语）。*/
   learningLanguage: LearningLanguageConfig;
-  /** Set学习Language*/
+  /** 更新学习语言配置。*/
   setLearningLanguage: (config: LearningLanguageConfig) => void;
-  /** Get支持Language列table*/
+  /** 获取支持的语言列表。*/
   getSupportedLanguages: () => typeof SUPPORTED_LANGUAGES;
-  /** GetTranscription支持Language列table*/
-  getTranscriptionLanguages: () => typeof TRANSCRIPTION_LANGUAGES;
+  /** 兼容旧调用：返回与 getSupportedLanguages 相同的列表。*/
+  getTranscriptionLanguages: () => typeof SUPPORTED_LANGUAGES;
 }
 
 const TranscriptionLanguageContext = createContext<TranscriptionLanguageContextType | undefined>(
   undefined,
 );
 
-const STORAGE_KEY = "shadowing-learning-transcription-language";
 const LEARNING_LANGUAGE_KEY = "shadowing-learning-language";
-const DEFAULT_LANGUAGE: TranscriptionLanguageCode = "zh-CN";
+const LEGACY_TRANSCRIPTION_KEY = "shadowing-learning-transcription-language";
 
 export function useTranscriptionLanguage() {
   const context = useContext(TranscriptionLanguageContext);
@@ -135,60 +96,43 @@ interface TranscriptionLanguageProviderProps {
 }
 
 export function TranscriptionLanguageProvider({ children }: TranscriptionLanguageProviderProps) {
-  const [language, setLanguageState] = useState<TranscriptionLanguageCode>(DEFAULT_LANGUAGE);
   const [learningLanguage, setLearningLanguageState] = useState<LearningLanguageConfig>({
-    nativeLanguage: "zh-CN", // 默认简体in文a母语
-    targetLanguage: "ja", // 默认日语a目标Language
+    nativeLanguage: "zh-CN",
   });
   const [isClient, setIsClient] = useState(false);
 
-  // 初始化 - 从localStorage read
+  // 初始化 - 从 localStorage 读取
   useEffect(() => {
     setIsClient(true);
 
-    // readTranscriptionLanguageSet
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY) as TranscriptionLanguageCode;
-      if (stored && stored in TRANSCRIPTION_LANGUAGES) {
-        setLanguageState(stored);
-      }
-    } catch {
-      // localStorage 不可用时静默Process
-    }
-
-    // read学习LanguageSet
     try {
       const storedLearning = localStorage.getItem(LEARNING_LANGUAGE_KEY);
       if (storedLearning) {
-        const parsed = JSON.parse(storedLearning) as LearningLanguageConfig;
-        setLearningLanguageState(parsed);
+        const parsed = JSON.parse(storedLearning) as Partial<LearningLanguageConfig> & {
+          targetLanguage?: string;
+        };
+        const native =
+          parsed?.nativeLanguage && parsed.nativeLanguage in SUPPORTED_LANGUAGES
+            ? parsed.nativeLanguage
+            : "zh-CN";
+        setLearningLanguageState({ nativeLanguage: native });
+      } else {
+        const defaultConfig: LearningLanguageConfig = { nativeLanguage: "zh-CN" };
+        setLearningLanguageState(defaultConfig);
+        localStorage.setItem(LEARNING_LANGUAGE_KEY, JSON.stringify(defaultConfig));
       }
     } catch (error) {
       console.warn("Failed to read learning language from localStorage:", error);
     }
 
-    // If没有学习LanguageSet，使用默认值
-    if (!localStorage.getItem(LEARNING_LANGUAGE_KEY)) {
-      const defaultConfig: LearningLanguageConfig = {
-        nativeLanguage: "zh-CN", // 默认简体in文a母语
-        targetLanguage: "ja", // 默认日语a目标Language
-      };
-      setLearningLanguageState(defaultConfig);
-      localStorage.setItem(LEARNING_LANGUAGE_KEY, JSON.stringify(defaultConfig));
-    }
-  }, []);
-
-  // SetTranscriptionLanguage并持久化
-  const setLanguage = useCallback((newLanguage: TranscriptionLanguageCode) => {
-    setLanguageState(newLanguage);
+    // 清理已废弃的转录语言键，避免老用户残留奇怪状态。
     try {
-      localStorage.setItem(STORAGE_KEY, newLanguage);
+      localStorage.removeItem(LEGACY_TRANSCRIPTION_KEY);
     } catch {
-      // localStorage 不可用时静默Process
+      // 静默
     }
   }, []);
 
-  // Set学习Language并持久化
   const setLearningLanguage = useCallback((config: LearningLanguageConfig) => {
     setLearningLanguageState(config);
     try {
@@ -198,16 +142,8 @@ export function TranscriptionLanguageProvider({ children }: TranscriptionLanguag
     }
   }, []);
 
-  // GetLanguage配置
-  const getLanguageConfig = useCallback((code: TranscriptionLanguageCode) => {
-    return TRANSCRIPTION_LANGUAGES[code];
-  }, []);
-
-  // Get支持Language列table
   const getSupportedLanguages = useCallback(() => SUPPORTED_LANGUAGES, []);
-
-  // GetTranscription支持Language列table
-  const getTranscriptionLanguages = useCallback(() => TRANSCRIPTION_LANGUAGES, []);
+  const getTranscriptionLanguages = useCallback(() => SUPPORTED_LANGUAGES, []);
 
   // 防止服务端/client不一致
   if (!isClient) {
@@ -217,9 +153,6 @@ export function TranscriptionLanguageProvider({ children }: TranscriptionLanguag
   return (
     <TranscriptionLanguageContext.Provider
       value={{
-        language,
-        setLanguage,
-        getLanguageConfig,
         learningLanguage,
         setLearningLanguage,
         getSupportedLanguages,

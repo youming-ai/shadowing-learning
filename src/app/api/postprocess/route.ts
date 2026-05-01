@@ -263,15 +263,16 @@ async function postProcessSegmentWithGroq(
     );
 
     // 使用 Groq SDK 进行文本Process
+    const sourceLangName = getLanguageName(sourceLanguage);
     const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const response = await groqClient.chat.completions.create({
       model: GROQ_CHAT_MODEL,
-      temperature: 0.3,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content:
-            "You are a professional language teacher specializing in Japanese language learning and shadowing practice. Provide accurate, educational responses that help learners understand and practice the language. Respond with valid JSON.",
+          content: `You are a professional ${sourceLangName} language teacher producing shadowing-practice material. Provide accurate, faithful translations and normalizations — do not invent content beyond the source. Respond with valid JSON only.`,
         },
         {
           role: "user",
@@ -309,8 +310,8 @@ async function postProcessSegmentWithGroq(
 // batchProcess短文本以减少API调用次数，使用 AI SDK
 async function postProcessShortTextsBatch(
   shortTextSegments: Array<{ text: string; start: number; end: number; segmentIndex: number }>,
-  _sourceLanguage: string,
-  _options: {
+  sourceLanguage: string,
+  options: {
     targetLanguage?: string;
     enableAnnotations?: boolean;
     enableFurigana?: boolean;
@@ -321,27 +322,35 @@ async function postProcessShortTextsBatch(
   apiLogger.debug(`AI SDK批量处理 ${shortTextSegments.length} 个短文本segments`);
   const startTime = Date.now();
 
+  const sourceLangName = getLanguageName(sourceLanguage);
+  const targetLangName = options.targetLanguage ? getLanguageName(options.targetLanguage) : null;
+  const wantFurigana = options.enableFurigana && sourceLanguage === "ja";
+
   try {
     // 合并所有短文本a一个批次
     const combinedText = shortTextSegments
       .map((seg, index) => `[SEGMENT_${index}] ${seg.text}`)
       .join("\n");
 
-    const prompt = `You are processing multiple short text segments for Japanese language learning.
+    const prompt = `You are processing ${shortTextSegments.length} independent ${sourceLangName} text segments for language learning. Each [SEGMENT_N] line is a SEPARATE sentence — translate and normalize each one on its own. Do NOT merge segments, do NOT carry context between them, and do NOT skip any.
 
-Process the following segments and return results in the specified format:
+Source language: ${sourceLangName}
+${targetLangName ? `Target language for translation: ${targetLangName}` : "No translation requested."}
 
+Segments (one per line, prefixed with [SEGMENT_N] where N is the 0-based id):
 ${combinedText}
 
-Return format (JSON):
+Return ONLY valid JSON in this exact shape, with one entry per input segment, "id" matching the [SEGMENT_N] number, in the same order:
 {
   "segments": [
     {
       "id": 0,
-      "normalizedText": "normalized text",
-      "translation": "translation",
-      "annotations": ["annotation1", "annotation2"],
-      "furigana": "text with furigana"
+      "normalizedText": "the segment's ${sourceLangName} text, lightly cleaned (fix obvious recognition typos, drop fillers); preserve meaning",${
+        targetLangName
+          ? `\n      "translation": "faithful ${targetLangName} translation of THIS segment only — do not invent content not present in the source",`
+          : ""
+      }${wantFurigana ? `\n      "furigana": "the segment's text with kana readings for kanji",` : ""}
+      "annotations": []
     }
   ]
 }`;
@@ -350,12 +359,12 @@ Return format (JSON):
     const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const response = await groqClient.chat.completions.create({
       model: GROQ_CHAT_MODEL,
-      temperature: 0.3,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content:
-            "You are a professional language teacher specializing in Japanese language learning. Process multiple text segments efficiently. Respond with valid JSON.",
+          content: `You are a professional ${sourceLangName} language teacher producing learning material. Translate and normalize each provided segment independently and faithfully. Never merge segments. Respond with valid JSON only.`,
         },
         {
           role: "user",

@@ -15,14 +15,18 @@ export function PlayerPageLayout({
   showFooter = false,
 }: PlayerPageLayoutProps) {
   return (
-    <div className="relative flex min-h-screen w-full flex-col">
+    <div className="relative flex h-screen w-full flex-col">
       <header className="fixed top-3 sm:top-4 left-1/2 z-20 -translate-x-1/2">
         <Navigation />
       </header>
 
       <main
         id={subtitleContainerId}
-        className="flex-1 overflow-y-auto safe-area-inset-top"
+        // min-h-0 lets this flex item shrink below its content size so
+        // overflow-y: auto actually clips and scrolls — without it, the item's
+        // implicit min-height: auto expands to content height and scrolling
+        // bubbles to the page (subtitles never scroll into view).
+        className="min-h-0 flex-1 overflow-y-auto safe-area-inset-top"
         style={{
           paddingBottom: showFooter
             ? "var(--space-player-controls)"

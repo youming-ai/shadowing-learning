@@ -4,7 +4,6 @@
 
 import React, { useCallback, useState } from "react";
 
-import { useTranscriptionLanguage } from "@/components/layout/contexts/TranscriptionLanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { useFiles } from "@/hooks";
 import { useFileStatus, useFileStatusManager } from "@/hooks/useFileStatus";
@@ -159,7 +158,6 @@ function FileCardWrapper({
   // Hooks must be called before any early returns - Add空值Check
   const { data: statusData, isLoading } = useFileStatus(file.id || 0);
   const { startTranscription } = useFileStatusManager(file.id || 0);
-  const { language } = useTranscriptionLanguage();
 
   // 优雅地Process可能缺失 file.id
   if (!file.id) {
@@ -192,9 +190,9 @@ function FileCardWrapper({
     status: statusData.status,
   };
 
-  // ProcessTranscription，使用动态LanguageSet
+  // 转录由 Whisper auto-detect 决定源语言；不再传 settings 的语言。
   const handleTranscribe = () => {
-    startTranscription(language);
+    startTranscription();
   };
 
   return (

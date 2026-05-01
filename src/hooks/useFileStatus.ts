@@ -113,15 +113,12 @@ export function useFileStatusManager(fileId: number) {
         // SetstateasTranscriptionin
         await updateTranscriptionStatus("processing");
 
-        // 使用学习Languagein目标Language（Audio原Language），If没有指定Language参数
-        const targetLang = language || learningLanguage.targetLanguage;
-        // 母语Used forTranslation目标
+        // 音频源语言由 Whisper auto-detect；显式覆盖（极少用）才传 language。
         const nativeLang = learningLanguage.nativeLanguage;
 
-        // 开始Transcription（支持自动重试和取消）
         await transcription.mutateAsync({
           fileId,
-          language: targetLang,
+          language: language ?? "auto",
           nativeLanguage: nativeLang,
           signal: abortController.signal,
         });

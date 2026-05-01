@@ -304,7 +304,7 @@ export function useTranscription() {
   return useMutation({
     mutationFn: async ({
       fileId,
-      language = "ja",
+      language = "auto",
       nativeLanguage = "zh-CN",
       signal,
     }: {
@@ -314,7 +314,7 @@ export function useTranscription() {
       signal?: AbortSignal;
     }) => {
       const file = await DBUtils.getFile(fileId);
-      if (!file || !file.blob) {
+      if (!file?.blob) {
         throw new Error("File not found or file data is corrupted");
       }
 

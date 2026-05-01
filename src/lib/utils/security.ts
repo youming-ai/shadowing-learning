@@ -771,7 +771,7 @@ export function createSafeSubtitleElement(
 
 /** * 安全 Furigana 渲染*/
 export function renderSafeFurigana(text: string, furigana: string): string {
-  if (!furigana || !furigana.trim()) {
+  if (!furigana?.trim()) {
     return encodeHtmlEntities(text);
   }
 

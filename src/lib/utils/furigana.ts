@@ -32,7 +32,7 @@ export function parseFurigana(
   originalText: string,
   format: FuriganaFormat = "json",
 ): ParsedFurigana {
-  if (!furiganaString || !furiganaString.trim()) {
+  if (!furiganaString?.trim()) {
     return {
       html: escapeHtml(originalText),
       text: originalText,
