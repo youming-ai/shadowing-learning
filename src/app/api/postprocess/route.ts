@@ -8,7 +8,7 @@ import { apiLogger } from "@/lib/utils/logger";
 export const runtime = "nodejs";
 
 // Groq 模型配置
-const GROQ_CHAT_MODEL = "llama-3.3-70b-versatile";
+const GROQ_CHAT_MODEL = "openai/gpt-oss-120b";
 
 // Language代码To可读name映射
 const LANGUAGE_NAMES: Record<string, string> = {
