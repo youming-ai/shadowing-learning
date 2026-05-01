@@ -1,6 +1,7 @@
-import Groq from "groq-sdk";
 import type { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { groqClient } from "@/lib/ai/groq-client";
+import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
 import {
   buildSegmentsFromPlainText,
   buildSegmentsFromWords,
@@ -93,6 +94,21 @@ function validateFormData(formData: FormData) {
         message: "Audio file is required",
         details: { reason: "MISSING_AUDIO" },
         statusCode: 400,
+      }),
+    };
+  }
+
+  const MAX_FILE_SIZE_MB = 25;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+  if (uploadedFile.size > MAX_FILE_SIZE_BYTES) {
+    return {
+      success: false as const,
+      error: apiError({
+        code: "FILE_TOO_LARGE",
+        message: `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`,
+        details: { reason: "FILE_TOO_LARGE", size: uploadedFile.size },
+        statusCode: 413,
       }),
     };
   }
@@ -204,7 +220,7 @@ async function processTranscription(
       success: false as const,
       error: apiError({
         code: "API_KEY_MISSING",
-        message: "Groq API 密钥未配置",
+        message: "Groq API key is not configured",
         details: {
           fileName: uploadedFile.name,
         },
@@ -213,23 +229,23 @@ async function processTranscription(
     };
   }
 
-  // 初始化 Groq client
-  const groq = new Groq({ apiKey });
-
   // 转换Language代码a Whisper API 支持格式
   const normalizedLanguage = normalizeLanguageCode(language);
 
   try {
-    // 使用 Groq SDK 进行Transcription
-    // Groq SDK 可以直接接受 File object
-    const transcription = await groq.audio.transcriptions.create({
-      file: uploadedFile, // 直接使用 File object
-      model: "whisper-large-v3-turbo",
-      temperature: 0,
-      response_format: "verbose_json",
-      language: normalizedLanguage === "auto" ? undefined : normalizedLanguage,
-      timestamp_granularities: ["word", "segment"],
-    });
+    // Use Groq SDK with retry and timeout
+    const transcription = await safeGroqRequest(
+      () =>
+        groqClient.audio.transcriptions.create({
+          file: uploadedFile,
+          model: "whisper-large-v3-turbo",
+          temperature: 0,
+          response_format: "verbose_json",
+          language: normalizedLanguage === "auto" ? undefined : normalizedLanguage,
+          timestamp_granularities: ["word", "segment"],
+        }),
+      "transcribe",
+    );
 
     // 使用class型断言访问可能property
     const transcriptionData = transcription as GroqTranscriptionResponse;
