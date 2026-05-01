@@ -325,7 +325,9 @@ export function createSubtitleElement(
 
   const renderedContent = renderSubtitle(subtitle, true);
 
-  return createSafeSubtitleElement(renderedContent, safeAttributes);
+  return (
+    createSafeSubtitleElement(renderedContent, safeAttributes) || document.createElement("div")
+  );
 }
 
 // AbLoopManager 函数

@@ -1,21 +1,32 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock transcription create function
-const mockCreate = vi.fn();
+const { mockCreate } = vi.hoisted(() => ({
+  mockCreate: vi.fn(),
+}));
 
-// Mock Groq SDK
-vi.mock("groq-sdk", () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      audio: {
-        transcriptions: {
-          create: mockCreate,
-        },
+vi.mock("@/lib/ai/groq-client", () => ({
+  groqClient: {
+    audio: {
+      transcriptions: {
+        create: mockCreate,
       },
-    })),
-  };
-});
+    },
+  },
+}));
+
+vi.mock("@/lib/ai/groq-request-wrapper", () => ({
+  safeGroqRequest: (fn: () => Promise<unknown>) => fn(),
+  withGroqRetry: (fn: () => Promise<unknown>) => fn(),
+  withGroqTimeout: (fn: () => Promise<unknown>) => fn(),
+}));
+
+vi.mock("@/lib/utils/rate-limiter", () => ({
+  checkRateLimit: () => ({ limited: false, remaining: 10, limit: 10, resetTime: 0 }),
+  getClientIdentifier: () => "test-client",
+  getRateLimitConfig: () => ({ windowMs: 60000, maxRequests: 10 }),
+  getRateLimitHeaders: () => ({}),
+}));
 
 // 需要在 mock 之后导入
 import { POST } from "../route";
