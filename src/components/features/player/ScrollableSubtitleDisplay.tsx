@@ -29,6 +29,26 @@ interface Token {
  * 沿 DOM 树向上查找最近的可滚动祖先元素。
  * 用于判断字幕是否已经在滚动视口内可见。
  */
+function findActiveSegmentIndexBinary(segments: Segment[], currentTime: number): number {
+  let left = 0;
+  let right = segments.length - 1;
+
+  while (left <= right) {
+    const mid = (left + right) >> 1;
+    const segment = segments[mid];
+    if (currentTime >= segment.start && currentTime <= segment.end) {
+      return mid;
+    }
+    if (currentTime < segment.start) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
+  }
+
+  return -1;
+}
+
 function findScrollParent(element: HTMLElement): HTMLElement | null {
   let current: HTMLElement | null = element.parentElement;
   while (current) {
@@ -111,9 +131,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
       Number.isFinite(currentTime) && !Number.isNaN(currentTime) ? currentTime : 0;
 
     const findActiveSegmentIndex = useCallback(() => {
-      return segments.findIndex(
-        (segment) => safeCurrentTime >= segment.start && safeCurrentTime <= segment.end,
-      );
+      return findActiveSegmentIndexBinary(segments, safeCurrentTime);
     }, [segments, safeCurrentTime]);
 
     useEffect(() => {

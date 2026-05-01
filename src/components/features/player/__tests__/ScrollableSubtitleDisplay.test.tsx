@@ -120,4 +120,37 @@ describe("ScrollableSubtitleDisplay Component", () => {
     rerender(<ScrollableSubtitleDisplay {...defaultProps} currentTime={4} />);
     expect(screen.getAllByTestId("subtitle-card")[1]).toHaveClass("highlight");
   });
+
+  it("finds active segment quickly for large arrays", () => {
+    const manySegments: Segment[] = Array.from({ length: 1000 }, (_, i) => ({
+      id: i,
+      transcriptId: 1,
+      start: i,
+      end: i + 1,
+      text: `segment ${i}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const { rerender } = render(
+      <ScrollableSubtitleDisplay
+        segments={manySegments}
+        currentTime={500.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <ScrollableSubtitleDisplay
+        segments={manySegments}
+        currentTime={500.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    );
+
+    const segments = screen.getAllByTestId("subtitle-card");
+    expect(segments[500]).toHaveClass("highlight");
+  });
 });
