@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { cn } from "@/lib/utils/utils";
 import type { AudioPlayerState } from "@/types/db/database";
 
 interface PlayerFooterProps {
@@ -14,6 +15,10 @@ interface PlayerFooterProps {
   onPlaybackRateChange: (rate: number) => void;
   volume: number;
   onVolumeChange: (volume: number) => void;
+  onSetLoopStart?: () => void;
+  onSetLoopEnd?: () => void;
+  onToggleShadowingMode?: () => void;
+  isShadowingMode?: boolean;
 }
 
 export function PlayerFooter({
@@ -22,8 +27,15 @@ export function PlayerFooter({
   onTogglePlay,
   onSkipBack,
   onSkipForward,
+  onClearLoop,
+  loopStart,
+  loopEnd,
   volume,
   onVolumeChange,
+  onSetLoopStart,
+  onSetLoopEnd,
+  onToggleShadowingMode,
+  isShadowingMode,
 }: PlayerFooterProps) {
   const progressWidth = useMemo(() => {
     const { currentTime, duration } = audioPlayerState;
@@ -110,6 +122,56 @@ export function PlayerFooter({
               aria-label="前进10秒"
             >
               <span className="material-symbols-outlined text-xl">forward_10</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onSetLoopStart}
+              className={cn(
+                "btn-secondary !h-9 !w-9 !rounded-full !p-0 text-xs font-bold",
+                loopStart !== undefined &&
+                  "!border-[var(--color-primary)] !text-[var(--color-primary)]",
+              )}
+              aria-label="设置循环起点 A"
+            >
+              A
+            </button>
+            <button
+              type="button"
+              onClick={onSetLoopEnd}
+              className={cn(
+                "btn-secondary !h-9 !w-9 !rounded-full !p-0 text-xs font-bold",
+                loopEnd !== undefined &&
+                  "!border-[var(--color-primary)] !text-[var(--color-primary)]",
+              )}
+              aria-label="设置循环终点 B"
+            >
+              B
+            </button>
+            {(loopStart !== undefined || loopEnd !== undefined) && (
+              <button
+                type="button"
+                onClick={onClearLoop}
+                className="btn-secondary !h-9 !w-9 !rounded-full !p-0"
+                aria-label="清除循环"
+              >
+                <span className="material-symbols-outlined text-lg">clear</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onToggleShadowingMode}
+              className={cn(
+                "btn-secondary !h-9 !w-9 !rounded-full !p-0",
+                isShadowingMode && "!border-[var(--color-primary)] !text-[var(--color-primary)]",
+              )}
+              aria-label={isShadowingMode ? "关闭跟读模式" : "开启跟读模式"}
+            >
+              <span className="material-symbols-outlined text-lg">
+                {isShadowingMode ? "record_voice_over" : "voice_selection"}
+              </span>
             </button>
           </div>
 

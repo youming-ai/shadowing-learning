@@ -12,6 +12,7 @@ import { PlayerPageLayout } from "@/components/features/player/page/PlayerPageLa
 import ScrollableSubtitleDisplay from "@/components/features/player/ScrollableSubtitleDisplay";
 import ApiKeyError from "@/components/ui/ApiKeyError";
 import { usePlayerDataQuery } from "@/hooks/player/usePlayerDataQuery";
+import { useShadowingMode } from "@/hooks/player/useShadowingMode";
 import { useAudioPlayer } from "@/hooks/ui/useAudioPlayer";
 import { isApiKeyError } from "@/lib/utils/error-handler";
 // 引入手动后Process工具，使其在浏览器控制台可用
@@ -37,8 +38,16 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
     onSkipForward,
     loopStart,
     loopEnd,
+    onSetLoop,
     onClearLoop,
   } = useAudioPlayer();
+
+  const { isShadowingMode, toggleShadowingMode } = useShadowingMode({
+    segments,
+    isPlaying: audioPlayerState.isPlaying,
+    currentTime: audioPlayerState.currentTime,
+    onRequestPause: onPause,
+  });
 
   const audioRef = useRef<HTMLAudioElement>(null);
   // 跟踪 audio 元素最近一次通过 timeupdate 自报的时间。
@@ -173,6 +182,26 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
     }
   };
 
+  const getCurrentSegment = useCallback(() => {
+    return segments.find(
+      (s) => audioPlayerState.currentTime >= s.start && audioPlayerState.currentTime <= s.end,
+    );
+  }, [segments, audioPlayerState.currentTime]);
+
+  const handleSetLoopStart = useCallback(() => {
+    const seg = getCurrentSegment();
+    if (seg) {
+      onSetLoop(seg.start, loopEnd ?? seg.end);
+    }
+  }, [getCurrentSegment, loopEnd, onSetLoop]);
+
+  const handleSetLoopEnd = useCallback(() => {
+    const seg = getCurrentSegment();
+    if (seg) {
+      onSetLoop(loopStart ?? seg.start, seg.end);
+    }
+  }, [getCurrentSegment, loopStart, onSetLoop]);
+
   const handleBack = useCallback(() => {
     clearAudio();
     router.push("/");
@@ -207,6 +236,10 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
       onPlaybackRateChange={setPlaybackRate}
       volume={volume}
       onVolumeChange={handleVolumeChange}
+      onSetLoopStart={handleSetLoopStart}
+      onSetLoopEnd={handleSetLoopEnd}
+      onToggleShadowingMode={toggleShadowingMode}
+      isShadowingMode={isShadowingMode}
     />
   ) : null;
 
