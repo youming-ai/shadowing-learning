@@ -155,6 +155,39 @@ describe("ScrollableSubtitleDisplay Component", () => {
     expect(activeWords[0]).toHaveClass("active");
   });
 
+  it("renders furigana as ruby annotation when reading is present", () => {
+    const jaSegment: Segment = {
+      id: 1,
+      transcriptId: 1,
+      start: 0,
+      end: 2,
+      text: "日本語",
+      normalizedText: "日本語",
+      furigana: JSON.stringify([
+        { text: "日本", reading: "にほん" },
+        { text: "語", reading: "ご" },
+      ]),
+      wordTimestamps: [
+        { word: "日本", start: 0, end: 1 },
+        { word: "語", start: 1, end: 2 },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    render(
+      <ScrollableSubtitleDisplay
+        segments={[jaSegment]}
+        currentTime={0.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("にほん")).toBeInTheDocument();
+    expect(screen.getByText("ご")).toBeInTheDocument();
+  });
+
   it("finds active segment quickly for large arrays", () => {
     const manySegments: Segment[] = Array.from({ length: 1000 }, (_, i) => ({
       id: i,
