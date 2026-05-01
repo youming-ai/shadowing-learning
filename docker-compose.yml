@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    # 不向宿主机绑定端口：Dokploy/Traefik 通过 docker 网络访问 expose 的端口，
-    # 用 ports 会和已运行实例（或同机器上其他服务）抢占 0.0.0.0:3000。
     expose:
       - "3000"
     environment:
@@ -13,3 +11,9 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
       PERFORMANCE_ADMIN_TOKEN: ${PERFORMANCE_ADMIN_TOKEN:-}
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
