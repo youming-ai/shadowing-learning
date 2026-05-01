@@ -2,12 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import PlayerFooterContainer from "@/components/features/player/PlayerFooterContainer";
 import {
   PlayerErrorState,
   PlayerLoadingState,
   PlayerMissingFileState,
 } from "@/components/features/player/page/PlayerFallbackStates";
-import { PlayerFooter } from "@/components/features/player/page/PlayerFooter";
 import { PlayerPageLayout } from "@/components/features/player/page/PlayerPageLayout";
 import ScrollableSubtitleDisplay from "@/components/features/player/ScrollableSubtitleDisplay";
 import ApiKeyError from "@/components/ui/ApiKeyError";
@@ -179,12 +179,15 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
     };
   }, [audioUrl, updatePlayerState, sanitizeNumber, file?.duration, onClearLoop]);
 
-  const handleSegmentClick = (segment: Segment) => {
-    handleSeek(segment.start);
-    if (!audioPlayerState.isPlaying) {
-      onPlay();
-    }
-  };
+  const handleSegmentClick = useCallback(
+    (segment: Segment) => {
+      handleSeek(segment.start);
+      if (!audioPlayerState.isPlaying) {
+        onPlay();
+      }
+    },
+    [handleSeek, audioPlayerState.isPlaying, onPlay],
+  );
 
   const getCurrentSegment = useCallback(() => {
     return segments.find(
@@ -227,7 +230,7 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
   }, []);
 
   const layoutFooter = audioUrl ? (
-    <PlayerFooter
+    <PlayerFooterContainer
       audioPlayerState={audioPlayerState}
       onSeek={handleSeek}
       onTogglePlay={handleTogglePlay}

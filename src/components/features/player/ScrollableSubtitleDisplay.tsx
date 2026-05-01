@@ -25,6 +25,12 @@ interface Token {
   end?: number;
 }
 
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
 /**
  * 沿 DOM 树向上查找最近的可滚动祖先元素。
  * 用于判断字幕是否已经在滚动视口内可见。
@@ -233,6 +239,16 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
           )}
           data-testid="subtitle-scroll-container"
         >
+          <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
+            {isPlaying && activeIndex >= 0 && segments[activeIndex]
+              ? segments[activeIndex].text
+              : ""}
+          </div>
+          <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
+            {isPlaying && activeIndex >= 0 && segments[activeIndex]
+              ? segments[activeIndex].text
+              : ""}
+          </div>
           {segments.length === 0 ? (
             <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
               <p>暂无字幕内容</p>
@@ -243,7 +259,6 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
               const tokens = segmentTokens[index] || [];
               const hasTokens = tokens.length > 0;
 
-              // 显示文本
               const displayText = segment.normalizedText || segment.text;
               const lines = displayText
                 .split(/\n+/)
@@ -262,6 +277,8 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                       onSegmentClick?.(segment);
                     }
                   }}
+                  aria-current={isActive ? "true" : undefined}
+                  aria-label={`Jump to ${formatTime(segment.start)}: ${displayText}`}
                   data-testid="subtitle-card"
                   data-active={isActive}
                   className={cn(
