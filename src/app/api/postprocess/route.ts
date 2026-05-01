@@ -1,9 +1,11 @@
-import Groq from "groq-sdk";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { groqClient } from "@/lib/ai/groq-client";
+import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
 import { apiError, apiFromError, apiSuccess } from "@/lib/utils/api-response";
 import { validationError } from "@/lib/utils/error-handler";
 import { apiLogger } from "@/lib/utils/logger";
+import { checkRateLimit, getClientIdentifier } from "@/lib/utils/rate-limiter";
 
 export const runtime = "nodejs";
 
@@ -106,6 +108,35 @@ function validateSegments(segments: Array<{ text: string; start: number; end: nu
         },
       };
     }
+  }
+
+  const MAX_SEGMENT_TEXT_LENGTH = 2000;
+  const MAX_TOTAL_TEXT_LENGTH = 10000;
+
+  let totalLength = 0;
+  for (let i = 0; i < segments.length; i++) {
+    if (segments[i].text.length > MAX_SEGMENT_TEXT_LENGTH) {
+      return {
+        isValid: false,
+        error: {
+          code: "SEGMENT_TOO_LONG" as const,
+          message: `Segment ${i} exceeds ${MAX_SEGMENT_TEXT_LENGTH} characters`,
+          statusCode: 400,
+        },
+      };
+    }
+    totalLength += segments[i].text.length;
+  }
+
+  if (totalLength > MAX_TOTAL_TEXT_LENGTH) {
+    return {
+      isValid: false,
+      error: {
+        code: "TOTAL_TEXT_TOO_LONG" as const,
+        message: `Total text length exceeds ${MAX_TOTAL_TEXT_LENGTH} characters`,
+        statusCode: 400,
+      },
+    };
   }
 
   return { isValid: true };
@@ -250,24 +281,26 @@ async function postProcessSegmentWithGroq(
       options.enableFurigana,
     );
 
-    // 使用 Groq SDK 进行文本Process
     const sourceLangName = getLanguageName(sourceLanguage);
-    const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const response = await groqClient.chat.completions.create({
-      model: GROQ_CHAT_MODEL,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You are a professional ${sourceLangName} language teacher producing shadowing-practice material. Provide accurate, faithful translations and normalizations — do not invent content beyond the source. Respond with valid JSON only.`,
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+    const response = await safeGroqRequest(
+      () =>
+        groqClient.chat.completions.create({
+          model: GROQ_CHAT_MODEL,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional ${sourceLangName} language teacher producing shadowing-practice material. Provide accurate, faithful translations and normalizations — do not invent content beyond the source. Respond with valid JSON only.`,
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      "postprocess-segment",
+    );
 
     const responseText = response.choices[0]?.message?.content || "";
 
@@ -343,23 +376,25 @@ Return ONLY valid JSON in this exact shape, with one entry per input segment, "i
   ]
 }`;
 
-    // 使用 Groq SDK 进行batchProcess
-    const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const response = await groqClient.chat.completions.create({
-      model: GROQ_CHAT_MODEL,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You are a professional ${sourceLangName} language teacher producing learning material. Translate and normalize each provided segment independently and faithfully. Never merge segments. Respond with valid JSON only.`,
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+    const response = await safeGroqRequest(
+      () =>
+        groqClient.chat.completions.create({
+          model: GROQ_CHAT_MODEL,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional ${sourceLangName} language teacher producing learning material. Translate and normalize each provided segment independently and faithfully. Never merge segments. Respond with valid JSON only.`,
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      "postprocess-batch",
+    );
 
     // 清理responseinmarkdown代码块标记
     let cleanedText = response.choices[0]?.message?.content?.trim() || "";
@@ -586,6 +621,19 @@ export async function POST(request: NextRequest) {
         message: "Groq configuration invalid",
         details: configValidation.errors,
         statusCode: 500,
+      });
+    }
+
+    const clientKey = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientKey, {
+      windowMs: 60 * 1000,
+      maxRequests: 20,
+    });
+    if (rateLimit.limited) {
+      return apiError({
+        code: "RATE_LIMIT",
+        message: "Too many postprocess requests",
+        statusCode: 429,
       });
     }
 
