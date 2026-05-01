@@ -154,6 +154,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
 
   const onSetLoop = useCallback(
     (start: number, end: number) => {
+      lastLoopTimeRef.current = -1;
       setLoopPoints(start, end);
     },
     [setLoopPoints],
