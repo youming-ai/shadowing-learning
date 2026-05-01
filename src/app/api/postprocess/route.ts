@@ -24,18 +24,6 @@ function getLanguageName(code: string): string {
   return LANGUAGE_NAMES[code] || code;
 }
 
-// Type definitions for processed segments
-interface ProcessedSegment {
-  id: number;
-  normalizedText: string;
-  translation?: string;
-  annotations?: Array<{
-    text: string;
-    type: string;
-    reading?: string;
-  }>;
-}
-
 interface PostProcessResult {
   originalText: string;
   normalizedText: string;
@@ -393,9 +381,8 @@ Return ONLY valid JSON in this exact shape, with one entry per input segment, "i
       apiLogger.debug(`批量AI SDK处理完成，耗时: ${processingTime}ms`);
 
       return shortTextSegments.map((originalSegment, index) => {
-        const processedSegment = batchResponse.segments.find(
-          (s: ProcessedSegment) => s.id === index,
-        );
+        // 使用数组下标按序映射，AI 模型不一定可靠地遵循 id 约定
+        const processedSegment = batchResponse.segments[index];
         return {
           originalText: originalSegment.text,
           normalizedText: processedSegment?.normalizedText || originalSegment.text,
