@@ -2,259 +2,224 @@
 
 <div align="center">
 
-**AI驱动的语言学习应用 - 专注于影子练习的音频转录工具**
+**面向语言学习者的影子跟读练习应用 / AI-powered shadowing practice for language learners**
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/youming-ai/shadowing-learning)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js-16.0.7-black.svg)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue.svg)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
+[![Biome](https://img.shields.io/badge/Biome-2.3-60a5fa.svg?logo=biome)](https://biomejs.dev/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[功能演示](https://shadowing-learning.vercel.app) | [文档](./docs/ARCHITECTURE.md) | [开发指南](./CLAUDE.md)
+[架构](./docs/ARCHITECTURE.md) · [开发](./docs/DEVELOPMENT.md) · [数据流](./docs/DATA-FLOW.md) · [部署](./docs/DOKPLOY.md) · [Git 流程](./docs/GIT-WORKFLOW.md)
 
 </div>
 
-## ✨ 特性
+---
 
-### 🎯 核心功能
-- **🎵 音频转录**: 使用 AI 技术将音频转换为文本
-- **⏱️ 时间戳字幕**: 精确的时间戳和分段显示
-- **🔄 自动处理**: 智能文本增强和后处理
-- **🎮 交互式播放器**: 同步音频和字幕播放
-- **📊 状态跟踪**: 基于本地数据库和查询缓存同步转录状态
+## 这是什么
 
-### 🚀 技术亮点
-- **⚡ 高性能**: 优化的网络请求和缓存策略
-- **🎨 现代UI**: 基于 shadcn/ui 的响应式设计
-- **🌙 主题系统**: 支持深色、浅色、系统和高对比度主题
-- **📱 移动友好**: 完全响应式设计
-- **🔒 类型安全**: 完整的 TypeScript 支持
-- **🧪 测试覆盖**: 全面的单元测试和集成测试
+[影子跟读（Shadowing）](https://en.wikipedia.org/wiki/Shadowing_(psycholinguistics)) 是一种通过紧跟原音模仿来训练听说能力的语言学习方法。本项目是一个 Web 应用：
 
-### 🛠️ 开发体验
-- **📦 包管理**: 使用 pnpm 快速依赖管理
-- **🔧 代码质量**: 集成 Biome.js 代码检查和格式化
-- **🚀 部署优化**: 自动化构建和部署流程
-- **📈 性能监控**: 内置性能监控和分析
-- **📚 完整文档**: 详细的 API 和组件文档
+1. **上传**一段音频（MP3 / WAV / M4A / FLAC）
+2. **自动转录**为时间戳字幕（Groq Whisper-large-v3-turbo）
+3. **后处理**生成规范化文本、翻译和标注（Groq LLM）
+4. **同步播放**：字幕随音频高亮，支持逐句循环、可调速度，专注跟读练习
 
-## 🚀 快速开始
+支持中文（简/繁）、英语、日语、韩语，UI 与转录语言可独立切换。
+
+## 特性
+
+- **客户端优先**：除两次 Groq API 调用外，所有数据（音频 Blob、转录、片段）都存放在浏览器的 IndexedDB（Dexie），无后端数据库
+- **多语言**：UI 与翻译目标支持 5 种语言，使用 BCP-47 hreflang 声明
+- **PWA**：可安装、支持离线降级（Service Worker 注册）
+- **主题系统**：浅色 / 深色 / 跟随系统 / 高对比度，CSS 变量驱动
+- **性能监控**：内置 Web Vitals 上报（可选 token 保护）
+- **类型安全**：严格 TypeScript + Zod 校验 API 边界
+- **测试**：Vitest + jsdom + fake-indexeddb（104+ 用例）
+
+## 技术栈
+
+| 类别       | 选型                                           |
+| ---------- | ---------------------------------------------- |
+| 框架       | Next.js 16（App Router, standalone 输出）      |
+| 视图       | React 19, Tailwind CSS 3, Radix UI, lucide-react |
+| 状态       | TanStack Query（服务态） + React Context（UI 态） |
+| 持久化     | Dexie / IndexedDB（v3 schema）                  |
+| AI         | Groq SDK（Whisper-large-v3-turbo + LLM 后处理） |
+| 校验       | Zod                                            |
+| 通知       | sonner                                         |
+| 工具链     | pnpm 10, Biome 2（lint + format）, Vitest 4    |
+| 部署       | Docker (multi-stage) + Dokploy（VPS, Traefik） |
+
+## 架构
+
+```
+┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
+│ 浏览器：上传  │ ──▶ │ /api/transcribe  │ ──▶ │ Groq Whisper     │
+└──────┬───────┘     │ (rate-limited)   │     └──────────────────┘
+       │             └─────────────────┘
+       │             ┌─────────────────┐     ┌──────────────────┐
+       │         ──▶ │ /api/postprocess │ ──▶ │ Groq LLM         │
+       │             └─────────────────┘     └──────────────────┘
+       ▼
+┌──────────────────────────────────────────┐
+│ IndexedDB (Dexie)                         │
+│   files / transcripts / segments          │
+└──────────────────────────────────────────┘
+       ▼
+┌──────────────────────────────────────────┐
+│ TanStack Query 缓存 + 字幕同步播放器        │
+└──────────────────────────────────────────┘
+```
+
+详细架构与数据流见 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) 与 [docs/DATA-FLOW.md](./docs/DATA-FLOW.md)。
+
+## 快速开始
 
 ### 环境要求
 
-- Node.js >= 20.0.0
-- pnpm >= 9.0.0
+- Node.js ≥ 20
+- pnpm ≥ 9（lockfile 锁定 pnpm 10.22.0）
+- 一个 [Groq API key](https://console.groq.com/keys)（免费层即可）
 
 ### 安装
 
 ```bash
-# 克隆项目
 git clone https://github.com/youming-ai/shadowing-learning.git
 cd shadowing-learning
-
-# 安装依赖
 pnpm install
-
-# 配置环境变量
 cp .env.example .env.local
-# 编辑 .env.local 添加你的 API 密钥
-```
-
-### 开发
-
-```bash
-# 启动开发服务器
+# 在 .env.local 中填入 GROQ_API_KEY
 pnpm dev
-
-# 在浏览器中打开 http://localhost:3000
 ```
 
-### 构建
-
-```bash
-# 构建生产版本
-pnpm build
-
-# 启动生产服务器
-pnpm start
-```
-
-## 📋 可用脚本
-
-### 开发相关
-```bash
-pnpm dev              # 启动开发服务器
-pnpm build            # 构建生产版本
-pnpm start            # 启动生产服务器
-```
-
-### 代码质量
-```bash
-pnpm lint             # 代码风格检查 (Biome.js)
-pnpm format           # 代码格式化
-pnpm type-check       # TypeScript 类型检查
-```
-
-### 测试 (Vitest)
-```bash
-pnpm test             # 运行测试（监视模式）
-pnpm test:run         # 运行测试（单次）
-pnpm test:coverage    # 生成测试覆盖率报告
-```
-
-### 工具
-```bash
-pnpm clean            # 清理构建产物
-```
-
-## 🏗️ 项目结构
-
-```
-shadowing-learning/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/               # API 路由
-│   │   ├── globals.css        # 全局样式
-│   │   └── layout.tsx         # 根布局
-│   ├── components/             # React 组件
-│   │   ├── ui/                # 基础 UI 组件
-│   │   ├── features/          # 业务功能组件
-│   │   └── layout/            # 布局组件
-│   ├── hooks/                  # 自定义 Hooks
-│   ├── lib/                    # 工具库
-│   │   ├── db/                # 数据库相关
-│   │   ├── utils/             # 工具函数
-│   │   └── ai/                # AI 服务
-│   └── types/                  # TypeScript 类型
-├── docs/                       # 项目文档
-├── scripts/                    # 构建和部署脚本
-├── __tests__/                  # 测试文件
-├── public/                     # 静态资源
-└── 配置文件...
-```
-
-## 🔧 配置
+打开 [http://localhost:3000](http://localhost:3000)。
 
 ### 环境变量
 
-```env
-# AI 服务配置
-GROQ_API_KEY=your_groq_api_key
+| 变量名                      | 必填 | 说明                                          |
+| --------------------------- | ---- | --------------------------------------------- |
+| `GROQ_API_KEY`              | ✓    | Groq Whisper + LLM 调用                       |
+| `NEXT_PUBLIC_APP_URL`       |      | 站点公开 URL，影响 metadata / sitemap / robots |
+| `PERFORMANCE_ADMIN_TOKEN`   |      | 保护 `/api/performance` 上报端点              |
 
-# 应用 URL，用于 metadata、robots 和 sitemap
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+切勿将 `.env*` 提交到仓库。
 
-### 主要配置文件
-
-- `next.config.js` - Next.js 配置
-- `biome.json` - 代码检查和格式化配置
-- `tailwind.config.ts` - Tailwind CSS 配置
-- `tsconfig.json` - TypeScript 配置
-
-## 📊 性能优化
-
-### 已实施的优化措施
-
-1. **🗂️ 构建优化**
-   - 释放 992MB 磁盘空间（构建产物清理）
-   - 减少 15MB 包体积（未使用依赖移除）
-   - 优化构建配置
-
-2. **🐛 代码质量**
-   - 统一错误处理（减少 30% 重复代码）
-   - 统一导入结构（减少 25% 导入语句）
-   - 配置文件简化（降低 64% 复杂度）
-
-3. **⚡ 性能监控**
-   - 核心 Web Vitals 监控
-   - API 响应时间跟踪
-   - 内存使用监控
-   - 错误率统计
-
-### 性能指标
-
-当前性能表现：
-- **First Contentful Paint**: < 1.5s
-- **Largest Contentful Paint**: < 2.5s
-- **First Input Delay**: < 100ms
-- **Cumulative Layout Shift**: < 0.1
-
-## 🧪 测试
-
-### 测试策略
-
-- **单元测试**: 组件和工具函数测试
-- **集成测试**: API 路由和数据库测试
-- **性能测试**: Lighthouse 和自定义指标测试
-- **端到端测试**: 用户流程测试
-
-### 运行测试
+## 脚本
 
 ```bash
-# 运行所有测试
-pnpm test
+# 开发
+pnpm dev               # 开发服务器（http://localhost:3000）
+pnpm build             # 生产构建（output: standalone）
+pnpm start             # 启动构建产物
 
-# 生成覆盖率报告
-pnpm test:coverage
+# 质量
+pnpm lint              # Biome check
+pnpm format            # Biome format --write
+pnpm type-check        # tsc --noEmit
 
+# 测试
+pnpm test              # 监视模式
+pnpm test:run          # 单次执行
+pnpm test:coverage     # v8 覆盖率报告
+
+# 单文件 / 单用例
+pnpm test:run path/to/file.test.ts
+pnpm test:run -t "test name pattern"
 ```
 
-## 📚 工作流文档
+## 项目结构
 
-完整的开发、数据、Git 和部署流程文档。
+```
+src/
+├── app/                       # Next.js App Router
+│   ├── api/                   # transcribe / postprocess / health / performance
+│   ├── player/[fileId]/       # 播放器页面（client component + layout 元数据）
+│   ├── settings/              # 设置（noindex）
+│   ├── account/               # 账户（noindex）
+│   ├── layout.tsx             # 根布局 + metadata + JSON-LD
+│   ├── opengraph-image.tsx    # 自动生成 1200×630 OG 图
+│   ├── sitemap.ts / robots.ts # SEO
+│   └── page.tsx
+├── components/
+│   ├── ui/                    # 基础组件（Radix 包装 + sonner）
+│   ├── features/              # file / player / settings 业务模块
+│   ├── layout/                # 布局 + Context（Theme / I18n / TranscriptionLanguage）
+│   └── transcription/
+├── hooks/
+│   ├── api/                   # 服务态（含 transcriptionKeys 工厂）
+│   ├── db/                    # IndexedDB 读写
+│   ├── player/                # 播放器状态
+│   └── ui/
+├── lib/
+│   ├── ai/                    # Groq 封装与转录工具
+│   ├── db/                    # Dexie schema 与 DBUtils
+│   ├── i18n/                  # 多语种翻译字典
+│   ├── utils/                 # api-response / rate-limiter / error-handler 等
+│   └── config/
+├── styles/globals.css         # CSS 变量主题
+├── types/                     # api / db / ui 类型
+└── __tests__/setup.ts         # Vitest 全局 setup（fake-indexeddb 等）
+```
 
-- [开发工作流](./docs/DEVELOPMENT.md) - 开发环境、命令和最佳实践
-- [数据流程](./docs/DATA-FLOW.md) - 数据存储、处理和流转
-- [Git 工作流](./docs/GIT-WORKFLOW.md) - 分支策略、提交规范和 PR 流程
-- [架构文档](./docs/ARCHITECTURE.md) - 技术栈、组件结构和 API 概览
+## 部署
 
-## 🤝 贡献
+项目部署在 VPS 的 Docker 容器中，由 [Dokploy](https://dokploy.com/) 通过 Traefik 反向代理（**不在 Vercel 上**）。
 
-我们欢迎各种形式的贡献！
+```bash
+# 本地容器冒烟测试
+docker compose up --build
+```
 
-### 贡献流程
+- [Dockerfile](./Dockerfile) 多阶段构建于 `node:22-alpine`，产物为 `.next/standalone`
+- [docker-compose.yml](./docker-compose.yml) 用 `expose: 3000` 而非 `ports:`，由 Dokploy 接入 Traefik 网络
+- 完整流程见 [docs/DOKPLOY.md](./docs/DOKPLOY.md)
 
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
+> 速率限制器是进程内内存实现，单实例可用，多副本扩容前需替换为 Redis 等共享存储。
 
-### 开发规范
+## 测试
 
-- 遵循 TypeScript 严格模式
-- 使用 pnpm 作为包管理器
-- 代码风格遵循 Biome.js 配置
-- 提交信息遵循 Conventional Commits
-- 添加适当的测试覆盖
+- 框架：Vitest 4 + jsdom + `fake-indexeddb`
+- 测试与源代码就近（`__tests__/` 子目录）
+- 全局 setup：[`src/__tests__/setup.ts`](./src/__tests__/setup.ts)
+- mock 一律用 `vi.fn()`（不是 `jest.fn()`）
 
-## 📄 许可证
+```bash
+pnpm test:run            # 全量
+pnpm test:coverage       # 覆盖率（v8）
+```
 
-本项目采用 [MIT 许可证](LICENSE)。
+## SEO
 
-## 🙏 致谢
+- Next.js Metadata API 集中管理 title / description / OG / Twitter
+- `hreflang` 声明 5 种语言（zh-CN / zh-TW / en / ja / ko / x-default）
+- 自动生成 1200×630 OG 与 Twitter 卡片图（edge runtime）
+- 私有路径（`/player/`、`/settings`、`/account`）声明 `robots: noindex` 并在 `robots.ts` 屏蔽
+- `SoftwareApplication` + `WebSite` JSON-LD
 
-感谢以下开源项目：
+## 贡献
 
-- [Next.js](https://nextjs.org/) - React 框架
-- [shadcn/ui](https://ui.shadcn.com/) - UI 组件库
-- [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
-- [Radix UI](https://www.radix-ui.com/) - 无头组件
-- [Groq](https://groq.com/) - AI 推理服务
-- [Vitest](https://vitest.dev/) - 测试框架
+1. Fork & 新建分支：`git checkout -b feat/your-feature`
+2. 修改后跑通：`pnpm lint && pnpm type-check && pnpm test:run`
+3. 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 提交信息
+4. 推送并开 PR（参考 [docs/GIT-WORKFLOW.md](./docs/GIT-WORKFLOW.md)）
 
-## 📞 联系
+详细约定见 [CLAUDE.md](./CLAUDE.md)。
 
-- 项目主页: [https://shadowing-learning.vercel.app](https://shadowing-learning.vercel.app)
-- 问题反馈: [GitHub Issues](https://github.com/youming-ai/shadowing-learning/issues)
-- 功能建议: [GitHub Discussions](https://github.com/youming-ai/shadowing-learning/discussions)
+## 许可证
+
+[MIT](./LICENSE)
+
+## 致谢
+
+[Next.js](https://nextjs.org/) · [React](https://react.dev/) · [Radix UI](https://www.radix-ui.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Dexie](https://dexie.org/) · [TanStack Query](https://tanstack.com/query) · [Groq](https://groq.com/) · [Vitest](https://vitest.dev/) · [Biome](https://biomejs.dev/)
 
 ---
 
 <div align="center">
 
-**🌟 如果这个项目对你有帮助，请给我们一个 Star！**
+如果项目对你有帮助，欢迎 Star ⭐
 
-Made with ❤️ by Shadowing Learning Team
+[Issue](https://github.com/youming-ai/shadowing-learning/issues) · [Discussions](https://github.com/youming-ai/shadowing-learning/discussions)
 
 </div>
