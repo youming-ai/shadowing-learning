@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils/utils";
 import type { Segment } from "@/types/db/database";
 
@@ -136,14 +136,12 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
     const safeCurrentTime =
       Number.isFinite(currentTime) && !Number.isNaN(currentTime) ? currentTime : 0;
 
-    const findActiveSegmentIndex = useCallback(() => {
+    const activeIndex = useMemo(() => {
       return findActiveSegmentIndexBinary(segments, safeCurrentTime);
     }, [segments, safeCurrentTime]);
 
     useEffect(() => {
-      const activeIndex = findActiveSegmentIndex();
-
-      // 只有当active segment发生变化时才滚动
+      // 使用 activeIndex 替代 findActiveSegmentIndex()
       if (activeIndex === previousActiveIndex.current || activeIndex === -1) {
         return;
       }
@@ -189,9 +187,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
           clearTimeout(scrollTimeoutRef.current);
         }
       };
-    }, [findActiveSegmentIndex, isPlaying]);
-
-    const activeIndex = findActiveSegmentIndex();
+    }, [activeIndex, isPlaying]);
 
     const segmentTokens = useMemo<Token[][]>(() => {
       return segments.map((segment) => {

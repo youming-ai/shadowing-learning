@@ -164,7 +164,7 @@ export class CircuitBreaker {
 
   constructor(
     private readonly failureThreshold: number = 5,
-    private readonly resetTimeout: number = 60000, // 1 minutereadonly _monitoringPeriod: number = 60000 // 1 minute
+    private readonly resetTimeout: number = 60000, // 1 minute
   ) {}
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {

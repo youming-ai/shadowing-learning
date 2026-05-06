@@ -42,7 +42,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     // Replace parameters in translation string
     if (params) {
       Object.entries(params).forEach(([param, value]) => {
-        translation = translation.replace(new RegExp(`{{${param}}}`, "g"), String(value));
+        const escaped = param.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        translation = translation.replace(new RegExp(`{{${escaped}}}`, "g"), String(value));
       });
     }
 

@@ -300,11 +300,6 @@ function addSafeFurigana(text: string, furigana: string): string {
   }
 }
 
-// keep原有 addFurigana 函数Used for向后兼容
-function _addFurigana(text: string, furigana: string): string {
-  return addSafeFurigana(text, furigana);
-}
-
 export function createSubtitleElement(
   subtitle: Subtitle | null,
   isActive: boolean = false,
