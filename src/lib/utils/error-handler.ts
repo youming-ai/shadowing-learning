@@ -217,7 +217,7 @@ export function transcriptionError(message: string, details?: Record<string, unk
 }
 
 // API 错误
-export function apiError(
+export function createApiError(
   message: string,
   statusCode: number = 500,
   details?: Record<string, unknown>,
@@ -385,7 +385,7 @@ export const ErrorHandler = {
   fileUploadError,
   audioProcessingError,
   transcriptionError,
-  apiError,
+  createApiError,
   handleAndShowError,
   isAppError,
   handleWithRetry,
