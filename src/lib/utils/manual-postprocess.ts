@@ -2,6 +2,12 @@
 
 import { db } from "@/lib/db/db";
 
+interface ManualPostProcessWindow extends Window {
+  manualPostProcess: typeof manualPostProcess;
+  retranslateFile: typeof retranslateFile;
+  retranscribeFile: typeof retranscribeFile;
+}
+
 const LEARNING_LANGUAGE_KEY = "shadowing-learning-language";
 
 interface PostProcessOptions {
@@ -155,8 +161,9 @@ export async function retranscribeFile(fileId: number): Promise<boolean> {
 }
 
 // 导出To window object，方便在浏览器控制台调用
-if (typeof window !== "undefined") {
-  (window as any).manualPostProcess = manualPostProcess;
-  (window as any).retranslateFile = retranslateFile;
-  (window as any).retranscribeFile = retranscribeFile;
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  const win = window as unknown as ManualPostProcessWindow;
+  win.manualPostProcess = manualPostProcess;
+  win.retranslateFile = retranslateFile;
+  win.retranscribeFile = retranscribeFile;
 }
