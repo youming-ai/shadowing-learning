@@ -1,4 +1,13 @@
-/** * 性能指标收集API * Used for接收和存储client性能数据*/
+/**
+ * 性能指标收集 API
+ * 用于接收和存储客户端性能数据
+ *
+ * ⚠️ 限制说明:
+ * - 使用内存 Map 存储，serverless/edge 环境下冷启动会重置
+ * - 仅适用于开发环境和短期调试
+ * - 生产环境应使用外部数据库或监控服务
+ * - GET 端点在开发模式下无认证
+ */
 
 import { type NextRequest, NextResponse } from "next/server";
 import { apiSuccess } from "@/lib/utils/api-response";
@@ -6,7 +15,7 @@ import { performanceLogger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
 
-// Memory存储性能数据（生产环境应使用database或外部服务）
+// ⚠️ 内存存储：serverless 环境下冷启动会丢失数据
 const performanceStore = new Map<string, StoredPerformanceData[]>();
 const MAX_DAYS_TO_KEEP = 7; // keep最近 7 天数据
 
