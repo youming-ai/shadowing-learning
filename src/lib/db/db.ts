@@ -51,9 +51,20 @@ export class AppDatabase extends Dexie {
         segments:
           "++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]",
       })
-      .upgrade(async (_tx) => {
-        // Add enhanced segment fields for better transcription features
-        dbLogger.debug("Database migrated to version 3: Added enhanced transcription features");
+      .upgrade(async (tx) => {
+        dbLogger.debug("Database migrating to version 3: Adding enhanced transcription fields");
+        try {
+          const segmentsTable = tx.table("segments");
+          await segmentsTable.toCollection().modify((segment: Record<string, unknown>) => {
+            if (segment.normalizedText === undefined) segment.normalizedText = null;
+            if (segment.translation === undefined) segment.translation = null;
+            if (segment.annotations === undefined) segment.annotations = null;
+            if (segment.furigana === undefined) segment.furigana = null;
+          });
+          dbLogger.debug("Database migration to version 3 complete");
+        } catch (error) {
+          dbLogger.error("Database migration to version 3 failed:", error);
+        }
       });
   }
 }
