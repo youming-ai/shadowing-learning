@@ -244,11 +244,6 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
               ? segments[activeIndex].text
               : ""}
           </div>
-          <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
-            {isPlaying && activeIndex >= 0 && segments[activeIndex]
-              ? segments[activeIndex].text
-              : ""}
-          </div>
           {segments.length === 0 ? (
             <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
               <p>暂无字幕内容</p>
