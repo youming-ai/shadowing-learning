@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { themeLogger } from "@/lib/utils/logger";
 
 type Theme = "dark" | "light" | "system" | "high-contrast";
 
@@ -46,7 +47,7 @@ export function ThemeProvider({
         setTheme(stored);
       }
     } catch (error) {
-      console.warn("Failed to read theme from localStorage:", error);
+      themeLogger.warn("Failed to read theme from localStorage:", error);
     }
   }, [storageKey]);
 
@@ -85,7 +86,7 @@ export function ThemeProvider({
 
     // 调试信息
     if (process.env.NODE_ENV === "development") {
-      console.log("🎨 Theme applied:", {
+      themeLogger.debug("Theme applied:", {
         theme,
         dataTheme: dataThemeValue,
         resolved,
@@ -117,7 +118,7 @@ export function ThemeProvider({
 
       // 调试信息
       if (process.env.NODE_ENV === "development") {
-        console.log("🔄 System theme changed:", {
+        themeLogger.debug("System theme changed:", {
           systemPreference: resolved,
           currentTheme: theme,
           dataTheme: root.getAttribute("data-theme"),
@@ -130,7 +131,7 @@ export function ThemeProvider({
 
     // 初始Check
     if (process.env.NODE_ENV === "development") {
-      console.log("📱 System theme listener active:", {
+      themeLogger.debug("System theme listener active:", {
         initialPreference: mediaQuery.matches ? "dark" : "light",
         currentTheme: theme,
       });
@@ -146,7 +147,7 @@ export function ThemeProvider({
 
       // 调试信息
       if (process.env.NODE_ENV === "development") {
-        console.log("💾 Theme saved to localStorage:", {
+        themeLogger.debug("Theme saved to localStorage:", {
           theme: newTheme,
           storageKey,
           existingValue: localStorage.getItem(storageKey),
@@ -155,7 +156,7 @@ export function ThemeProvider({
 
       setTheme(newTheme);
     } catch (error) {
-      console.warn("Failed to save theme to localStorage:", error);
+      themeLogger.warn("Failed to save theme to localStorage:", error);
       setTheme(newTheme);
     }
   };
@@ -179,7 +180,7 @@ export function ThemeProvider({
 
     // 调试信息
     if (process.env.NODE_ENV === "development") {
-      console.log("🔄 Theme toggled:", {
+      themeLogger.debug("Theme toggled:", {
         from: theme,
         to: newTheme,
         togglePath: `${theme} → ${newTheme}`,

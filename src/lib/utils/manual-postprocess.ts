@@ -1,6 +1,7 @@
 /** * 手动触发后Process工具函数 * Used foras已Transcription但没有TranslationFile生成Translation*/
 
 import { db } from "@/lib/db/db";
+import { transcriptionLogger } from "@/lib/utils/logger";
 
 interface ManualPostProcessWindow extends Window {
   manualPostProcess: typeof manualPostProcess;
@@ -47,19 +48,19 @@ export async function manualPostProcess(options: PostProcessOptions): Promise<bo
     targetLanguage = fallbackTarget,
   } = options;
 
-  console.log(`🔄 手动后处理开始，transcriptId: ${transcriptId}`);
-  console.log(`   源语言: ${sourceLanguage}, 目标语言: ${targetLanguage}`);
+  transcriptionLogger.info(`手动后处理开始，transcriptId: ${transcriptId}`);
+  transcriptionLogger.info(`源语言: ${sourceLanguage}, 目标语言: ${targetLanguage}`);
 
   try {
     // Get segments
     const segments = await db.segments.where("transcriptId").equals(transcriptId).toArray();
 
     if (segments.length === 0) {
-      console.error("❌ 没有找到 segments");
+      transcriptionLogger.error("没有找到 segments");
       return false;
     }
 
-    console.log(`📝 找到 ${segments.length} 个 segments`);
+    transcriptionLogger.info(`找到 ${segments.length} 个 segments`);
 
     // 调用后Process API
     const response = await fetch("/api/postprocess", {
@@ -79,18 +80,18 @@ export async function manualPostProcess(options: PostProcessOptions): Promise<bo
     });
 
     if (!response.ok) {
-      console.error(`❌ 后处理 API 失败: ${response.status} ${response.statusText}`);
+      transcriptionLogger.error(`后处理 API 失败: ${response.status} ${response.statusText}`);
       return false;
     }
 
     const result = await response.json();
-    console.log("📦 后处理 API 响应:", {
+    transcriptionLogger.debug("后处理 API 响应:", {
       success: result.success,
       segmentCount: result.data?.segments?.length,
     });
 
     if (!result.success || !result.data?.segments) {
-      console.error("❌ 后处理响应无效:", result);
+      transcriptionLogger.error("后处理响应无效:", result);
       return false;
     }
 
@@ -113,12 +114,12 @@ export async function manualPostProcess(options: PostProcessOptions): Promise<bo
       updatedCount += count;
     }
 
-    console.log(`✅ 后处理完成，更新了 ${updatedCount} 个 segments`);
-    console.log("🔄 请刷新页面查看翻译");
+    transcriptionLogger.info(`后处理完成，更新了 ${updatedCount} 个 segments`);
+    transcriptionLogger.info("请刷新页面查看翻译");
 
     return true;
   } catch (error) {
-    console.error("❌ 后处理异常:", error);
+    transcriptionLogger.error("后处理异常:", error);
     return false;
   }
 }
@@ -127,7 +128,7 @@ export async function manualPostProcess(options: PostProcessOptions): Promise<bo
 export async function retranslateFile(fileId: number): Promise<boolean> {
   const transcript = await db.transcripts.where("fileId").equals(fileId).first();
   if (!transcript?.id) {
-    console.error(`❌ 找不到 fileId=${fileId} 的转录记录`);
+    transcriptionLogger.error(`找不到 fileId=${fileId} 的转录记录`);
     return false;
   }
   return manualPostProcess({ transcriptId: transcript.id });
@@ -135,11 +136,11 @@ export async function retranslateFile(fileId: number): Promise<boolean> {
 
 /** * 清掉一个文件的转录数据（不动 audio blob），让 player 自动重新跑 Whisper。 * 用于 Whisper 输出本身就乱（多语言混杂、识别错误）需要重做的情况。 * 完成后请刷新或返回首页再点进来——usePlayerDataQuery 会检测到没有转录并自动重启。 */
 export async function retranscribeFile(fileId: number): Promise<boolean> {
-  console.log(`🗑️  清理 fileId=${fileId} 的旧转录...`);
+  transcriptionLogger.info(`清理 fileId=${fileId} 的旧转录...`);
   try {
     const transcripts = await db.transcripts.where("fileId").equals(fileId).toArray();
     if (transcripts.length === 0) {
-      console.warn(`⚠️ fileId=${fileId} 没有转录记录，可以直接刷新页面触发首次转录`);
+      transcriptionLogger.warn(`fileId=${fileId} 没有转录记录，可以直接刷新页面触发首次转录`);
       return true;
     }
     await db.transaction("rw", [db.transcripts, db.segments], async () => {
@@ -150,12 +151,12 @@ export async function retranscribeFile(fileId: number): Promise<boolean> {
         }
       }
     });
-    console.log(
-      `✅ 已删除 ${transcripts.length} 条转录及其 segments。请刷新此页面或返回首页再次点进文件，会按当前 settings 的学习语言重新转录。`,
+    transcriptionLogger.info(
+      `已删除 ${transcripts.length} 条转录及其 segments。请刷新此页面或返回首页再次点进文件，会按当前 settings 的学习语言重新转录。`,
     );
     return true;
   } catch (error) {
-    console.error("❌ 清理转录失败:", error);
+    transcriptionLogger.error("清理转录失败:", error);
     return false;
   }
 }

@@ -1,6 +1,7 @@
 /** * 统一Filestate管理器 * 消除 FileRow.status 和 TranscriptRow.status 不一致问题 * 以 TranscriptRow.status a唯一真实数据源 (Single Source of Truth)*/
 
 import { db } from "@/lib/db/db";
+import { dbLogger } from "@/lib/utils/logger";
 import type { ProcessingStatus } from "@/types/db/database";
 
 export type FileDisplayStatus = "uploaded" | "transcribing" | "completed" | "error";
@@ -39,7 +40,7 @@ export async function getFileRealStatus(fileId: number): Promise<{
       transcript,
     };
   } catch (error) {
-    console.error("获取文件真实状态失败:", error);
+    dbLogger.error("获取文件真实状态失败:", error);
     return { status: "error" };
   }
 }
@@ -82,7 +83,7 @@ export async function updateTranscriptionStatus(
       return transcriptId;
     });
   } catch (error) {
-    console.error("更新转录状态失败:", error);
+    dbLogger.error("更新转录状态失败:", error);
     throw error;
   }
 }
@@ -105,7 +106,7 @@ export async function getFilesStatus(fileIds: number[]): Promise<Map<number, Fil
 
     return statusMap;
   } catch (error) {
-    console.error("批量获取文件状态失败:", error);
+    dbLogger.error("批量获取文件状态失败:", error);
     const errorMap = new Map<number, FileDisplayStatus>();
     fileIds.forEach((fileId) => {
       errorMap.set(fileId, "error");
@@ -135,9 +136,9 @@ export async function cleanupFailedTranscriptions(olderThanDays: number = 7): Pr
       }
     }
 
-    console.log(`清理了 ${failedTranscripts.length} 个过期的失败转录记录`);
+    dbLogger.info(`清理了 ${failedTranscripts.length} 个过期的失败转录记录`);
   } catch (error) {
-    console.error("清理过期转录记录失败:", error);
+    dbLogger.error("清理过期转录记录失败:", error);
   }
 }
 
@@ -173,14 +174,14 @@ export async function safeUpdateTranscriptionStatus(
 
     // Validatestate转换
     if (!isValidStatusTransition(currentStatus, toStatus)) {
-      console.warn(`无效的状态转换: ${currentStatus} -> ${toStatus} (文件ID: ${fileId})`);
+      dbLogger.warn(`无效的状态转换: ${currentStatus} -> ${toStatus} (文件ID: ${fileId})`);
       // 可以选择抛出Error或继续执行
     }
 
     // 执行Update
     return await updateTranscriptionStatus(fileId, toStatus, error, additionalData);
   } catch (error) {
-    console.error("安全更新转录状态失败:", error);
+    dbLogger.error("安全更新转录状态失败:", error);
     throw error;
   }
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DBUtils, db } from "@/lib/db/db";
+import { transcriptionLogger } from "@/lib/utils/logger";
 import {
   handleTranscriptionError,
   handleTranscriptionSuccess,
@@ -129,15 +130,18 @@ async function saveTranscriptionResults(
       }
 
       const processingTime = Date.now() - startTime;
-      console.log(
-        `✅ 转录结果保存完成 (文件ID: ${fileId}) - 耗时: ${processingTime}ms, segments: ${data.segments?.length || 0}`,
+      transcriptionLogger.info(
+        `转录结果保存完成 (文件ID: ${fileId}) - 耗时: ${processingTime}ms, segments: ${data.segments?.length || 0}`,
       );
 
       return transcriptId;
     });
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    console.error(`❌ 转录结果保存失败 (文件ID: ${fileId}) - 耗时: ${processingTime}ms`, error);
+    transcriptionLogger.error(
+      `转录结果保存失败 (文件ID: ${fileId}) - 耗时: ${processingTime}ms`,
+      error,
+    );
 
     try {
       await db.transaction("rw", db.transcripts, db.segments, async (tx) => {
@@ -151,7 +155,7 @@ async function saveTranscriptionResults(
         }
       });
     } catch (cleanupError) {
-      console.error("清理失败转录数据时出错:", cleanupError);
+      transcriptionLogger.error("清理失败转录数据时出错:", cleanupError);
     }
 
     throw error;
@@ -167,12 +171,12 @@ async function postProcessTranscription(
   queryClient?: ReturnType<typeof import("@tanstack/react-query").useQueryClient>,
 ): Promise<void> {
   if (!segments || segments.length === 0) {
-    console.log("⚠️ 后处理跳过：没有 segments");
+    transcriptionLogger.warn("后处理跳过：没有 segments");
     return;
   }
 
-  console.log(`🔄 开始后处理 ${segments.length} 个 segments`);
-  console.log(`   源语言(音频): ${sourceLanguage} → 目标语言(翻译): ${targetLanguage}`);
+  transcriptionLogger.info(`开始后处理 ${segments.length} 个 segments`);
+  transcriptionLogger.info(`源语言(音频): ${sourceLanguage} → 目标语言(翻译): ${targetLanguage}`);
 
   await DBUtils.update(db.transcripts, transcriptId, {
     postProcessStatus: "pending",
@@ -198,18 +202,18 @@ async function postProcessTranscription(
     });
 
     if (!response.ok) {
-      console.error(`❌ 后处理 API 失败: ${response.status} ${response.statusText}`);
+      transcriptionLogger.error(`后处理 API 失败: ${response.status} ${response.statusText}`);
       return;
     }
 
     const result = await response.json();
-    console.log("📦 后处理 API 响应:", {
+    transcriptionLogger.debug("后处理 API 响应:", {
       success: result.success,
       segmentCount: result.data?.segments?.length,
     });
 
     if (!result.success || !result.data?.segments) {
-      console.error("❌ 后处理响应无效:", result);
+      transcriptionLogger.error("后处理响应无效:", result);
       return;
     }
 
@@ -247,7 +251,7 @@ async function postProcessTranscription(
       updatedCount += count;
     }
 
-    console.log(`✅ 后处理完成，更新了 ${updatedCount} 个 segments`);
+    transcriptionLogger.info(`后处理完成，更新了 ${updatedCount} 个 segments`);
 
     // 只刷新转录数据查询，不要 invalidate playerKeys.file —
     // 那会触发 file blob 重新读取并生成新的 audioUrl，导致 audio 元素 load() 重置播放。
@@ -257,7 +261,7 @@ async function postProcessTranscription(
       });
     }
   } catch (error) {
-    console.error("❌ 后处理异常:", error);
+    transcriptionLogger.error("后处理异常:", error);
   }
 }
 
@@ -346,7 +350,7 @@ export function useTranscription() {
         nativeLanguage,
         queryClient,
       ).catch((err) => {
-        console.error("后处理失败:", err);
+        transcriptionLogger.error("后处理失败:", err);
       });
 
       return data;
