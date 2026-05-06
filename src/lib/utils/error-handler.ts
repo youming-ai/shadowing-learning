@@ -51,18 +51,9 @@ export function createError(
   message: string,
   details?: Record<string, unknown>,
   statusCode: number = 500,
-  _context?: ErrorContext,
+  cause?: Error,
 ): AppError {
   const errorCode = ErrorCodes[code];
-
-  // 安全获取 stack 属性
-  let stack: string | undefined;
-  try {
-    const testError = new Error();
-    stack = testError.stack;
-  } catch {
-    stack = undefined;
-  }
 
   return {
     code: errorCode,
@@ -70,7 +61,13 @@ export function createError(
     details,
     statusCode,
     timestamp: Date.now(),
-    stack,
+    stack: cause?.stack,
+    cause: cause
+      ? {
+          message: cause.message,
+          code: (cause as { code?: string }).code,
+        }
+      : undefined,
     context: {
       timestamp: Date.now(),
     },

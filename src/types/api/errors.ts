@@ -5,6 +5,10 @@ export interface AppError {
   statusCode: number;
   timestamp?: number;
   stack?: string;
+  cause?: {
+    message: string;
+    code?: string;
+  };
   context?: ErrorContext;
 }
 
