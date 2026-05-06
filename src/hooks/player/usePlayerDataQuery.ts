@@ -77,6 +77,7 @@ export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
 
   const { startTranscription } = useFileStatusManager(parsedFileId);
   const autoTranscribingRef = useRef(false);
+  const currentBlobRef = useRef<Blob | undefined>(undefined);
 
   useEffect(() => {
     if (autoTranscribingRef.current) return;
@@ -102,12 +103,23 @@ export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
 
   useEffect(() => {
     const blob = file?.blob;
+    currentBlobRef.current = blob;
+
     return () => {
       if (blob) {
         revokeAudioUrl(blob);
       }
     };
   }, [file?.blob]);
+
+  // Extra safety: clean up on unmount even if blob reference hasn't changed
+  useEffect(() => {
+    return () => {
+      if (currentBlobRef.current) {
+        revokeAudioUrl(currentBlobRef.current);
+      }
+    };
+  }, []);
 
   const loading = fileQuery.isLoading;
   const error = fileQuery.error?.message || null;
