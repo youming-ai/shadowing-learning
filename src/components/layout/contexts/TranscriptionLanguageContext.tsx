@@ -147,7 +147,18 @@ export function TranscriptionLanguageProvider({ children }: TranscriptionLanguag
 
   // 防止服务端/client不一致
   if (!isClient) {
-    return null;
+    return (
+      <TranscriptionLanguageContext.Provider
+        value={{
+          learningLanguage: { nativeLanguage: "zh-CN" },
+          setLearningLanguage: () => {},
+          getSupportedLanguages: () => SUPPORTED_LANGUAGES,
+          getTranscriptionLanguages: () => SUPPORTED_LANGUAGES,
+        }}
+      >
+        {children}
+      </TranscriptionLanguageContext.Provider>
+    );
   }
 
   return (
