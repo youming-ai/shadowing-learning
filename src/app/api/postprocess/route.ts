@@ -5,7 +5,7 @@ import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
 import { apiError, apiFromError, apiSuccess } from "@/lib/utils/api-response";
 import { validationError } from "@/lib/utils/error-handler";
 import { apiLogger } from "@/lib/utils/logger";
-import { checkRateLimit, getClientIdentifier } from "@/lib/utils/rate-limiter";
+import { checkRateLimit, getClientIdentifier, getRateLimitConfig } from "@/lib/utils/rate-limiter";
 
 export const runtime = "nodejs";
 
@@ -625,15 +625,19 @@ export async function POST(request: NextRequest) {
     }
 
     const clientKey = getClientIdentifier(request);
-    const rateLimit = checkRateLimit(clientKey, {
-      windowMs: 60 * 1000,
-      maxRequests: 20,
-    });
+    const rateLimitConfig = getRateLimitConfig("/api/postprocess");
+    const rateLimit = checkRateLimit(`postprocess:${clientKey}`, rateLimitConfig);
     if (rateLimit.limited) {
       return apiError({
         code: "RATE_LIMIT",
         message: "Too many postprocess requests",
         statusCode: 429,
+        headers: {
+          "X-RateLimit-Limit": String(rateLimitConfig.maxRequests),
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": String(rateLimit.resetTime),
+          "Retry-After": String(Math.ceil(rateLimit.resetTime - Date.now() / 1000)),
+        },
       });
     }
 
