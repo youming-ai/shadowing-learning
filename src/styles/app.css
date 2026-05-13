@@ -1,6 +1,85 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+
+  --color-success: var(--state-success-text);
+  --color-success-surface: var(--state-success-surface);
+  --color-success-border: var(--state-success-border);
+  --color-success-strong: var(--state-success-strong);
+
+  --color-warning: var(--state-warning-text);
+  --color-warning-surface: var(--state-warning-surface);
+  --color-warning-border: var(--state-warning-border);
+  --color-warning-strong: var(--state-warning-strong);
+
+  --color-error: var(--state-error-text);
+  --color-error-surface: var(--state-error-surface);
+  --color-error-border: var(--state-error-border);
+  --color-error-strong: var(--state-error-strong);
+
+  --color-info: var(--state-info-text);
+  --color-info-surface: var(--state-info-surface);
+  --color-info-border: var(--state-info-border);
+  --color-info-strong: var(--state-info-strong);
+
+  --color-background: var(--bg-primary);
+  --color-background-secondary: var(--bg-secondary);
+  --color-background-tertiary: var(--bg-tertiary);
+  --color-background-surface: var(--bg-surface);
+  --color-background-inverse: var(--bg-inverse);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-border: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-border-muted: var(--border-muted);
+  --color-border-focus: var(--border-focus);
+  --color-border-error: var(--border-error);
+
+  --color-surface: var(--surface-card);
+  --color-surface-base: var(--surface-base);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-player-accent: var(--player-accent-color);
+  --color-player-highlight: var(--player-highlight-bg);
+  --color-player-track: var(--player-track-color);
+  --color-player-thumb-fill: var(--player-thumb-fill);
+  --color-player-thumb-border: var(--player-thumb-border);
+  --color-player-hover: var(--player-hover-indicator);
+  --color-player-tooltip: var(--player-tooltip-text);
+
+  --spacing-card-sm: var(--space-card-padding-sm);
+  --spacing-card-lg: var(--space-card-padding-lg);
+  --spacing-section: var(--space-section-gap);
+
+  --radius-card: var(--radius-card);
+  --radius-card-lg: var(--radius-card-large);
+  --radius-control: var(--radius-control);
+
+  --shadow-theme-sm: var(--shadow-sm);
+  --shadow-theme-md: var(--shadow-md);
+  --shadow-theme-lg: var(--shadow-lg);
+  --shadow-theme-xl: var(--shadow-xl);
+}
 
 /* Material Icons基础样式 */
 .material-symbols-outlined {
