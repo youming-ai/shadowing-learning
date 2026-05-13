@@ -1,4 +1,4 @@
-import type { Segment, WordTimestamp } from "@/types/db/database";
+import type { Segment, WordTimestamp } from "~/types/db/database";
 
 /** * Generate approximate word timestamps based on segment timing and text * This i a simple heuristic approach - for production, use a proper ASR with word-level timestamps*/
 export function generateWordTimestamps(

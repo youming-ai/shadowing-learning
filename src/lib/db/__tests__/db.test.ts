@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { FileRow, Segment } from "@/types/db/database";
+import type { FileRow, Segment } from "~/types/db/database";
 import { DBUtils, db } from "../db";
 
 describe("DBUtils", () => {

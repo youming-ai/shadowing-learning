@@ -1,8 +1,8 @@
 import { Volume2, VolumeX } from "lucide-react";
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "~/components/ui/button";
+import { Slider } from "~/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
 
 interface VolumeControlProps {
   isMuted: boolean;

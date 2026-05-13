@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DBUtils } from "@/lib/db/db";
-import { handleTranscriptionError } from "@/lib/utils/transcription-error-handler";
+import { DBUtils } from "~/lib/db/db";
+import { handleTranscriptionError } from "~/lib/utils/transcription-error-handler";
 import { useTranscription, useTranscriptionStatus } from "../useTranscription";
 
 // Mock dependencies
-vi.mock("@/lib/db/db", () => ({
+vi.mock("~/lib/db/db", () => ({
   DBUtils: {
     findTranscriptByFileId: vi.fn(),
     getSegmentsByTranscriptIdOrdered: vi.fn(),
@@ -52,7 +52,7 @@ vi.mock("@/lib/db/db", () => ({
   },
 }));
 
-vi.mock("@/lib/utils/transcription-error-handler", () => ({
+vi.mock("~/lib/utils/transcription-error-handler", () => ({
   handleTranscriptionError: vi.fn(),
   handleTranscriptionSuccess: vi.fn(),
 }));

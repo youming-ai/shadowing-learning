@@ -1,7 +1,7 @@
 /** * 手动触发后Process工具函数 * Used foras已Transcription但没有TranslationFile生成Translation*/
 
-import { db } from "@/lib/db/db";
-import { transcriptionLogger } from "@/lib/utils/logger";
+import { db } from "~/lib/db/db";
+import { transcriptionLogger } from "~/lib/utils/logger";
 
 interface ManualPostProcessWindow extends Window {
   manualPostProcess: typeof manualPostProcess;

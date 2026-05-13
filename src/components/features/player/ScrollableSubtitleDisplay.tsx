@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef } from "react";
-import { cn } from "@/lib/utils/utils";
-import type { Segment } from "@/types/db/database";
+import { cn } from "~/lib/utils/utils";
+import type { Segment } from "~/types/db/database";
 
 interface ScrollableSubtitleDisplayProps {
   segments: Segment[];

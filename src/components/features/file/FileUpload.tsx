@@ -2,8 +2,8 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useI18n } from "@/components/layout/contexts/I18nContext";
-import { checkFileSignature, isValidAudioFile, MAX_FILES } from "@/lib/utils/file-validation";
+import { useI18n } from "~/components/layout/contexts/I18nContext";
+import { checkFileSignature, isValidAudioFile, MAX_FILES } from "~/lib/utils/file-validation";
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;

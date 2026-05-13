@@ -1,21 +1,21 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import PlayerFooterContainer from "@/components/features/player/PlayerFooterContainer";
+import PlayerFooterContainer from "~/components/features/player/PlayerFooterContainer";
 import {
   PlayerErrorState,
   PlayerLoadingState,
   PlayerMissingFileState,
-} from "@/components/features/player/page/PlayerFallbackStates";
-import { PlayerPageLayout } from "@/components/features/player/page/PlayerPageLayout";
-import ScrollableSubtitleDisplay from "@/components/features/player/ScrollableSubtitleDisplay";
-import ApiKeyError from "@/components/ui/ApiKeyError";
-import { usePlayerDataQuery } from "@/hooks/player/usePlayerDataQuery";
-import { useShadowingMode } from "@/hooks/player/useShadowingMode";
-import { useAudioPlayer } from "@/hooks/ui/useAudioPlayer";
-import { isApiKeyError } from "@/lib/utils/error-handler";
+} from "~/components/features/player/page/PlayerFallbackStates";
+import { PlayerPageLayout } from "~/components/features/player/page/PlayerPageLayout";
+import ScrollableSubtitleDisplay from "~/components/features/player/ScrollableSubtitleDisplay";
+import ApiKeyError from "~/components/ui/ApiKeyError";
+import { usePlayerDataQuery } from "~/hooks/player/usePlayerDataQuery";
+import { useShadowingMode } from "~/hooks/player/useShadowingMode";
+import { useAudioPlayer } from "~/hooks/ui/useAudioPlayer";
+import { isApiKeyError } from "~/lib/utils/error-handler";
 // 引入手动后Process工具，使其在浏览器控制台可用
-import "@/lib/utils/manual-postprocess";
-import type { Segment } from "@/types/db/database";
+import "~/lib/utils/manual-postprocess";
+import type { Segment } from "~/types/db/database";
 
 export default function PlayerPageComponent({ fileId }: { fileId: string }) {
   const navigate = useNavigate();

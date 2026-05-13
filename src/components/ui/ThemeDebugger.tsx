@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "@/components/layout/contexts/ThemeContext";
+import { useTheme } from "~/components/layout/contexts/ThemeContext";
 
 interface ThemeInfo {
   currentTheme: string;

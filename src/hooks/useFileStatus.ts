@@ -2,15 +2,15 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TranscriptionLanguageCode } from "@/components/layout/contexts/TranscriptionLanguageContext";
-import { useTranscriptionLanguage } from "@/components/layout/contexts/TranscriptionLanguageContext";
-import { useTranscription } from "@/hooks/api/useTranscription";
-import { filesKeys } from "@/hooks/db/useFiles";
-import { DBUtils, db } from "@/lib/db/db";
-import type { FileDisplayStatus } from "@/lib/utils/file-status-manager";
-import { mapProcessingStatusToFileStatus } from "@/lib/utils/file-status-manager";
-import { handleTranscriptionError } from "@/lib/utils/transcription-error-handler";
-import { getTranscriptionQueue } from "@/lib/utils/transcription-queue";
+import type { TranscriptionLanguageCode } from "~/components/layout/contexts/TranscriptionLanguageContext";
+import { useTranscriptionLanguage } from "~/components/layout/contexts/TranscriptionLanguageContext";
+import { useTranscription } from "~/hooks/api/useTranscription";
+import { filesKeys } from "~/hooks/db/useFiles";
+import { DBUtils, db } from "~/lib/db/db";
+import type { FileDisplayStatus } from "~/lib/utils/file-status-manager";
+import { mapProcessingStatusToFileStatus } from "~/lib/utils/file-status-manager";
+import { handleTranscriptionError } from "~/lib/utils/transcription-error-handler";
+import { getTranscriptionQueue } from "~/lib/utils/transcription-queue";
 
 export const fileStatusKeys = {
   all: ["fileStatus"] as const,

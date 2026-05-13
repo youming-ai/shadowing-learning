@@ -1,4 +1,4 @@
-import type { ProcessingStatus, WordTimestamp } from "@/types/db/database";
+import type { ProcessingStatus, WordTimestamp } from "~/types/db/database";
 
 export interface TranscriptionSegment {
   id: number;

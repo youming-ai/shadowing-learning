@@ -3,7 +3,7 @@ import {
   SettingsCard,
   SettingsRowContent,
   SettingsSection,
-} from "@/components/features/settings/SettingsCard";
+} from "~/components/features/settings/SettingsCard";
 
 export function FeedbackSection() {
   return (

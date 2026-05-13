@@ -2,7 +2,7 @@
 
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Component, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "~/components/ui/button";
 
 interface ErrorInfo {
   componentStack: string;

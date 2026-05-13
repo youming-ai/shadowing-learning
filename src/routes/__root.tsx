@@ -1,14 +1,14 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import appCss from "../styles/globals.css?url";
-import { I18nProvider } from "@/components/layout/contexts/I18nContext";
-import { ThemeProvider } from "@/components/layout/contexts/ThemeContext";
-import { TranscriptionLanguageProvider } from "@/components/layout/contexts/TranscriptionLanguageContext";
-import { QueryProvider } from "@/components/layout/providers/QueryProvider";
-import { PageErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { ToastContainer } from "@/components/ui/ErrorToast";
-import { MonitoringInitializer } from "@/components/ui/MonitoringInitializer";
-import PwaRegister from "@/components/ui/PwaRegister";
-import { ThemeDebuggerToggle } from "@/components/ui/ThemeDebugger";
+import { I18nProvider } from "~/components/layout/contexts/I18nContext";
+import { ThemeProvider } from "~/components/layout/contexts/ThemeContext";
+import { TranscriptionLanguageProvider } from "~/components/layout/contexts/TranscriptionLanguageContext";
+import { QueryProvider } from "~/components/layout/providers/QueryProvider";
+import { PageErrorBoundary } from "~/components/ui/ErrorBoundary";
+import { ToastContainer } from "~/components/ui/ErrorToast";
+import { MonitoringInitializer } from "~/components/ui/MonitoringInitializer";
+import PwaRegister from "~/components/ui/PwaRegister";
+import { ThemeDebuggerToggle } from "~/components/ui/ThemeDebugger";
 
 const SITE_NAME = "影子跟读 Shadowing";
 const SITE_DESCRIPTION =

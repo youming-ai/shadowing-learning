@@ -1,8 +1,8 @@
 /** * 统一Filestate管理器 * 消除 FileRow.status 和 TranscriptRow.status 不一致问题 * 以 TranscriptRow.status a唯一真实数据源 (Single Source of Truth)*/
 
-import { db } from "@/lib/db/db";
-import { dbLogger } from "@/lib/utils/logger";
-import type { ProcessingStatus } from "@/types/db/database";
+import { db } from "~/lib/db/db";
+import { dbLogger } from "~/lib/utils/logger";
+import type { ProcessingStatus } from "~/types/db/database";
 
 export type FileDisplayStatus = "uploaded" | "transcribing" | "completed" | "error";
 

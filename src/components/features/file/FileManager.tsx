@@ -4,10 +4,10 @@
 
 import React, { useCallback, useState } from "react";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { useFiles } from "@/hooks";
-import { useFileStatus, useFileStatusManager } from "@/hooks/useFileStatus";
-import type { FileRow } from "@/types/db/database";
+import { Card, CardContent } from "~/components/ui/card";
+import { useFiles } from "~/hooks";
+import { useFileStatus, useFileStatusManager } from "~/hooks/useFileStatus";
+import type { FileRow } from "~/types/db/database";
 import FileCard from "./FileCard";
 import FileUpload from "./FileUpload";
 

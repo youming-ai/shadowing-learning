@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DBUtils, db } from "@/lib/db/db";
-import { transcriptionLogger } from "@/lib/utils/logger";
+import { DBUtils, db } from "~/lib/db/db";
+import { transcriptionLogger } from "~/lib/utils/logger";
 import {
   handleTranscriptionError,
   handleTranscriptionSuccess,
-} from "@/lib/utils/transcription-error-handler";
-import { smartRetry } from "@/lib/utils/transcription-recovery";
-import { TranscriptionError } from "@/types/transcription";
+} from "~/lib/utils/transcription-error-handler";
+import { smartRetry } from "~/lib/utils/transcription-recovery";
+import { TranscriptionError } from "~/types/transcription";
 
 interface TranscriptionResponse {
   success: boolean;

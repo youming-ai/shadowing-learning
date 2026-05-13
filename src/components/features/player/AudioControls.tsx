@@ -1,7 +1,7 @@
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "~/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
 
 interface AudioControlsProps {
   isPlaying: boolean;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GroqTranscriptionSegment, GroqTranscriptionWord } from "@/types/transcription";
+import type { GroqTranscriptionSegment, GroqTranscriptionWord } from "~/types/transcription";
 import {
   buildSegmentsFromPlainText,
   buildSegmentsFromWords,

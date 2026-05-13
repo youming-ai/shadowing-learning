@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FileRow, Segment, TranscriptRow } from "@/types/db/database";
+import type { FileRow, Segment, TranscriptRow } from "~/types/db/database";
 import { DBUtils, db } from "../db";
 
 // Mock error handler
-vi.mock("@/lib/utils/error-handler", () => ({
+vi.mock("~/lib/utils/error-handler", () => ({
   handleError: vi.fn((error, _context) => {
     throw error;
   }),

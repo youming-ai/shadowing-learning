@@ -1,7 +1,7 @@
 /** * Simplified database operations file * Removed complex batch processors, keeping core functionality*/
 
 import Dexie, { type Table } from "dexie";
-import type { FileRow, Segment, TranscriptRow } from "@/types/db/database";
+import type { FileRow, Segment, TranscriptRow } from "~/types/db/database";
 import { handleError } from "../utils/error-handler";
 import { dbLogger } from "../utils/logger";
 

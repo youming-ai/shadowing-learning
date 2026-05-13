@@ -1,21 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { groqClient } from "@/lib/ai/groq-client";
-import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
+import { groqClient } from "~/lib/ai/groq-client";
+import { safeGroqRequest } from "~/lib/ai/groq-request-wrapper";
 import {
   buildSegmentsFromPlainText,
   buildSegmentsFromWords,
   mapGroqSegmentToTranscriptionSegment,
-} from "@/lib/ai/groq-transcription-utils";
-import { apiError, apiSuccess } from "@/lib/utils/api-response";
-import { apiLogger } from "@/lib/utils/logger";
+} from "~/lib/ai/groq-transcription-utils";
+import { apiError, apiSuccess } from "~/lib/utils/api-response";
+import { apiLogger } from "~/lib/utils/logger";
 import {
   checkRateLimit,
   getClientIdentifier,
   getRateLimitConfig,
   getRateLimitHeaders,
-} from "@/lib/utils/rate-limiter";
-import type { GroqTranscriptionResponse, TranscriptionSegment } from "@/types/transcription";
+} from "~/lib/utils/rate-limiter";
+import type { GroqTranscriptionResponse, TranscriptionSegment } from "~/types/transcription";
 
 const transcribeQuerySchema = z.object({
   fileId: z.string().min(1, "fileId is required"),

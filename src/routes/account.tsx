@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import AccountPage from "@/components/features/settings/AccountPage";
-import Navigation from "@/components/ui/Navigation";
+import AccountPage from "~/components/features/settings/AccountPage";
+import Navigation from "~/components/ui/Navigation";
 
 export const Route = createFileRoute("/account")({
   component: AccountRoute,

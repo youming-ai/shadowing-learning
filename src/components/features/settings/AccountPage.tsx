@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { AccountSection } from "@/components/features/settings/page/AccountSection";
-import { ProUpgradeSection } from "@/components/features/settings/page/ProUpgradeSection";
-import { SettingsLayout } from "@/components/features/settings/SettingsLayout";
+import { AccountSection } from "~/components/features/settings/page/AccountSection";
+import { ProUpgradeSection } from "~/components/features/settings/page/ProUpgradeSection";
+import { SettingsLayout } from "~/components/features/settings/SettingsLayout";
 
 export function AccountPage() {
   useEffect(() => {

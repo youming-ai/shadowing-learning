@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "@/components/layout/contexts/ThemeContext";
+import { useTheme } from "~/components/layout/contexts/ThemeContext";
 
 // 导航栏主题切换按钮（只显示图标）
 export function ThemeToggleIcon() {

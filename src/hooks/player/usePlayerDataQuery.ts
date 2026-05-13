@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { useTranscriptionStatus } from "@/hooks/api/useTranscription";
-import { useFileStatusManager } from "@/hooks/useFileStatus";
-import { DBUtils } from "@/lib/db/db";
-import type { FileRow, Segment, TranscriptRow } from "@/types/db/database";
+import { useTranscriptionStatus } from "~/hooks/api/useTranscription";
+import { useFileStatusManager } from "~/hooks/useFileStatus";
+import { DBUtils } from "~/lib/db/db";
+import type { FileRow, Segment, TranscriptRow } from "~/types/db/database";
 
 const audioUrlCache = new WeakMap<Blob, string>();
 

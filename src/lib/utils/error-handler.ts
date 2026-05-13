@@ -7,7 +7,7 @@ import {
   type ErrorMonitor,
   getDefaultErrorMessage,
   LogLevel,
-} from "@/types/api/errors";
+} from "~/types/api/errors";
 import { type RetryOptions, withRetry } from "./retry-utils";
 
 // Re-export LogLevel for backward compatibility

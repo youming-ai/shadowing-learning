@@ -3,9 +3,9 @@
 "use client";
 
 import { CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils/utils";
-import type { TranscriptionTask } from "@/types/transcription";
+import { Progress } from "~/components/ui/progress";
+import { cn } from "~/lib/utils/utils";
+import type { TranscriptionTask } from "~/types/transcription";
 
 interface TranscriptionLoadingProps {
   task: TranscriptionTask | null;

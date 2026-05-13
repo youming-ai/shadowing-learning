@@ -1,7 +1,7 @@
 /** * API 性能监控 Hook * * 提供 API request性能监控functionality： * - request耗时统计 * - Error率追踪 * - 自动重试监控*/
 
 import { useCallback, useRef } from "react";
-import { reportCustomMetric } from "@/lib/utils/web-vitals";
+import { reportCustomMetric } from "~/lib/utils/web-vitals";
 
 export interface ApiMetrics {
   /** API 端点*/

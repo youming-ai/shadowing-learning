@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import PlayerPageComponent from "@/components/features/player/PlayerPage";
-import { DBUtils } from "@/lib/db/db";
+import PlayerPageComponent from "~/components/features/player/PlayerPage";
+import { DBUtils } from "~/lib/db/db";
 
-vi.mock("@/hooks/useFileStatus", () => ({
+vi.mock("~/hooks/useFileStatus", () => ({
   useFileStatusManager: () => ({
     startTranscription: vi.fn().mockResolvedValue(undefined),
   }),
@@ -13,7 +13,7 @@ vi.mock("@/hooks/useFileStatus", () => ({
 
 // Navigation pulls in I18n + transcription-language contexts that aren't
 // relevant to this test; render an inert stub instead.
-vi.mock("@/components/ui/Navigation", () => ({
+vi.mock("~/components/ui/Navigation", () => ({
   default: () => null,
 }));
 

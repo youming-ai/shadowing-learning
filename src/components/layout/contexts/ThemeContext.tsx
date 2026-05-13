@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { themeLogger } from "@/lib/utils/logger";
+import { themeLogger } from "~/lib/utils/logger";
 
 type Theme = "dark" | "light" | "system" | "high-contrast";
 

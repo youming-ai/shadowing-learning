@@ -1,11 +1,11 @@
-import { type ParsedFurigana, parseFuriganaAuto } from "@/lib/utils/furigana";
+import { type ParsedFurigana, parseFuriganaAuto } from "~/lib/utils/furigana";
 import {
   checkSecurity,
   createSafeSubtitleElement,
   type SanitizeOptions,
   sanitizeHtml,
-} from "@/lib/utils/security";
-import type { Segment } from "@/types/db/database";
+} from "~/lib/utils/security";
+import type { Segment } from "~/types/db/database";
 
 export interface Subtitle {
   id: number;
@@ -16,7 +16,7 @@ export interface Subtitle {
   translation?: string;
   annotations?: string[];
   furigana?: string;
-  wordTimestamps?: import("@/types/db/database").WordTimestamp[];
+  wordTimestamps?: import("~/types/db/database").WordTimestamp[];
   isActive: boolean;
 }
 

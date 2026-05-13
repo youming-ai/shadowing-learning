@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { apiSuccess } from "@/lib/utils/api-response";
-import { performanceLogger } from "@/lib/utils/logger";
+import { apiSuccess } from "~/lib/utils/api-response";
+import { performanceLogger } from "~/lib/utils/logger";
 
 const performanceStore = new Map<string, StoredPerformanceData[]>();
 const MAX_DAYS_TO_KEEP = 7;

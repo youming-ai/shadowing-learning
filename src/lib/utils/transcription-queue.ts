@@ -1,6 +1,6 @@
 /** * Transcription队列管理 * 提供并发控制和取消functionality*/
 
-import type { TranscriptionLanguageCode } from "@/components/layout/contexts/TranscriptionLanguageContext";
+import type { TranscriptionLanguageCode } from "~/components/layout/contexts/TranscriptionLanguageContext";
 
 export interface TranscriptionTask {
   fileId: number;

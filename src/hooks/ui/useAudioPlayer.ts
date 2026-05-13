@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FileRow } from "@/types/db/database";
-import type { AudioPlayerState } from "@/types/player";
+import type { FileRow } from "~/types/db/database";
+import type { AudioPlayerState } from "~/types/player";
 
 export interface UseAudioPlayerReturn {
   audioPlayerState: AudioPlayerState;

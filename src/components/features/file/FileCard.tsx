@@ -2,8 +2,8 @@
 
 "use client";
 
-import type { FileDisplayStatus } from "@/lib/utils/file-status-manager";
-import type { FileRow } from "@/types/db/database";
+import type { FileDisplayStatus } from "~/lib/utils/file-status-manager";
+import type { FileRow } from "~/types/db/database";
 
 interface FileCardProps {
   file: FileRow & { status: FileDisplayStatus }; // status 必须由父component传入

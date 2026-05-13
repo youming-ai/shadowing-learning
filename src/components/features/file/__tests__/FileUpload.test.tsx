@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import FileUpload from "../FileUpload";
 
 // Mock dependencies
-vi.mock("@/components/layout/contexts/I18nContext", () => ({
+vi.mock("~/components/layout/contexts/I18nContext", () => ({
   useI18n: () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
@@ -18,7 +18,7 @@ vi.mock("@/components/layout/contexts/I18nContext", () => ({
   }),
 }));
 
-vi.mock("@/lib/utils/logger", () => ({
+vi.mock("~/lib/utils/logger", () => ({
   fileLogger: {
     debug: vi.fn(),
     info: vi.fn(),

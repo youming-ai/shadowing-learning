@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DBUtils } from "@/lib/db/db";
+import { DBUtils } from "~/lib/db/db";
 import { useFiles } from "../useFiles";
 
-vi.mock("@/lib/db/db", () => ({
+vi.mock("~/lib/db/db", () => ({
   DBUtils: {
     getAllFiles: vi.fn(),
     addFile: vi.fn(),

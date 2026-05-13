@@ -1,6 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useI18n } from "@/components/layout/contexts/I18nContext";
-import { ROUTES } from "@/lib/config/routes";
+import { useI18n } from "~/components/layout/contexts/I18nContext";
+import { ROUTES } from "~/lib/config/routes";
 import LanguageToggle from "./LanguageToggle";
 import { ThemeToggleIcon } from "./ThemeToggle";
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFiles } from "@/hooks";
-import { db } from "@/lib/db/db";
+import { useFiles } from "~/hooks";
+import { db } from "~/lib/db/db";
 
 interface StatsCardsProps {
   className?: string;

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { cn } from "@/lib/utils/utils";
-import type { AudioPlayerState } from "@/types/db/database";
+import { cn } from "~/lib/utils/utils";
+import type { AudioPlayerState } from "~/types/db/database";
 
 interface PlayerFooterProps {
   audioPlayerState: AudioPlayerState;

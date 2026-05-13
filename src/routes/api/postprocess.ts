@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { groqClient } from "@/lib/ai/groq-client";
-import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
-import { apiError, apiFromError, apiSuccess } from "@/lib/utils/api-response";
-import { validationError } from "@/lib/utils/error-handler";
-import { apiLogger } from "@/lib/utils/logger";
-import { checkRateLimit, getClientIdentifier, getRateLimitConfig } from "@/lib/utils/rate-limiter";
+import { groqClient } from "~/lib/ai/groq-client";
+import { safeGroqRequest } from "~/lib/ai/groq-request-wrapper";
+import { apiError, apiFromError, apiSuccess } from "~/lib/utils/api-response";
+import { validationError } from "~/lib/utils/error-handler";
+import { apiLogger } from "~/lib/utils/logger";
+import { checkRateLimit, getClientIdentifier, getRateLimitConfig } from "~/lib/utils/rate-limiter";
 
 const GROQ_CHAT_MODEL = "openai/gpt-oss-120b";
 

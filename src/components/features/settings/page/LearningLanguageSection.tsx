@@ -7,8 +7,8 @@ import {
   SettingsRow,
   SettingsRowContent,
   SettingsSection,
-} from "@/components/features/settings/SettingsCard";
-import { useTranscriptionLanguage } from "@/components/layout/contexts/TranscriptionLanguageContext";
+} from "~/components/features/settings/SettingsCard";
+import { useTranscriptionLanguage } from "~/components/layout/contexts/TranscriptionLanguageContext";
 
 export function LearningLanguageSection() {
   const { learningLanguage, setLearningLanguage, getSupportedLanguages } =

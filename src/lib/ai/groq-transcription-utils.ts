@@ -3,7 +3,7 @@ import type {
   GroqTranscriptionSegment,
   GroqTranscriptionWord,
   TranscriptionSegment,
-} from "@/types/transcription";
+} from "~/types/transcription";
 
 function normalizeWordTimings(
   words?: GroqTranscriptionWord[],

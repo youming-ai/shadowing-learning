@@ -5,11 +5,11 @@
 import { AlertTriangle, CheckCircle, Info, RefreshCw, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import type { AppError, ErrorStats } from "@/types/api/errors";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent } from "~/components/ui/card";
+import { Progress } from "~/components/ui/progress";
+import type { AppError, ErrorStats } from "~/types/api/errors";
 
 // Error提示class型
 export type ToastType = "success" | "error" | "warning" | "info";

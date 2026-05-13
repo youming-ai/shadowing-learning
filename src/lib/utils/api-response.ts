@@ -4,8 +4,8 @@ import {
   internalError,
   notFoundError,
   validationError,
-} from "@/lib/utils/error-handler";
-import type { AppError } from "@/types/api/errors";
+} from "~/lib/utils/error-handler";
+import type { AppError } from "~/types/api/errors";
 
 // Successresponse函数
 export function apiSuccess(data: unknown, status: number = 200) {

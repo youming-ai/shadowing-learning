@@ -1,4 +1,4 @@
-import { withRetry, withTimeout } from "@/lib/utils/retry-utils";
+import { withRetry, withTimeout } from "~/lib/utils/retry-utils";
 
 const GROQ_TIMEOUT_MS = 30000;
 const MAX_RETRIES = 2;

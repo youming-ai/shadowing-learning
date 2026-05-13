@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Navigation from "@/components/ui/Navigation";
+import Navigation from "~/components/ui/Navigation";
 
 interface PlayerPageLayoutProps {
   subtitleContainerId: string;

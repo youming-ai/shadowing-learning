@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { DBUtils } from "@/lib/db/db";
-import type { FileRow } from "@/types/db/database";
+import { DBUtils } from "~/lib/db/db";
+import type { FileRow } from "~/types/db/database";
 
 export const filesKeys = {
   all: ["files"] as const,

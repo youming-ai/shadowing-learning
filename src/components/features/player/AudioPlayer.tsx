@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import AudioControls from "@/components/features/player/AudioControls";
-import PlaybackSpeedControl from "@/components/features/player/PlaybackSpeedControl";
-import VolumeControl from "@/components/features/player/VolumeControl";
-import { Card } from "@/components/ui/card";
-import { useAudioPlayerState } from "@/hooks/ui/useAudioPlayerState";
-import { useAudioPlayerTime } from "@/hooks/ui/useAudioPlayerTime";
-import { useKeyboardControls } from "@/hooks/ui/useKeyboardControls";
+import AudioControls from "~/components/features/player/AudioControls";
+import PlaybackSpeedControl from "~/components/features/player/PlaybackSpeedControl";
+import VolumeControl from "~/components/features/player/VolumeControl";
+import { Card } from "~/components/ui/card";
+import { useAudioPlayerState } from "~/hooks/ui/useAudioPlayerState";
+import { useAudioPlayerTime } from "~/hooks/ui/useAudioPlayerTime";
+import { useKeyboardControls } from "~/hooks/ui/useKeyboardControls";
 
 interface AudioPlayerProps {
   audioUrl?: string;

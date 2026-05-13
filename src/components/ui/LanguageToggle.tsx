@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "@/components/layout/contexts/I18nContext";
-import { useTranscriptionLanguage } from "@/components/layout/contexts/TranscriptionLanguageContext";
+import { useI18n } from "~/components/layout/contexts/I18nContext";
+import { useTranscriptionLanguage } from "~/components/layout/contexts/TranscriptionLanguageContext";
 
 // Supported languages
 const languages = [

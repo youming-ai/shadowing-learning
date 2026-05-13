@@ -1,6 +1,6 @@
 /** * 性能监控系统 * 提供全面性能指标收集、分析和监控functionality*/
 
-import type { AppError } from "@/types/api/errors";
+import type { AppError } from "~/types/api/errors";
 import { MonitoringService } from "./monitoring-service";
 
 // 性能指标class型

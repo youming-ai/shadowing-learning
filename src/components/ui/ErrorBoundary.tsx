@@ -2,9 +2,9 @@
 
 import { AlertTriangle, Bug, Copy, RefreshCw } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -12,15 +12,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+} from "~/components/ui/dialog";
+import { Separator } from "~/components/ui/separator";
+import { Textarea } from "~/components/ui/textarea";
 import {
   getLocalErrorLogs,
   handleError,
   showErrorToast,
   showSuccessToast,
-} from "@/lib/utils/error-handler";
+} from "~/lib/utils/error-handler";
 
 interface Props {
   children: ReactNode;
