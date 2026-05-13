@@ -8,15 +8,15 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './app/__root'
-import { Route as SettingsRouteImport } from './app/settings'
-import { Route as AccountRouteImport } from './app/account'
-import { Route as IndexRouteImport } from './app/index'
-import { Route as PlayerFileIdRouteImport } from './app/player.$fileId'
-import { Route as ApiTranscribeRouteImport } from './app/api/transcribe'
-import { Route as ApiPostprocessRouteImport } from './app/api/postprocess'
-import { Route as ApiPerformanceRouteImport } from './app/api/performance'
-import { Route as ApiHealthRouteImport } from './app/api/health'
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AccountRouteImport } from './routes/account'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlayerFileIdRouteImport } from './routes/player.$fileId'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as ApiPostprocessRouteImport } from './routes/api/postprocess'
+import { Route as ApiPerformanceRouteImport } from './routes/api/performance'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
