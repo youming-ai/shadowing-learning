@@ -1,7 +1,14 @@
 {
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/drizzle/**", "!**/.output/**", "!**/node_modules/**"]
+    "includes": [
+      "**",
+      "!**/coverage",
+      "!**/drizzle",
+      "!**/.output",
+      "!**/.next",
+      "!**/node_modules"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
@@ -14,5 +21,10 @@
   },
   "javascript": {
     "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }

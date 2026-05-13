@@ -1,8 +1,8 @@
-import { defineConfig } from "vite"
-import { tanstackStart } from "@tanstack/react-start/plugin/vite"
-import tailwindcss from "@tailwindcss/vite"
-import { resolve, dirname } from "node:path"
-import { fileURLToPath } from "node:url"
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { defineConfig } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -12,14 +12,14 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "~": resolve(__dirname, "./src"),
+      '~': resolve(__dirname, './src'),
     },
   },
   plugins: [
     tanstackStart({
-      srcDirectory: "src",
+      srcDirectory: 'src',
       router: {
-        routesDirectory: "routes",
+        routesDirectory: 'routes',
       },
     }),
     tailwindcss(),
