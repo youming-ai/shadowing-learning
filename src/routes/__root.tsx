@@ -1,5 +1,5 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
-import appCss from "../styles/globals.css?url";
+import appCss from "../styles/app.css?url";
 import { I18nProvider } from "~/components/layout/contexts/I18nContext";
 import { ThemeProvider } from "~/components/layout/contexts/ThemeContext";
 import { TranscriptionLanguageProvider } from "~/components/layout/contexts/TranscriptionLanguageContext";
