@@ -5,18 +5,16 @@
   "type": "module",
   "private": false,
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "start": "node .output/server/index.mjs",
-    "preview": "vite preview",
+    "dev": "bun run --bun vite dev",
+    "build": "bun run --bun vite build",
+    "start": "bun run .output/server/index.mjs",
+    "preview": "bun run --bun vite preview",
     "lint": "biome check .",
     "format": "biome format . --write",
-    "type-check": "tsc --noEmit",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "clean": "rm -rf .output dist node_modules/.cache",
-    "prepare": "husky"
+    "type-check": "bun run --bun tsc --noEmit",
+    "test": "bun test",
+    "test:run": "bun test",
+    "clean": "rm -rf .output dist node_modules/.cache"
   },
   "keywords": [
     "language-learning",
@@ -27,7 +25,6 @@
     "ai",
     "groq",
     "whisper",
-    "nextjs",
     "react",
     "typescript",
     "education",
@@ -36,10 +33,6 @@
   ],
   "author": "Shadowing Learning Team",
   "license": "MIT",
-  "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
-  },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -68,27 +61,17 @@
     "react-error-boundary": "^6.1.1",
     "sonner": "2.0.7",
     "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0",
     "zod": "^4.4.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
+    "@types/bun": "^1.2.0",
     "@types/node": "24.10.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/coverage-v8": "^4.1.5",
-    "autoprefixer": "^10.5.0",
-    "fake-indexeddb": "^6.2.5",
-    "husky": "^9.1.7",
-    "jsdom": "^27.4.0",
-    "postcss": "^8.5.13",
-    "tailwindcss": "3.4.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.12",
-    "vitest": "^4.1.5"
-  },
-  "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c"
+    "vite": "^8.0.12"
+  }
 }
