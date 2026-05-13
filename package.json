@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "bun run --bun vite dev",
     "build": "bun run --bun vite build",
-    "start": "bun run .output/server/index.mjs",
+    "start": "bun run dist/server/server.js",
     "preview": "bun run --bun vite preview",
     "lint": "biome check .",
     "format": "biome format . --write",
