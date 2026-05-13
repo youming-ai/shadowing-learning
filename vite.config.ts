@@ -1,10 +1,10 @@
-import { defineConfig } from "vite";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { defineConfig } from "vite"
+import { tanstackStart } from "@tanstack/react-start/plugin/vite"
+import tailwindcss from "@tailwindcss/vite"
+import { resolve, dirname } from "node:path"
+import { fileURLToPath } from "node:url"
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   server: {
@@ -12,16 +12,16 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src"),
+      "~": resolve(__dirname, "./src"),
     },
   },
   plugins: [
     tanstackStart({
       srcDirectory: "src",
       router: {
-        routesDirectory: "app",
+        routesDirectory: "routes",
       },
     }),
-    viteReact(),
+    tailwindcss(),
   ],
-});
+})
