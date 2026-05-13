@@ -1,17 +1,7 @@
 {
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "src/**/*.ts",
-      "src/**/*.tsx",
-      "*.json",
-      "*.js",
-      "*.ts",
-      "*.tsx",
-      "*.mjs",
-      "*.cjs"
-    ],
-    "experimentalScannerIgnores": [".output", "dist", "node_modules"]
+    "includes": ["**", "!**/drizzle/**", "!**/.output/**", "!**/node_modules/**"]
   },
   "formatter": {
     "indentStyle": "space",
@@ -19,21 +9,10 @@
     "lineWidth": 100
   },
   "linter": {
-    "rules": {
-      "recommended": true,
-      "suspicious": {
-        "noUnknownAtRules": "off",
-        "noExplicitAny": "warn"
-      },
-      "security": {
-        "noDangerouslySetInnerHtml": "warn"
-      },
-      "a11y": {
-        "useSemanticElements": "warn"
-      },
-      "correctness": {
-        "noUnusedVariables": "error"
-      }
-    }
+    "enabled": true,
+    "rules": { "recommended": true }
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" }
   }
 }
