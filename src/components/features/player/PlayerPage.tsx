@@ -1,6 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import PlayerFooterContainer from "@/components/features/player/PlayerFooterContainer";
 import {
@@ -20,7 +18,7 @@ import "@/lib/utils/manual-postprocess";
 import type { Segment } from "@/types/db/database";
 
 export default function PlayerPageComponent({ fileId }: { fileId: string }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { file, segments, transcript, audioUrl, loading, error, retry } =
     usePlayerDataQuery(fileId);
 
@@ -211,8 +209,8 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
 
   const handleBack = useCallback(() => {
     clearAudio();
-    router.push("/");
-  }, [clearAudio, router]);
+    navigate({ to: "/" });
+  }, [clearAudio, navigate]);
 
   const handleTogglePlay = useCallback(() => {
     if (audioPlayerState.isPlaying) {

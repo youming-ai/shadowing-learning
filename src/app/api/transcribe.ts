@@ -1,4 +1,4 @@
-import type { NextRequest, NextResponse } from "next/server";
+import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { groqClient } from "@/lib/ai/groq-client";
 import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
@@ -17,9 +17,6 @@ import {
 } from "@/lib/utils/rate-limiter";
 import type { GroqTranscriptionResponse, TranscriptionSegment } from "@/types/transcription";
 
-export const runtime = "nodejs";
-
-// Zod schemas for validation
 const transcribeQuerySchema = z.object({
   fileId: z.string().min(1, "fileId is required"),
   chunkIndex: z.coerce.number().int().min(0).optional(),
@@ -27,7 +24,6 @@ const transcribeQuerySchema = z.object({
   language: z.string().optional().default("en"),
 });
 
-// Helper function to check if object i a File-like object
 function isFileLike(obj: unknown): obj is File {
   return (
     obj !== null &&
@@ -54,7 +50,6 @@ const transcribeFormSchema = z.object({
     .optional(),
 });
 
-// Helper function to validate query parameters
 function validateQueryParams(searchParams: Record<string, string>) {
   const validatedQuery = transcribeQuerySchema.safeParse(searchParams);
   if (!validatedQuery.success) {
@@ -82,7 +77,6 @@ function validateQueryParams(searchParams: Record<string, string>) {
   return { success: true as const, data: validatedQuery.data };
 }
 
-// Helper function to validate form data
 function validateFormData(formData: FormData) {
   const uploadedFile = formData.get("audio") ?? formData.get("file");
 
@@ -165,9 +159,7 @@ function validateFormData(formData: FormData) {
   return { success: true as const, data: validatedForm.data };
 }
 
-/** * 将Language代码转换a Whisper API 支持 ISO 639-1 格式 * Whisper 只支持主要Language代码，不支持地区变体（如 zh-CN, zh-TW）*/
 function normalizeLanguageCode(language: string): string {
-  // Language代码映射table
   const languageMap: Record<string, string> = {
     "zh-CN": "zh",
     "zh-TW": "zh",
@@ -179,7 +171,6 @@ function normalizeLanguageCode(language: string): string {
   return languageMap[language] || language.split("-")[0];
 }
 
-// Helper function to process transcription using Groq SDK
 async function processTranscription(
   uploadedFile: File,
   language: string,
@@ -204,7 +195,7 @@ async function processTranscription(
         duration?: number;
       };
     }
-  | { success: false; error: NextResponse }
+  | { success: false; error: Response }
 > {
   apiLogger.debug("开始处理转录请求 (Groq SDK):", {
     fileName: uploadedFile.name,
@@ -213,7 +204,6 @@ async function processTranscription(
     language,
   });
 
-  // Check API 密钥
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return {
@@ -229,11 +219,9 @@ async function processTranscription(
     };
   }
 
-  // 转换Language代码a Whisper API 支持格式
   const normalizedLanguage = normalizeLanguageCode(language);
 
   try {
-    // Use Groq SDK with retry and timeout
     const transcription = await safeGroqRequest(
       () =>
         groqClient.audio.transcriptions.create({
@@ -247,7 +235,6 @@ async function processTranscription(
       "transcribe",
     );
 
-    // 使用class型断言访问可能property
     const transcriptionData = transcription as GroqTranscriptionResponse;
 
     apiLogger.debug("转录成功完成 (Groq SDK):", {
@@ -257,22 +244,18 @@ async function processTranscription(
       language: transcriptionData.language,
     });
 
-    // Process Groq SDK 返回Transcription结果
     let processedSegments: TranscriptionSegment[] = [];
 
     if (Array.isArray(transcriptionData.segments) && transcriptionData.segments.length > 0) {
-      // 使用 Groq SDK 返回 segments
       processedSegments = transcriptionData.segments.map((segment, index) =>
         mapGroqSegmentToTranscriptionSegment(segment, index + 1),
       );
       apiLogger.debug("使用 Groq SDK 返回的 segments:", processedSegments.length);
     } else if (Array.isArray(transcriptionData.words) && transcriptionData.words.length > 0) {
-      // If没有 segments 但有 words，根据 words 生成 segments
       apiLogger.debug("Groq SDK 未返回 segments，根据 words 生成");
       processedSegments = buildSegmentsFromWords(transcriptionData.words, 10);
       apiLogger.debug("根据 words 生成的 segments:", processedSegments.length);
     } else if (typeof transcriptionData.text === "string" && transcriptionData.text.length > 0) {
-      // 生成基本segments：按句子分割
       apiLogger.debug("Groq SDK 未返回详细数据，生成基本 segments");
       processedSegments = buildSegmentsFromPlainText(
         transcriptionData.text,
@@ -298,7 +281,6 @@ async function processTranscription(
           : String(transcriptionError),
     });
 
-    // Process不同class型Error
     let errorMessage = "转录失败";
     let statusCode = 500;
     let errorCode = "TRANSCRIPTION_ERROR";
@@ -346,73 +328,77 @@ async function processTranscription(
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    // 速率限制Check
-    const clientId = getClientIdentifier(request);
-    const rateLimitConfig = getRateLimitConfig("/api/transcribe");
-    const rateLimitResult = checkRateLimit(`transcribe:${clientId}`, rateLimitConfig);
+export const Route = createFileRoute("/api/transcribe")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        try {
+          const clientId = getClientIdentifier(request);
+          const rateLimitConfig = getRateLimitConfig("/api/transcribe");
+          const rateLimitResult = checkRateLimit(`transcribe:${clientId}`, rateLimitConfig);
 
-    if (rateLimitResult.limited) {
-      const headers = getRateLimitHeaders(rateLimitResult);
-      return apiError({
-        code: "RATE_LIMIT_EXCEEDED",
-        message: rateLimitConfig.message || "请求过于频繁，请稍后再试",
-        details: {
-          retryAfter: rateLimitResult.retryAfter,
-          resetTime: rateLimitResult.resetTime,
-        },
-        statusCode: 429,
-        headers,
-      });
-    }
+          if (rateLimitResult.limited) {
+            const headers = getRateLimitHeaders(rateLimitResult);
+            return apiError({
+              code: "RATE_LIMIT_EXCEEDED",
+              message: rateLimitConfig.message || "请求过于频繁，请稍后再试",
+              details: {
+                retryAfter: rateLimitResult.retryAfter,
+                resetTime: rateLimitResult.resetTime,
+              },
+              statusCode: 429,
+              headers,
+            });
+          }
 
-    // Parse and validate query parameters
-    const url = new URL(request.url);
-    const searchParams = Object.fromEntries(url.searchParams);
-    const queryValidation = validateQueryParams(searchParams);
-    if (!queryValidation.success) {
-      return queryValidation.error;
-    }
+          const url = new URL(request.url);
+          const searchParams = Object.fromEntries(url.searchParams);
+          const queryValidation = validateQueryParams(searchParams);
+          if (!queryValidation.success) {
+            return queryValidation.error;
+          }
 
-    const { language } = queryValidation.data;
+          const { language } = queryValidation.data;
 
-    // Parse and validate form data
-    const formData = await request.formData();
-    const formValidation = validateFormData(formData);
-    if (!formValidation.success) {
-      return formValidation.error;
-    }
+          const formData = await request.formData();
+          const formValidation = validateFormData(formData);
+          if (!formValidation.success) {
+            return formValidation.error;
+          }
 
-    // Process transcription
-    const transcriptionResult = await processTranscription(formValidation.data.audio, language);
-    if (!transcriptionResult.success) {
-      return transcriptionResult.error;
-    }
+          const transcriptionResult = await processTranscription(
+            formValidation.data.audio,
+            language,
+          );
+          if (!transcriptionResult.success) {
+            return transcriptionResult.error;
+          }
 
-    return apiSuccess({
-      status: "completed",
-      text: transcriptionResult.data.text,
-      language: transcriptionResult.data.language ?? language,
-      duration: transcriptionResult.data.duration,
-      segments: transcriptionResult.data.segments,
-      meta: formValidation.data.meta,
-    });
-  } catch (error) {
-    // 安全ProcessError - 避免暴露敏感信息
-    const isProduction = process.env.NODE_ENV === "production";
+          return apiSuccess({
+            status: "completed",
+            text: transcriptionResult.data.text,
+            language: transcriptionResult.data.language ?? language,
+            duration: transcriptionResult.data.duration,
+            segments: transcriptionResult.data.segments,
+            meta: formValidation.data.meta,
+          });
+        } catch (error) {
+          const isProduction = process.env.NODE_ENV === "production";
 
-    return apiError({
-      code: "INTERNAL_ERROR",
-      message: isProduction
-        ? "转录服务暂时不可用，请稍后重试"
-        : "Internal server error during transcription",
-      details: isProduction
-        ? undefined
-        : error instanceof Error
-          ? { message: error.message, stack: error.stack }
-          : undefined,
-      statusCode: 500,
-    });
-  }
-}
+          return apiError({
+            code: "INTERNAL_ERROR",
+            message: isProduction
+              ? "转录服务暂时不可用，请稍后重试"
+              : "Internal server error during transcription",
+            details: isProduction
+              ? undefined
+              : error instanceof Error
+                ? { message: error.message, stack: error.stack }
+                : undefined,
+            statusCode: 500,
+          });
+        }
+      },
+    },
+  },
+});

@@ -1,7 +1,17 @@
 {
   "files": {
     "ignoreUnknown": true,
-    "includes": ["src/**/*.ts", "src/**/*.tsx", "*.json", "*.js", "*.ts", "*.tsx", "*.mjs", "*.cjs"]
+    "includes": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "*.json",
+      "*.js",
+      "*.ts",
+      "*.tsx",
+      "*.mjs",
+      "*.cjs"
+    ],
+    "experimentalScannerIgnores": [".output", "dist", "node_modules"]
   },
   "formatter": {
     "indentStyle": "space",

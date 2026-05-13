@@ -56,17 +56,17 @@ beforeAll(() => {
   global.URL.revokeObjectURL = vi.fn();
 });
 
-// 模拟 next/navigation
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    back: vi.fn(),
-    prefetch: vi.fn(),
-  }),
-  usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
-}));
+// 模拟 @tanstack/react-router
+vi.mock("@tanstack/react-router", async () => {
+  const actual = await vi.importActual("@tanstack/react-router");
+  return {
+    ...actual,
+    useNavigate: () => vi.fn(),
+    useLocation: () => ({ pathname: "/", search: {}, hash: "" }),
+    useSearch: () => ({}),
+    useParams: () => ({}),
+  };
+});
 
 // 模拟 sonner toast
 vi.mock("sonner", () => ({

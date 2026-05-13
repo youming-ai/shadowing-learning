@@ -1,14 +1,11 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useI18n } from "@/components/layout/contexts/I18nContext";
 import { ROUTES } from "@/lib/config/routes";
 import LanguageToggle from "./LanguageToggle";
 import { ThemeToggleIcon } from "./ThemeToggle";
 
 export default function Navigation() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const { t } = useI18n();
 
   const navLinks = [
@@ -43,7 +40,7 @@ export default function Navigation() {
           return (
             <Link
               key={item.id}
-              href={item.href}
+              to={item.href}
               className={`nav-button ${isActive ? "active" : ""}`}
               aria-label={t(item.labelKey)}
               aria-current={isActive ? "page" : undefined}

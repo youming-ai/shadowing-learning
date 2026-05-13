@@ -1,15 +1,12 @@
-import type { Metadata } from "next";
+import { createFileRoute } from "@tanstack/react-router";
 import AccountPage from "@/components/features/settings/AccountPage";
 import Navigation from "@/components/ui/Navigation";
 
-export const metadata: Metadata = {
-  title: "用户中心",
-  description: "查看影子跟读的使用统计、本地存储与练习记录。",
-  robots: { index: false, follow: false },
-  alternates: { canonical: "/account" },
-};
+export const Route = createFileRoute("/account")({
+  component: AccountRoute,
+});
 
-export default function AccountRoute() {
+function AccountRoute() {
   return (
     <div className="relative flex min-h-screen w-full flex-col">
       <Navigation />

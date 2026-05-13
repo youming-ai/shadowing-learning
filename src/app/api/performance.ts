@@ -1,25 +1,10 @@
-/**
- * 性能指标收集 API
- * 用于接收和存储客户端性能数据
- *
- * ⚠️ 限制说明:
- * - 使用内存 Map 存储，serverless/edge 环境下冷启动会重置
- * - 仅适用于开发环境和短期调试
- * - 生产环境应使用外部数据库或监控服务
- * - GET 端点在开发模式下无认证
- */
-
-import { type NextRequest, NextResponse } from "next/server";
+import { createFileRoute } from "@tanstack/react-router";
 import { apiSuccess } from "@/lib/utils/api-response";
 import { performanceLogger } from "@/lib/utils/logger";
 
-export const runtime = "nodejs";
-
-// ⚠️ 内存存储：serverless 环境下冷启动会丢失数据
 const performanceStore = new Map<string, StoredPerformanceData[]>();
-const MAX_DAYS_TO_KEEP = 7; // keep最近 7 天数据
+const MAX_DAYS_TO_KEEP = 7;
 
-// 清理过期数据
 function cleanupOldData(): void {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - MAX_DAYS_TO_KEEP);
@@ -48,7 +33,6 @@ interface PerformanceMetrics {
   crashCount?: number;
 }
 
-// 性能数据API
 interface PerformanceData {
   metrics: PerformanceMetrics;
   url: string;
@@ -93,150 +77,25 @@ interface PerformanceStats {
   };
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const data: PerformanceData = await request.json();
-
-    // Validate数据格式
-    if (!data.metrics || !data.timestamp) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid performance data format",
-        },
-        { status: 400 },
-      );
-    }
-
-    // 生成会话ID（基于时间戳和用户代理简单哈希）
-    const sessionId = generateSessionId(data.userAgent);
-    data.sessionId = sessionId;
-
-    // 存储性能数据
-    const dateKey = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    if (!performanceStore.has(dateKey)) {
-      performanceStore.set(dateKey, []);
-      // 新一天开始时清理过期数据
-      cleanupOldData();
-    }
-
-    const dailyData = performanceStore.get(dateKey);
-    if (dailyData) {
-      dailyData.push({
-        ...data,
-        receivedAt: Date.now(),
-      });
-
-      // 保持最近1000条record
-      if (dailyData.length > 1000) {
-        dailyData.splice(0, dailyData.length - 1000);
-      }
-    }
-
-    // 检测性能问题
-    const issues = detectPerformanceIssues(data.metrics);
-
-    // 异步Process数据（不阻塞response）
-    processPerformanceData(data, issues).catch((error) => {
-      performanceLogger.error("Failed to process performance data:", error);
-    });
-
-    return apiSuccess({
-      received: true,
-      sessionId,
-      issues: issues.length > 0 ? issues : undefined,
-    });
-  } catch (error) {
-    performanceLogger.error("Performance API error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to process performance data",
-      },
-      { status: 500 },
-    );
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const adminToken = process.env.PERFORMANCE_ADMIN_TOKEN;
-    const authHeader = request.headers.get("authorization");
-
-    if (process.env.NODE_ENV === "production") {
-      if (!adminToken || authHeader !== `Bearer ${adminToken}`) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Not found",
-          },
-          { status: 404 },
-        );
-      }
-    }
-
-    const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
-    const sessionId = searchParams.get("session");
-
-    let data: StoredPerformanceData[] = [];
-
-    if (sessionId) {
-      // Get特定会话数据
-      for (const [, dailyData] of performanceStore.entries()) {
-        const sessionData = dailyData.filter((item) => item.sessionId === sessionId);
-        data.push(...sessionData);
-      }
-    } else {
-      // Get特定日期数据
-      data = performanceStore.get(date) ?? [];
-    }
-
-    // 计算统计数据
-    const stats = calculatePerformanceStats(data);
-
-    return apiSuccess({
-      date,
-      sessionId: sessionId || undefined,
-      totalRecords: data.length,
-      stats,
-      recentData: data.slice(-10), // 最近10条record
-    });
-  } catch (error) {
-    performanceLogger.error("Performance GET error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to retrieve performance data",
-      },
-      { status: 500 },
-    );
-  }
-}
-
-// 生成会话ID
 function generateSessionId(userAgent: string): string {
   const timestamp = Date.now().toString();
   const hash = simpleHash(userAgent + timestamp);
   return `session_${hash}`;
 }
 
-// 简单哈希函数
 function simpleHash(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = (hash << 5) - hash + char;
-    hash = hash & hash; // 转换as32位整数
+    hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
 }
 
-// 检测性能问题
 function detectPerformanceIssues(metrics: PerformanceMetrics): string[] {
   const issues: string[] = [];
 
-  // Core Web Vitals 阈值
   if (isValidMetricValue(metrics.fcp) && metrics.fcp > 2500) {
     issues.push(`FCP 过慢: ${Math.round(metrics.fcp)}ms`);
   }
@@ -253,7 +112,6 @@ function detectPerformanceIssues(metrics: PerformanceMetrics): string[] {
     issues.push(`CLS 过高: ${metrics.cls.toFixed(3)}`);
   }
 
-  // 自定义指标阈值
   if (isValidMetricValue(metrics.transcriptionTime) && metrics.transcriptionTime > 60000) {
     issues.push(`转录时间过长: ${Math.round(metrics.transcriptionTime / 1000)}秒`);
   }
@@ -277,19 +135,16 @@ function detectPerformanceIssues(metrics: PerformanceMetrics): string[] {
   return issues;
 }
 
-// 计算性能统计数据
 function calculatePerformanceStats(data: StoredPerformanceData[]): PerformanceStats | null {
   if (data.length === 0) {
     return null;
   }
 
-  // Core Web Vitals 统计
   const fcpValues = collectMetricValues(data, (metrics) => metrics.fcp);
   const lcpValues = collectMetricValues(data, (metrics) => metrics.lcp);
   const fidValues = collectMetricValues(data, (metrics) => metrics.fid);
   const clsValues = collectMetricValues(data, (metrics) => metrics.cls);
 
-  // 自定义指标统计
   const transcriptionTimes = collectMetricValues(data, (metrics) => metrics.transcriptionTime);
   const uploadTimes = collectMetricValues(data, (metrics) => metrics.uploadTime);
   const apiResponseTimes = collectMetricValues(data, (metrics) => metrics.apiResponseTime);
@@ -327,14 +182,12 @@ function calculatePerformanceStats(data: StoredPerformanceData[]): PerformanceSt
   };
 }
 
-// 计算百分位数
 function calculatePercentiles(values: number[]): PercentileStats | null {
   if (values.length === 0) return null;
 
   const sorted = [...values].sort((a, b) => a - b);
   const len = sorted.length;
 
-  // 使用 Math.min 防止index越界
   return {
     p50: sorted[Math.min(Math.floor(len * 0.5), len - 1)],
     p75: sorted[Math.min(Math.floor(len * 0.75), len - 1)],
@@ -346,7 +199,6 @@ function calculatePercentiles(values: number[]): PercentileStats | null {
   };
 }
 
-// 计算平均会话长度
 function calculateAverageSessionLength(data: StoredPerformanceData[]): number {
   const sessionLengths = new Map<string, number[]>();
 
@@ -389,15 +241,7 @@ function isValidMetricValue(value: MetricValue): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-// 异步Process性能数据
 async function processPerformanceData(data: PerformanceData, issues: string[]): Promise<void> {
-  // 这里可以Add：
-  // 1. 发送To外部监控服务（如 Sentry, DataDog 等）
-  // 2. 存储Todatabase
-  // 3. 生成告警
-  // 4. 数据分析和报告
-
-  // 示例：record严重性能问题
   if (issues.length > 0) {
     performanceLogger.warn("Performance issues detected:", {
       url: data.url,
@@ -405,13 +249,120 @@ async function processPerformanceData(data: PerformanceData, issues: string[]): 
       issues,
     });
   }
-
-  // 示例：发送To外部服务（需要配置）
-  // if (process.env.MONITORING_WEBHOOK) {
-  // await fetch(process.env.MONITORING_WEBHOOK, {
-  // method: 'POST',
-  // headers: { 'Content-Type': 'application/json' },
-  // body: JSON.stringify({ data, issues })
-  // });
-  // }
 }
+
+export const Route = createFileRoute("/api/performance")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        try {
+          const data: PerformanceData = await request.json();
+
+          if (!data.metrics || !data.timestamp) {
+            return Response.json(
+              {
+                success: false,
+                error: "Invalid performance data format",
+              },
+              { status: 400 },
+            );
+          }
+
+          const sessionId = generateSessionId(data.userAgent);
+          data.sessionId = sessionId;
+
+          const dateKey = new Date().toISOString().split("T")[0];
+          if (!performanceStore.has(dateKey)) {
+            performanceStore.set(dateKey, []);
+            cleanupOldData();
+          }
+
+          const dailyData = performanceStore.get(dateKey);
+          if (dailyData) {
+            dailyData.push({
+              ...data,
+              receivedAt: Date.now(),
+            });
+
+            if (dailyData.length > 1000) {
+              dailyData.splice(0, dailyData.length - 1000);
+            }
+          }
+
+          const issues = detectPerformanceIssues(data.metrics);
+
+          processPerformanceData(data, issues).catch((error) => {
+            performanceLogger.error("Failed to process performance data:", error);
+          });
+
+          return apiSuccess({
+            received: true,
+            sessionId,
+            issues: issues.length > 0 ? issues : undefined,
+          });
+        } catch (error) {
+          performanceLogger.error("Performance API error:", error);
+          return Response.json(
+            {
+              success: false,
+              error: "Failed to process performance data",
+            },
+            { status: 500 },
+          );
+        }
+      },
+      GET: async ({ request }) => {
+        try {
+          const adminToken = process.env.PERFORMANCE_ADMIN_TOKEN;
+          const authHeader = request.headers.get("authorization");
+
+          if (process.env.NODE_ENV === "production") {
+            if (!adminToken || authHeader !== `Bearer ${adminToken}`) {
+              return Response.json(
+                {
+                  success: false,
+                  error: "Not found",
+                },
+                { status: 404 },
+              );
+            }
+          }
+
+          const { searchParams } = new URL(request.url);
+          const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+          const sessionId = searchParams.get("session");
+
+          let data: StoredPerformanceData[] = [];
+
+          if (sessionId) {
+            for (const [, dailyData] of performanceStore.entries()) {
+              const sessionData = dailyData.filter((item) => item.sessionId === sessionId);
+              data.push(...sessionData);
+            }
+          } else {
+            data = performanceStore.get(date) ?? [];
+          }
+
+          const stats = calculatePerformanceStats(data);
+
+          return apiSuccess({
+            date,
+            sessionId: sessionId || undefined,
+            totalRecords: data.length,
+            stats,
+            recentData: data.slice(-10),
+          });
+        } catch (error) {
+          performanceLogger.error("Performance GET error:", error);
+          return Response.json(
+            {
+              success: false,
+              error: "Failed to retrieve performance data",
+            },
+            { status: 500 },
+          );
+        }
+      },
+    },
+  },
+});

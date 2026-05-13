@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   createError,
   handleError,
@@ -10,7 +9,7 @@ import type { AppError } from "@/types/api/errors";
 
 // Successresponse函数
 export function apiSuccess(data: unknown, status: number = 200) {
-  return NextResponse.json(
+  return Response.json(
     {
       success: true,
       data,
@@ -30,7 +29,7 @@ export function apiSuccess(data: unknown, status: number = 200) {
 // Errorresponse函数
 export function apiError(error: AppError & { headers?: Record<string, string> }) {
   const { headers: customHeaders, ...errorData } = error;
-  return NextResponse.json(
+  return Response.json(
     {
       success: false,
       error: {
@@ -64,7 +63,7 @@ export function apiCreated(data: unknown) {
 }
 
 export function apiNoContent() {
-  return new NextResponse(null, {
+  return new Response(null, {
     status: 204,
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",

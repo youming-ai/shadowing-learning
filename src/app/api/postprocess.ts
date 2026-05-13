@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { groqClient } from "@/lib/ai/groq-client";
 import { safeGroqRequest } from "@/lib/ai/groq-request-wrapper";
@@ -7,12 +7,8 @@ import { validationError } from "@/lib/utils/error-handler";
 import { apiLogger } from "@/lib/utils/logger";
 import { checkRateLimit, getClientIdentifier, getRateLimitConfig } from "@/lib/utils/rate-limiter";
 
-export const runtime = "nodejs";
-
-// Groq 模型配置
 const GROQ_CHAT_MODEL = "openai/gpt-oss-120b";
 
-// Language代码To可读name映射
 const LANGUAGE_NAMES: Record<string, string> = {
   "zh-CN": "Simplified Chinese",
   "zh-TW": "Traditional Chinese",
@@ -61,7 +57,6 @@ const postProcessSchema = z.object({
   enableFurigana: z.boolean().optional().default(true),
 });
 
-/** * Validaterequest数据*/
 function validateRequestData(body: unknown) {
   const validation = postProcessSchema.safeParse(body);
   if (!validation.success) {
@@ -71,7 +66,6 @@ function validateRequestData(body: unknown) {
   return { isValid: true, data: validation.data };
 }
 
-/** * Validatesegments数据*/
 function validateSegments(segments: Array<{ text: string; start: number; end: number }>) {
   if (!segments || segments.length === 0) {
     return {
@@ -95,7 +89,6 @@ function validateSegments(segments: Array<{ text: string; start: number; end: nu
     };
   }
 
-  // Validate每个segment必需field
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
     if (!segment.text || typeof segment.start !== "number" || typeof segment.end !== "number") {
@@ -142,7 +135,6 @@ function validateSegments(segments: Array<{ text: string; start: number; end: nu
   return { isValid: true };
 }
 
-/** * Process特定Errorclass型*/
 function handleSpecificError(error: Error) {
   if (error.message.includes("timeout")) {
     return apiError({
@@ -193,8 +185,6 @@ const defaultOptions = {
   enableFurigana: true,
 };
 
-// AI SDK 使用内置优化配置，无需手动管理client
-
 function buildPrompt(
   text: string,
   sourceLanguage: string,
@@ -205,7 +195,7 @@ function buildPrompt(
   const sourceLangName = getLanguageName(sourceLanguage);
   const targetLangName = targetLanguage ? getLanguageName(targetLanguage) : undefined;
 
-  let basePrompt = `You are a professional language teacher specializing in ${sourceLangName} language learning and shadowing practice.\n\nTask: Process the following ${sourceLangName} text for language learners.\n\nInput:\n${text}\n\nRequirements:\n1. Normalize the text (remove filler words, fix grammar, etc.)\n2. ${targetLangName ? `Provide translation to ${targetLangName}` : "Keep original language"}`;
+  let basePrompt = `You are a professional language teachers specializing in ${sourceLangName} language learning and shadowing practice.\n\nTask: Process the following ${sourceLangName} text for language learners.\n\nInput:\n${text}\n\nRequirements:\n1. Normalize the text (remove filler words, fix grammar, etc.)\n2. ${targetLangName ? `Provide translation to ${targetLangName}` : "Keep original language"}`;
 
   if (enableAnnotations) {
     basePrompt += `\n3. Add grammatical and cultural annotations`;
@@ -323,12 +313,10 @@ async function postProcessSegmentWithGroq(
     const processingTime = Date.now() - startTime;
     apiLogger.error(`单个segment AI SDK处理失败，耗时: ${processingTime}ms，错误:`, error);
 
-    // 抛出Error让上层Processfallback
     throw error;
   }
 }
 
-// batchProcess短文本以减少API调用次数，使用 AI SDK
 async function postProcessShortTextsBatch(
   shortTextSegments: Array<{ text: string; start: number; end: number; segmentIndex: number }>,
   sourceLanguage: string,
@@ -348,7 +336,6 @@ async function postProcessShortTextsBatch(
   const wantFurigana = options.enableFurigana && sourceLanguage === "ja";
 
   try {
-    // 合并所有短文本a一个批次
     const combinedText = shortTextSegments
       .map((seg, index) => `[SEGMENT_${index}] ${seg.text}`)
       .join("\n");
@@ -396,7 +383,6 @@ Return ONLY valid JSON in this exact shape, with one entry per input segment, "i
       "postprocess-batch",
     );
 
-    // 清理responseinmarkdown代码块标记
     let cleanedText = response.choices[0]?.message?.content?.trim() || "";
     if (cleanedText.startsWith("```json")) cleanedText = cleanedText.slice(7);
     if (cleanedText.startsWith("```")) cleanedText = cleanedText.slice(3);
@@ -410,13 +396,11 @@ Return ONLY valid JSON in this exact shape, with one entry per input segment, "i
 
     const batchResponse = JSON.parse(cleanedText);
 
-    // 将batchProcess结果映射回各个segment
     if (batchResponse.segments && Array.isArray(batchResponse.segments)) {
       const processingTime = Date.now() - startTime;
       apiLogger.debug(`批量AI SDK处理完成，耗时: ${processingTime}ms`);
 
       return shortTextSegments.map((originalSegment, index) => {
-        // 使用数组下标按序映射，AI 模型不一定可靠地遵循 id 约定
         const processedSegment = batchResponse.segments[index];
         return {
           originalText: originalSegment.text,
@@ -431,7 +415,6 @@ Return ONLY valid JSON in this exact shape, with one entry per input segment, "i
       });
     }
 
-    // Fallback: If解析Failed，返回原始文本
     const processingTime = Date.now() - startTime;
     apiLogger.warn(`批量AI SDK处理解析失败，使用fallback，耗时: ${processingTime}ms`);
 
@@ -449,7 +432,6 @@ Return ONLY valid JSON in this exact shape, with one entry per input segment, "i
     const processingTime = Date.now() - startTime;
     apiLogger.error(`批量AI SDK处理失败，耗时: ${processingTime}ms，错误:`, error);
 
-    // 返回fallback结果
     return shortTextSegments.map((segment) => ({
       originalText: segment.text,
       normalizedText: segment.text,
@@ -474,10 +456,8 @@ async function postProcessSegmentsWithGroq(
 ): Promise<PostProcessResult[]> {
   const finalOptions = { ...defaultOptions, ...options };
 
-  // 智能性能优化：动态调整并发参数
-  const SHORT_TEXT_THRESHOLD = 50; // 50个字符以下认asis短文本
+  const SHORT_TEXT_THRESHOLD = 50;
 
-  // 根据segments数量动态调整并发数和批次size
   const segmentCount = segments.length;
   let MAX_CONCURRENT = 3;
   let BATCH_SIZE = 5;
@@ -499,7 +479,6 @@ async function postProcessSegmentsWithGroq(
   apiLogger.debug(`开始后处理 ${segments.length} 个segments，使用 ${MAX_CONCURRENT} 并发`);
   const startTime = Date.now();
 
-  // 分离短文本和长文本（保留 segmentIndex 用于回填原序）
   const shortTextSegments = segments.filter((seg) => seg.text.length <= SHORT_TEXT_THRESHOLD);
   const longTextSegments = segments.filter((seg) => seg.text.length > SHORT_TEXT_THRESHOLD);
 
@@ -507,7 +486,6 @@ async function postProcessSegmentsWithGroq(
 
   const collected: PostProcessResult[] = [];
 
-  // batchProcess短文本
   if (shortTextSegments.length > 0) {
     const shortTextResults = await postProcessShortTextsBatch(
       shortTextSegments,
@@ -518,7 +496,6 @@ async function postProcessSegmentsWithGroq(
     apiLogger.debug(`短文本批量处理完成: ${shortTextResults.length} 个`);
   }
 
-  // 逐个Process长文本（保持原有并发逻辑）
   if (longTextSegments.length > 0) {
     const batches: Array<typeof longTextSegments> = [];
     for (let i = 0; i < longTextSegments.length; i += BATCH_SIZE) {
@@ -574,15 +551,13 @@ async function postProcessSegmentsWithGroq(
       }
 
       if (batchIndex < batches.length - 1) {
-        // 优化批次间delay策略：根据并发数动态调整，更激进
-        const delay = Math.min(200, Math.max(50, MAX_CONCURRENT * 50)); // 进一步减少delay
+        const delay = Math.min(200, Math.max(50, MAX_CONCURRENT * 50));
         apiLogger.debug(`长文本批次间延迟 ${delay}ms`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
 
-  // 按 segmentIndex 还原原始顺序
   const ordered: PostProcessResult[] = new Array(segments.length);
   const byIndex = new Map<number, PostProcessResult>();
   for (const result of collected) {
@@ -611,111 +586,108 @@ async function postProcessSegmentsWithGroq(
   return ordered;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    // ValidateGroq配置
-    const configValidation = validateGroqConfiguration();
-    if (!configValidation.isValid) {
-      return apiError({
-        code: "CONFIG_ERROR",
-        message: "Groq configuration invalid",
-        details: configValidation.errors,
-        statusCode: 500,
-      });
-    }
+export const Route = createFileRoute("/api/postprocess")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        try {
+          const configValidation = validateGroqConfiguration();
+          if (!configValidation.isValid) {
+            return apiError({
+              code: "CONFIG_ERROR",
+              message: "Groq configuration invalid",
+              details: configValidation.errors,
+              statusCode: 500,
+            });
+          }
 
-    const clientKey = getClientIdentifier(request);
-    const rateLimitConfig = getRateLimitConfig("/api/postprocess");
-    const rateLimit = checkRateLimit(`postprocess:${clientKey}`, rateLimitConfig);
-    if (rateLimit.limited) {
-      return apiError({
-        code: "RATE_LIMIT",
-        message: "Too many postprocess requests",
-        statusCode: 429,
-        headers: {
-          "X-RateLimit-Limit": String(rateLimitConfig.maxRequests),
-          "X-RateLimit-Remaining": String(rateLimit.remaining),
-          "X-RateLimit-Reset": String(rateLimit.resetTime),
-          "Retry-After": String(Math.ceil(rateLimit.resetTime - Date.now() / 1000)),
-        },
-      });
-    }
+          const clientKey = getClientIdentifier(request);
+          const rateLimitConfig = getRateLimitConfig("/api/postprocess");
+          const rateLimit = checkRateLimit(`postprocess:${clientKey}`, rateLimitConfig);
+          if (rateLimit.limited) {
+            return apiError({
+              code: "RATE_LIMIT",
+              message: "Too many postprocess requests",
+              statusCode: 429,
+              headers: {
+                "X-RateLimit-Limit": String(rateLimitConfig.maxRequests),
+                "X-RateLimit-Remaining": String(rateLimit.remaining),
+                "X-RateLimit-Reset": String(rateLimit.resetTime),
+                "Retry-After": String(Math.ceil(rateLimit.resetTime - Date.now() / 1000)),
+              },
+            });
+          }
 
-    const body = await request.json();
-    const validation = validateRequestData(body);
-    if (!validation.isValid) {
-      return apiError(
-        validation.error ?? {
-          code: "INVALID_REQUEST" as const,
-          message: "Invalid request data",
-          statusCode: 400,
-        },
-      );
-    }
+          const body = await request.json();
+          const validation = validateRequestData(body);
+          if (!validation.isValid) {
+            return apiError(
+              validation.error ?? {
+                code: "INVALID_REQUEST" as const,
+                message: "Invalid request data",
+                statusCode: 400,
+              },
+            );
+          }
 
-    const data = validation.data;
-    if (!data) {
-      return apiError({
-        code: "INVALID_REQUEST" as const,
-        message: "Request data is missing",
-        statusCode: 400,
-      });
-    }
-    const { segments, language, targetLanguage, enableAnnotations, enableFurigana } = data;
+          const data = validation.data;
+          if (!data) {
+            return apiError({
+              code: "INVALID_REQUEST" as const,
+              message: "Request data is missing",
+              statusCode: 400,
+            });
+          }
+          const { segments, language, targetLanguage, enableAnnotations, enableFurigana } = data;
 
-    // Validate输入数据
-    const segmentValidation = validateSegments(segments);
-    if (!segmentValidation.isValid) {
-      return apiError(
-        segmentValidation.error ?? {
-          code: "UNKNOWN_VALIDATION_ERROR" as const,
-          message: "Segment validation failed",
-          statusCode: 400,
-        },
-      );
-    }
+          const segmentValidation = validateSegments(segments);
+          if (!segmentValidation.isValid) {
+            return apiError(
+              segmentValidation.error ?? {
+                code: "UNKNOWN_VALIDATION_ERROR" as const,
+                message: "Segment validation failed",
+                statusCode: 400,
+              },
+            );
+          }
 
-    // 为每个 segment 注入稳定的 segmentIndex（client 提供的优先，否则用数组下标）
-    const indexedSegments = segments.map((segment, index) => ({
-      text: segment.text,
-      start: segment.start,
-      end: segment.end,
-      segmentIndex: typeof segment.segmentIndex === "number" ? segment.segmentIndex : index,
-    }));
+          const indexedSegments = segments.map((segment, index) => ({
+            text: segment.text,
+            start: segment.start,
+            end: segment.end,
+            segmentIndex: typeof segment.segmentIndex === "number" ? segment.segmentIndex : index,
+          }));
 
-    const processedSegments = await postProcessSegmentsWithGroq(indexedSegments, language, {
-      targetLanguage,
-      enableAnnotations,
-      enableFurigana,
-    });
+          const processedSegments = await postProcessSegmentsWithGroq(indexedSegments, language, {
+            targetLanguage,
+            enableAnnotations,
+            enableFurigana,
+          });
 
-    // 此时 processedSegments 已按 indexedSegments 顺序排好，与 segments 一一对应
-    const finalSegments = processedSegments.map((processedSegment, index) => ({
-      ...segments[index], // Preserve original segment data (text/start/end/wordTimestamps...)
-      segmentIndex: processedSegment.segmentIndex,
-      normalizedText: processedSegment.normalizedText,
-      translation: processedSegment.translation,
-      annotations: processedSegment.annotations,
-      furigana: processedSegment.furigana,
-    }));
+          const finalSegments = processedSegments.map((processedSegment, index) => ({
+            ...segments[index],
+            segmentIndex: processedSegment.segmentIndex,
+            normalizedText: processedSegment.normalizedText,
+            translation: processedSegment.translation,
+            annotations: processedSegment.annotations,
+            furigana: processedSegment.furigana,
+          }));
 
-    return apiSuccess({
-      processedSegments: finalSegments.length,
-      segments: finalSegments,
-    });
-  } catch (error) {
-    // 特定ErrorProcess
-    if (error instanceof Error) {
-      const specificError = handleSpecificError(error);
-      if (specificError) {
-        return specificError;
-      }
-    }
+          return apiSuccess({
+            processedSegments: finalSegments.length,
+            segments: finalSegments,
+          });
+        } catch (error) {
+          if (error instanceof Error) {
+            const specificError = handleSpecificError(error);
+            if (specificError) {
+              return specificError;
+            }
+          }
 
-    return apiFromError(error, "postprocess/POST");
-  }
-}
-
-// GET endpoint i not needed for stateless API
-
-// PATCH endpoint i not needed for stateless API
+          return apiFromError(error, "postprocess/POST");
+        }
+      },
+    },
+  },
+});
