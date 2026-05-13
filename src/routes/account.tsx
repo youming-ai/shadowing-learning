@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import AccountPage from "~/components/features/settings/AccountPage";
-import Navigation from "~/components/ui/Navigation";
+import { createFileRoute } from '@tanstack/react-router'
+import AccountPage from '~/components/features/settings/AccountPage'
+import Navigation from '~/components/ui/Navigation'
 
-export const Route = createFileRoute("/account")({
+export const Route = createFileRoute('/account')({
   component: AccountRoute,
-});
+})
 
 function AccountRoute() {
   return (
@@ -18,5 +18,5 @@ function AccountRoute() {
         </div>
       </main>
     </div>
-  );
+  )
 }

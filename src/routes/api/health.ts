@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute("/api/health")({
+export const Route = createFileRoute('/api/health')({
   server: {
     handlers: {
-      GET: async () => Response.json({ status: "ok", timestamp: Date.now() }),
+      GET: async () => Response.json({ status: 'ok', timestamp: Date.now() }),
       HEAD: async () => new Response(null, { status: 200 }),
     },
   },
-});
+})

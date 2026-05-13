@@ -1,10 +1,10 @@
-"use client";
+'use client'
 
-import { AlertTriangle, Bug, Copy, RefreshCw } from "lucide-react";
-import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { AlertTriangle, Bug, Copy, RefreshCw } from 'lucide-react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -12,46 +12,46 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "~/components/ui/dialog";
-import { Separator } from "~/components/ui/separator";
-import { Textarea } from "~/components/ui/textarea";
+} from '~/components/ui/dialog'
+import { Separator } from '~/components/ui/separator'
+import { Textarea } from '~/components/ui/textarea'
 import {
   getLocalErrorLogs,
   handleError,
   showErrorToast,
   showSuccessToast,
-} from "~/lib/utils/error-handler";
+} from '~/lib/utils/error-handler'
 
 interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
-  fallbackMessage?: string;
-  showDetails?: boolean;
-  allowReset?: boolean;
-  allowReport?: boolean;
-  maxErrors?: number;
+  children: ReactNode
+  fallback?: ReactNode
+  onError?: (error: Error, errorInfo: ErrorInfo) => void
+  fallbackMessage?: string
+  showDetails?: boolean
+  allowReset?: boolean
+  allowReport?: boolean
+  maxErrors?: number
 }
 
 interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-  errorCount: number;
-  lastErrorTime: number;
+  hasError: boolean
+  error: Error | null
+  errorInfo: ErrorInfo | null
+  errorCount: number
+  lastErrorTime: number
 }
 
 /** * Error边界component - 捕获子componentinError并显示友好Error信息*/
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props);
+    super(props)
     this.state = {
       hasError: false,
       error: null,
       errorInfo: null,
       errorCount: 0,
       lastErrorTime: 0,
-    };
+    }
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
@@ -59,25 +59,25 @@ export class ErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
-    };
+    }
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // CheckError频率限制
-    const now = Date.now();
-    const timeSinceLastError = now - this.state.lastErrorTime;
-    const maxErrors = this.props.maxErrors || 10;
+    const now = Date.now()
+    const timeSinceLastError = now - this.state.lastErrorTime
+    const maxErrors = this.props.maxErrors || 10
 
     // If在5seconds内Error次数超过限制，忽略后续Error
     if (timeSinceLastError < 5000 && this.state.errorCount >= maxErrors) {
-      return;
+      return
     }
 
     // recordError
-    handleError(error, `ErrorBoundary.${this.getDisplayName()}`);
+    handleError(error, `ErrorBoundary.${this.getDisplayName()}`)
 
     // 调用外部Errorprocessors
-    this.props.onError?.(error, errorInfo);
+    this.props.onError?.(error, errorInfo)
 
     // Update state
     this.setState((prevState) => ({
@@ -85,12 +85,12 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo,
       errorCount: timeSinceLastError < 5000 ? prevState.errorCount + 1 : 1,
       lastErrorTime: now,
-    }));
+    }))
   }
 
   // Getcomponent显示name
   private getDisplayName(): string {
-    return "ErrorBoundary";
+    return 'ErrorBoundary'
   }
 
   // 复制Error信息To剪贴板
@@ -103,29 +103,29 @@ export class ErrorBoundary extends Component<Props, State> {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         url: window.location.href,
-      };
+      }
 
-      await navigator.clipboard.writeText(JSON.stringify(errorInfo, null, 2));
-      showSuccessToast("错误信息已复制到剪贴板");
+      await navigator.clipboard.writeText(JSON.stringify(errorInfo, null, 2))
+      showSuccessToast('错误信息已复制到剪贴板')
     } catch (_err) {
-      showErrorToast("复制失败，请手动复制错误信息");
+      showErrorToast('复制失败，请手动复制错误信息')
     }
   }
 
   // 导出Error日志
   private exportErrorLogs(): void {
-    const logs = getLocalErrorLogs();
-    const dataStr = JSON.stringify(logs, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
+    const logs = getLocalErrorLogs()
+    const dataStr = JSON.stringify(logs, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `error-logs-${new Date().toISOString()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `error-logs-${new Date().toISOString()}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   handleReset = () => {
@@ -135,20 +135,20 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo: null,
       errorCount: 0,
       lastErrorTime: 0,
-    });
-  };
+    })
+  }
 
   handleReload = () => {
-    window.location.reload();
-  };
+    window.location.reload()
+  }
 
   // GetError详情component
   private renderErrorDetails(): ReactNode {
-    const { showDetails = true } = this.props;
-    const { error, errorInfo } = this.state;
+    const { showDetails = true } = this.props
+    const { error, errorInfo } = this.state
 
     if (!showDetails || !error) {
-      return null;
+      return null
     }
 
     return (
@@ -187,12 +187,12 @@ export class ErrorBoundary extends Component<Props, State> {
           </details>
         )}
       </div>
-    );
+    )
   }
 
   // GetErroroperations按钮
   private renderErrorActions(): ReactNode {
-    const { allowReset = true, allowReport = true } = this.props;
+    const { allowReset = true, allowReport = true } = this.props
 
     return (
       <div className="flex flex-wrap gap-2">
@@ -226,8 +226,8 @@ export class ErrorBoundary extends Component<Props, State> {
 错误时间：${new Date().toLocaleString()}
 页面URL：${window.location.href}
 浏览器信息：${navigator.userAgent}
-错误堆栈：${this.state.error?.stack || "无"}
-组件堆栈：${this.state.errorInfo?.componentStack || "无"}`}
+错误堆栈：${this.state.error?.stack || '无'}
+组件堆栈：${this.state.errorInfo?.componentStack || '无'}`}
                   readOnly
                   className="min-h-[300px] font-mono text-xs"
                 />
@@ -245,18 +245,18 @@ export class ErrorBoundary extends Component<Props, State> {
           </Dialog>
         )}
       </div>
-    );
+    )
   }
 
   render() {
-    const { fallback, fallbackMessage = "应用程序遇到了一个意外错误。我们已经记录了这个问题。" } =
-      this.props;
-    const { hasError, errorCount } = this.state;
+    const { fallback, fallbackMessage = '应用程序遇到了一个意外错误。我们已经记录了这个问题。' } =
+      this.props
+    const { hasError, errorCount } = this.state
 
     if (hasError) {
       // If提供了自定义 fallback，则使用它
       if (fallback) {
-        return fallback;
+        return fallback
       }
 
       // 默认Error UI
@@ -282,7 +282,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <Separator />
               {this.renderErrorActions()}
 
-              {process.env.NODE_ENV === "development" && (
+              {process.env.NODE_ENV === 'development' && (
                 <div className="mt-6 rounded-md border border-yellow-200 bg-yellow-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <Badge variant="outline" className="border-yellow-300 text-yellow-700">
@@ -307,10 +307,10 @@ export class ErrorBoundary extends Component<Props, State> {
             </CardContent>
           </Card>
         </div>
-      );
+      )
     }
 
-    return this.props.children;
+    return this.props.children
   }
 }
 
@@ -326,7 +326,7 @@ export function PageErrorBoundary({ children }: { children: ReactNode }) {
     >
       {children}
     </ErrorBoundary>
-  );
+  )
 }
 
 /** * component级Error边界 - 包装特定component*/
@@ -335,9 +335,9 @@ export function ComponentErrorBoundary({
   fallback,
   fallbackMessage,
 }: {
-  children: ReactNode;
-  fallback?: ReactNode;
-  fallbackMessage?: string;
+  children: ReactNode
+  fallback?: ReactNode
+  fallbackMessage?: string
 }) {
   return (
     <ErrorBoundary
@@ -348,7 +348,7 @@ export function ComponentErrorBoundary({
     >
       {children}
     </ErrorBoundary>
-  );
+  )
 }
 
 /** * 轻量级Error边界 - Used for小型component*/
@@ -356,8 +356,8 @@ export function LightErrorBoundary({
   children,
   fallback,
 }: {
-  children: ReactNode;
-  fallback?: ReactNode;
+  children: ReactNode
+  fallback?: ReactNode
 }) {
   return (
     <ErrorBoundary
@@ -375,16 +375,16 @@ export function LightErrorBoundary({
     >
       {children}
     </ErrorBoundary>
-  );
+  )
 }
 
 /** * API Error边界 - Used forAPIoperations相关component*/
 export function ApiErrorBoundary({
   children,
-  fallbackMessage = "网络请求失败，请检查网络连接后重试",
+  fallbackMessage = '网络请求失败，请检查网络连接后重试',
 }: {
-  children: ReactNode;
-  fallbackMessage?: string;
+  children: ReactNode
+  fallbackMessage?: string
 }) {
   return (
     <ErrorBoundary
@@ -395,18 +395,18 @@ export function ApiErrorBoundary({
     >
       {children}
     </ErrorBoundary>
-  );
+  )
 }
 
 /** * 高阶component - ascomponentAddError边界*/
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   options: {
-    fallback?: ReactNode;
-    fallbackMessage?: string;
-    showDetails?: boolean;
-    allowReset?: boolean;
-    allowReport?: boolean;
+    fallback?: ReactNode
+    fallbackMessage?: string
+    showDetails?: boolean
+    allowReset?: boolean
+    allowReport?: boolean
   } = {},
 ) {
   return function WithErrorBoundary(props: P) {
@@ -414,6 +414,6 @@ export function withErrorBoundary<P extends object>(
       <ErrorBoundary {...options}>
         <Component {...props} />
       </ErrorBoundary>
-    );
-  };
+    )
+  }
 }

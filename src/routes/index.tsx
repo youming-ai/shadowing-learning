@@ -1,13 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
-import FileManager from "~/components/features/file/FileManager";
-import StatsCards from "~/components/features/file/StatsCards";
-import { PageLoadingState } from "~/components/ui/LoadingState";
-import Navigation from "~/components/ui/Navigation";
+import { createFileRoute } from '@tanstack/react-router'
+import { Suspense } from 'react'
+import FileManager from '~/components/features/file/FileManager'
+import StatsCards from '~/components/features/file/StatsCards'
+import { PageLoadingState } from '~/components/ui/LoadingState'
+import Navigation from '~/components/ui/Navigation'
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   component: HomePage,
-});
+})
 
 function HomePage() {
   return (
@@ -24,5 +24,5 @@ function HomePage() {
         </div>
       </main>
     </div>
-  );
+  )
 }

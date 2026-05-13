@@ -1,26 +1,26 @@
-"use client";
+'use client'
 
-import React, { useEffect, useRef } from "react";
-import AudioControls from "~/components/features/player/AudioControls";
-import PlaybackSpeedControl from "~/components/features/player/PlaybackSpeedControl";
-import VolumeControl from "~/components/features/player/VolumeControl";
-import { Card } from "~/components/ui/card";
-import { useAudioPlayerState } from "~/hooks/ui/useAudioPlayerState";
-import { useAudioPlayerTime } from "~/hooks/ui/useAudioPlayerTime";
-import { useKeyboardControls } from "~/hooks/ui/useKeyboardControls";
+import React, { useEffect, useRef } from 'react'
+import AudioControls from '~/components/features/player/AudioControls'
+import PlaybackSpeedControl from '~/components/features/player/PlaybackSpeedControl'
+import VolumeControl from '~/components/features/player/VolumeControl'
+import { Card } from '~/components/ui/card'
+import { useAudioPlayerState } from '~/hooks/ui/useAudioPlayerState'
+import { useAudioPlayerTime } from '~/hooks/ui/useAudioPlayerTime'
+import { useKeyboardControls } from '~/hooks/ui/useKeyboardControls'
 
 interface AudioPlayerProps {
-  audioUrl?: string;
-  currentTime?: number;
-  duration?: number;
-  isPlaying?: boolean;
-  onPlay?: () => void;
-  onPause?: () => void;
-  onSeek?: (time: number) => void;
-  onSkipBack?: () => void;
-  onSkipForward?: () => void;
-  title?: string;
-  className?: string;
+  audioUrl?: string
+  currentTime?: number
+  duration?: number
+  isPlaying?: boolean
+  onPlay?: () => void
+  onPause?: () => void
+  onSeek?: (time: number) => void
+  onSkipBack?: () => void
+  onSkipForward?: () => void
+  title?: string
+  className?: string
 }
 
 const AudioPlayer = React.memo<AudioPlayerProps>(
@@ -34,37 +34,37 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
     onSeek,
     onSkipBack,
     onSkipForward,
-    title = "Audio Player",
-    className = "",
+    title = 'Audio Player',
+    className = '',
   }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const { formatTime } = useAudioPlayerTime();
+    const audioRef = useRef<HTMLAudioElement>(null)
+    const { formatTime } = useAudioPlayerTime()
     const { isMuted, volume, playbackRate, setVolume, setPlaybackRate, toggleMute } =
-      useAudioPlayerState();
+      useAudioPlayerState()
 
-    const safeCurrentTime = Number.isFinite(currentTime) ? currentTime : 0;
-    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
-    const formattedCurrentTime = formatTime(safeCurrentTime);
-    const formattedDuration = formatTime(safeDuration);
-    const progress = safeDuration > 0 ? Math.min(100, (safeCurrentTime / safeDuration) * 100) : 0;
+    const safeCurrentTime = Number.isFinite(currentTime) ? currentTime : 0
+    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
+    const formattedCurrentTime = formatTime(safeCurrentTime)
+    const formattedDuration = formatTime(safeDuration)
+    const progress = safeDuration > 0 ? Math.min(100, (safeCurrentTime / safeDuration) * 100) : 0
 
     const handlePlayPause = () => {
       if (isPlaying) {
-        onPause?.();
+        onPause?.()
       } else {
-        onPlay?.();
+        onPlay?.()
       }
-    };
+    }
 
     const handleVolumeChange = (value: number[]) => {
-      const newVolume = value[0];
-      setVolume([newVolume]);
-    };
+      const newVolume = value[0]
+      setVolume([newVolume])
+    }
 
     const handlePlaybackRateChange = (value: number[]) => {
-      const newRate = value[0];
-      setPlaybackRate([newRate]);
-    };
+      const newRate = value[0]
+      setPlaybackRate([newRate])
+    }
 
     // Keyboard controls
     useKeyboardControls({
@@ -74,23 +74,23 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
       onSkipForward,
       onToggleMute: toggleMute,
       onSetPlaybackRate: (rate) => setPlaybackRate([rate]),
-    });
+    })
 
     // Audio element effects
     useEffect(() => {
       if (audioRef.current) {
-        audioRef.current.volume = volume[0];
-        audioRef.current.playbackRate = playbackRate[0];
+        audioRef.current.volume = volume[0]
+        audioRef.current.playbackRate = playbackRate[0]
       }
-    }, [volume, playbackRate]);
+    }, [volume, playbackRate])
 
     useEffect(() => {
-      if (!audioRef.current) return;
+      if (!audioRef.current) return
       if (Math.abs(audioRef.current.currentTime - safeCurrentTime) < 0.05) {
-        return;
+        return
       }
-      audioRef.current.currentTime = safeCurrentTime;
-    }, [safeCurrentTime]);
+      audioRef.current.currentTime = safeCurrentTime
+    }, [safeCurrentTime])
 
     // Handle play/pause
     useEffect(() => {
@@ -98,17 +98,17 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
         if (isPlaying) {
           audioRef.current.play().catch(() => {
             // Silently handle play failures (common in mobile browsers)
-          });
+          })
         } else {
-          audioRef.current.pause();
+          audioRef.current.pause()
         }
       }
-    }, [isPlaying]);
+    }, [isPlaying])
 
     const handleTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
-      const audio = e.target as HTMLAudioElement;
-      onSeek?.(audio.currentTime);
-    };
+      const audio = e.target as HTMLAudioElement
+      onSeek?.(audio.currentTime)
+    }
 
     return (
       <Card
@@ -194,10 +194,10 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
           )}
         </div>
       </Card>
-    );
+    )
   },
-);
+)
 
-AudioPlayer.displayName = "AudioPlayer";
+AudioPlayer.displayName = 'AudioPlayer'
 
-export default AudioPlayer;
+export default AudioPlayer

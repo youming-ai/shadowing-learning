@@ -1,8 +1,8 @@
-"use client";
+'use client'
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState } from "react";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { useState } from 'react'
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -14,14 +14,14 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             gcTime: 1000 * 60 * 30, // 30 minutes - 增加垃圾回收时间
             retry: (failureCount, error) => {
               // Don't retry on 4xx errors
-              if (error && typeof error === "object" && "status" in error) {
-                const status = error.status as number;
+              if (error && typeof error === 'object' && 'status' in error) {
+                const status = error.status as number
                 if (status >= 400 && status < 500) {
-                  return false;
+                  return false
                 }
               }
               // Retry up to 3 times for other errors
-              return failureCount < 3;
+              return failureCount < 3
             },
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
@@ -31,12 +31,12 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
           },
         },
       }),
-  );
+  )
 
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {process.env.NODE_ENV === "development" && <ReactQueryDevtools initialIsOpen={false} />}
+      {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
-  );
+  )
 }

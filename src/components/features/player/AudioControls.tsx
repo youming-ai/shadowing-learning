@@ -1,26 +1,26 @@
-import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
-import React from "react";
-import { Button } from "~/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
+import { Pause, Play, SkipBack, SkipForward } from 'lucide-react'
+import React from 'react'
+import { Button } from '~/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip'
 
 interface AudioControlsProps {
-  isPlaying: boolean;
-  onPlayPause: () => void;
-  onSkipBack?: () => void;
-  onSkipForward?: () => void;
-  audioUrl?: string;
-  compact?: boolean;
+  isPlaying: boolean
+  onPlayPause: () => void
+  onSkipBack?: () => void
+  onSkipForward?: () => void
+  audioUrl?: string
+  compact?: boolean
 }
 
 const AudioControls = React.memo<AudioControlsProps>(
   ({ isPlaying, onPlayPause, onSkipBack, onSkipForward, audioUrl, compact = false }) => {
-    const buttonSize = compact ? "h-8 w-8" : "h-10 w-10";
-    const playButtonSize = compact ? "h-10 w-10" : "h-12 w-12";
-    const iconSize = compact ? "h-4 w-4" : "h-5 w-5";
-    const playIconSize = compact ? "h-5 w-5" : "h-6 w-6";
+    const buttonSize = compact ? 'h-8 w-8' : 'h-10 w-10'
+    const playButtonSize = compact ? 'h-10 w-10' : 'h-12 w-12'
+    const iconSize = compact ? 'h-4 w-4' : 'h-5 w-5'
+    const playIconSize = compact ? 'h-5 w-5' : 'h-6 w-6'
 
     return (
-      <div className={`flex items-center ${compact ? "space-x-1" : "space-x-4"}`}>
+      <div className={`flex items-center ${compact ? 'space-x-1' : 'space-x-4'}`}>
         {/*Skip back*/}
         <TooltipProvider>
           <Tooltip>
@@ -55,7 +55,7 @@ const AudioControls = React.memo<AudioControlsProps>(
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isPlaying ? "暂停 (空格)" : "播放 (空格)"}</p>
+              <p>{isPlaying ? '暂停 (空格)' : '播放 (空格)'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -80,10 +80,10 @@ const AudioControls = React.memo<AudioControlsProps>(
           </Tooltip>
         </TooltipProvider>
       </div>
-    );
+    )
   },
-);
+)
 
-AudioControls.displayName = "AudioControls";
+AudioControls.displayName = 'AudioControls'
 
-export default AudioControls;
+export default AudioControls

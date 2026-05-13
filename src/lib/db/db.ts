@@ -1,120 +1,120 @@
 /** * Simplified database operations file * Removed complex batch processors, keeping core functionality*/
 
-import Dexie, { type Table } from "dexie";
-import type { FileRow, Segment, TranscriptRow } from "~/types/db/database";
-import { handleError } from "../utils/error-handler";
-import { dbLogger } from "../utils/logger";
+import Dexie, { type Table } from 'dexie'
+import type { FileRow, Segment, TranscriptRow } from '~/types/db/database'
+import { handleError } from '../utils/error-handler'
+import { dbLogger } from '../utils/logger'
 
 export class AppDatabase extends Dexie {
-  files!: Table<FileRow>;
-  transcripts!: Table<TranscriptRow>;
-  segments!: Table<Segment>;
+  files!: Table<FileRow>
+  transcripts!: Table<TranscriptRow>
+  segments!: Table<Segment>
 
   constructor() {
-    super("shadowing-learning-db");
+    super('shadowing-learning-db')
 
     // Define schema
     this.version(3).stores({
-      files: "++id, name, size, type, uploadedAt, updatedAt, [name+type]",
-      transcripts: "++id, fileId, status, language, createdAt, updatedAt",
-      segments: "++id, transcriptId, start, end, text, [transcriptId+start], [transcriptId+end]",
-    });
+      files: '++id, name, size, type, uploadedAt, updatedAt, [name+type]',
+      transcripts: '++id, fileId, status, language, createdAt, updatedAt',
+      segments: '++id, transcriptId, start, end, text, [transcriptId+start], [transcriptId+end]',
+    })
 
     // Migration logic for version updates
     this.version(1)
       .stores({
-        files: "++id, name, size, type, uploadedAt, [name+type]",
-        transcripts: "++id, fileId, status, language, createdAt, updatedAt",
-        segments: "++id, transcriptId, start, end, text, [transcriptId+start], [transcriptId+end]",
+        files: '++id, name, size, type, uploadedAt, [name+type]',
+        transcripts: '++id, fileId, status, language, createdAt, updatedAt',
+        segments: '++id, transcriptId, start, end, text, [transcriptId+start], [transcriptId+end]',
       })
       .upgrade((_tx) => {
         // Initial setup - no migration needed
-        dbLogger.debug("Database version 1 initialized");
-      });
+        dbLogger.debug('Database version 1 initialized')
+      })
 
     this.version(2)
       .stores({
-        files: "++id, name, size, type, uploadedAt, [name+type]",
-        transcripts: "++id, fileId, status, language, createdAt, updatedAt",
+        files: '++id, name, size, type, uploadedAt, [name+type]',
+        transcripts: '++id, fileId, status, language, createdAt, updatedAt',
         segments:
-          "++id, transcriptId, start, end, text, wordTimestamps, [transcriptId+start], [transcriptId+end]",
+          '++id, transcriptId, start, end, text, wordTimestamps, [transcriptId+start], [transcriptId+end]',
       })
       .upgrade(async (_tx) => {
         // Add wordTimestamps to existing segments if needed
-        dbLogger.debug("Database migrated to version 2: Added wordTimestamps support");
-      });
+        dbLogger.debug('Database migrated to version 2: Added wordTimestamps support')
+      })
 
     this.version(3)
       .stores({
-        files: "++id, name, size, type, uploadedAt, [name+type]",
-        transcripts: "++id, fileId, status, language, createdAt, updatedAt",
+        files: '++id, name, size, type, uploadedAt, [name+type]',
+        transcripts: '++id, fileId, status, language, createdAt, updatedAt',
         segments:
-          "++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]",
+          '++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]',
       })
       .upgrade(async (tx) => {
-        dbLogger.debug("Database migrating to version 3: Adding enhanced transcription fields");
+        dbLogger.debug('Database migrating to version 3: Adding enhanced transcription fields')
         try {
-          const segmentsTable = tx.table("segments");
+          const segmentsTable = tx.table('segments')
           await segmentsTable.toCollection().modify((segment: Record<string, unknown>) => {
-            if (segment.normalizedText === undefined) segment.normalizedText = null;
-            if (segment.translation === undefined) segment.translation = null;
-            if (segment.annotations === undefined) segment.annotations = null;
-            if (segment.furigana === undefined) segment.furigana = null;
-          });
-          dbLogger.debug("Database migration to version 3 complete");
+            if (segment.normalizedText === undefined) segment.normalizedText = null
+            if (segment.translation === undefined) segment.translation = null
+            if (segment.annotations === undefined) segment.annotations = null
+            if (segment.furigana === undefined) segment.furigana = null
+          })
+          dbLogger.debug('Database migration to version 3 complete')
         } catch (error) {
-          dbLogger.error("Database migration to version 3 failed:", error);
+          dbLogger.error('Database migration to version 3 failed:', error)
         }
-      });
+      })
   }
 }
 
 // Create database instance
-export const db = new AppDatabase();
+export const db = new AppDatabase()
 
 // Simplified database utilities with repository functionality integrated
 export const DBUtils = {
   /** * Generic database operations*/
   // Core CRUD operations
-  async add<T>(table: Dexie.Table<T, number>, item: Omit<T, "id">): Promise<number> {
+  async add<T>(table: Dexie.Table<T, number>, item: Omit<T, 'id'>): Promise<number> {
     try {
-      return await table.add(item as T);
+      return await table.add(item as T)
     } catch (error) {
-      throw handleError(error, `DBUtils.add`);
+      throw handleError(error, `DBUtils.add`)
     }
   },
 
   async get<T>(table: Dexie.Table<T, number>, id: number): Promise<T | undefined> {
     try {
-      return await table.get(id);
+      return await table.get(id)
     } catch (error) {
-      throw handleError(error, `DBUtils.get`);
+      throw handleError(error, `DBUtils.get`)
     }
   },
 
   async update<T>(table: Dexie.Table<T, number>, id: number, changes: Partial<T>): Promise<number> {
     try {
-      return await table.update(id, changes as any);
+      return await table.update(id, changes as any)
     } catch (error) {
-      throw handleError(error, `DBUtils.update`);
+      throw handleError(error, `DBUtils.update`)
     }
   },
 
   async delete<T>(table: Dexie.Table<T, number>, id: number): Promise<void> {
     try {
-      await table.delete(id);
+      await table.delete(id)
     } catch (error) {
-      throw handleError(error, `DBUtils.delete`);
+      throw handleError(error, `DBUtils.delete`)
     }
   },
 
   // Batch operations
-  async bulkAdd<T>(table: Dexie.Table<T, number>, items: Omit<T, "id">[]): Promise<number[]> {
+  async bulkAdd<T>(table: Dexie.Table<T, number>, items: Omit<T, 'id'>[]): Promise<number[]> {
     try {
-      const result = await table.bulkAdd(items as T[]);
-      return Array.isArray(result) ? result : [result];
+      const result = await table.bulkAdd(items as T[])
+      return Array.isArray(result) ? result : [result]
     } catch (error) {
-      throw handleError(error, `DBUtils.bulkAdd`);
+      throw handleError(error, `DBUtils.bulkAdd`)
     }
   },
 
@@ -123,79 +123,79 @@ export const DBUtils = {
     items: Array<{ id: number; changes: Partial<T> }>,
   ): Promise<number[]> {
     try {
-      return await db.transaction("rw", table, async () => {
-        return await Promise.all(items.map(({ id, changes }) => table.update(id, changes as any)));
-      });
+      return await db.transaction('rw', table, async () => {
+        return await Promise.all(items.map(({ id, changes }) => table.update(id, changes as any)))
+      })
     } catch (error) {
-      throw handleError(error, `DBUtils.bulkUpdate`);
+      throw handleError(error, `DBUtils.bulkUpdate`)
     }
   },
 
   // Query operations
   async where<T>(table: Dexie.Table<T, number>, predicate: (item: T) => boolean): Promise<T[]> {
     try {
-      return await table.filter(predicate).toArray();
+      return await table.filter(predicate).toArray()
     } catch (error) {
-      throw handleError(error, `DBUtils.where`);
+      throw handleError(error, `DBUtils.where`)
     }
   },
 
   async orderBy<T>(
     table: Dexie.Table<T, number>,
     key: keyof T,
-    direction: "asc" | "desc" = "asc",
+    direction: 'asc' | 'desc' = 'asc',
   ): Promise<T[]> {
     try {
-      if (direction === "desc") {
+      if (direction === 'desc') {
         return await table
           .orderBy(key as string)
           .reverse()
-          .toArray();
+          .toArray()
       }
-      return await table.orderBy(key as string).toArray();
+      return await table.orderBy(key as string).toArray()
     } catch (error) {
-      throw handleError(error, `DBUtils.orderBy`);
+      throw handleError(error, `DBUtils.orderBy`)
     }
   },
 
   /** * File-specific operations*/
-  async addFile(file: Omit<FileRow, "id">): Promise<number> {
-    return await this.add(db.files, file);
+  async addFile(file: Omit<FileRow, 'id'>): Promise<number> {
+    return await this.add(db.files, file)
   },
 
   async getFile(id: number): Promise<FileRow | undefined> {
-    return await this.get(db.files, id);
+    return await this.get(db.files, id)
   },
 
   async getAllFiles(): Promise<FileRow[]> {
     try {
-      return await this.orderBy(db.files, "uploadedAt", "desc");
+      return await this.orderBy(db.files, 'uploadedAt', 'desc')
     } catch (error) {
-      throw handleError(error, "DBUtils.getAllFiles");
+      throw handleError(error, 'DBUtils.getAllFiles')
     }
   },
 
   async findFilesByName(name: string): Promise<FileRow[]> {
-    return await this.where(db.files, (file) => file.name.includes(name));
+    return await this.where(db.files, (file) => file.name.includes(name))
   },
 
   async getStorageUsage(): Promise<{
-    totalSize: number;
-    totalFiles: number;
-    averageFileSize: number;
-    largestFileSize: number;
-    fileCountByType: Record<string, number>;
+    totalSize: number
+    totalFiles: number
+    averageFileSize: number
+    largestFileSize: number
+    fileCountByType: Record<string, number>
   }> {
     try {
-      const files = await db.files.toArray();
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      const files = await db.files.toArray()
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0)
       const fileCountByType = files.reduce(
         (acc, file) => {
-          acc[file.type] = (acc[file.type] || 0) + 1;
-          return acc;
+          acc[file.type] = (acc[file.type] || 0) + 1
+          return acc
         },
         {} as Record<string, number>,
-      );
+      )
 
       return {
         totalSize,
@@ -203,125 +203,125 @@ export const DBUtils = {
         averageFileSize: files.length > 0 ? Math.round(totalSize / files.length) : 0,
         largestFileSize: files.length > 0 ? Math.max(...files.map((f) => f.size)) : 0,
         fileCountByType,
-      };
+      }
     } catch (error) {
-      throw handleError(error, "DBUtils.getStorageUsage");
+      throw handleError(error, 'DBUtils.getStorageUsage')
     }
   },
 
   async cleanupOldFiles(daysOld: number = 90): Promise<number> {
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-      const oldFiles = await db.files.where("uploadedAt").below(cutoffDate).toArray();
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld)
+      const oldFiles = await db.files.where('uploadedAt').below(cutoffDate).toArray()
 
-      await db.transaction("rw", db.files, db.transcripts, db.segments, async () => {
+      await db.transaction('rw', db.files, db.transcripts, db.segments, async () => {
         for (const file of oldFiles) {
           if (file.id) {
-            const transcripts = await db.transcripts.where("fileId").equals(file.id).toArray();
+            const transcripts = await db.transcripts.where('fileId').equals(file.id).toArray()
             for (const transcript of transcripts) {
               if (transcript.id) {
-                await db.segments.where("transcriptId").equals(transcript.id).delete();
+                await db.segments.where('transcriptId').equals(transcript.id).delete()
               }
             }
-            await db.transcripts.where("fileId").equals(file.id).delete();
-            await db.files.delete(file.id);
+            await db.transcripts.where('fileId').equals(file.id).delete()
+            await db.files.delete(file.id)
           }
         }
-      });
+      })
 
-      return oldFiles.length;
+      return oldFiles.length
     } catch (error) {
-      throw handleError(error, "DBUtils.cleanupOldFiles");
+      throw handleError(error, 'DBUtils.cleanupOldFiles')
     }
   },
 
   /** * Delete a file and its associated data * Delete order: segments → transcripts → file (children first)*/
   async deleteFile(id: number): Promise<void> {
     try {
-      await db.transaction("rw", db.files, db.transcripts, db.segments, async () => {
+      await db.transaction('rw', db.files, db.transcripts, db.segments, async () => {
         // 1. Get related transcripts
-        const transcripts = await db.transcripts.where("fileId").equals(id).toArray();
+        const transcripts = await db.transcripts.where('fileId').equals(id).toArray()
 
         // 2. Delete each transcript's segments first
         for (const transcript of transcripts) {
           if (transcript.id) {
-            await db.segments.where("transcriptId").equals(transcript.id).delete();
+            await db.segments.where('transcriptId').equals(transcript.id).delete()
           }
         }
 
         // 3. Delete transcripts
-        await db.transcripts.where("fileId").equals(id).delete();
+        await db.transcripts.where('fileId').equals(id).delete()
 
         // 4. Finally delete the file
-        await db.files.delete(id);
-      });
+        await db.files.delete(id)
+      })
     } catch (error) {
-      throw handleError(error, "DBUtils.deleteFile");
+      throw handleError(error, 'DBUtils.deleteFile')
     }
   },
 
   /** * Transcript-specific operations*/
-  async addTranscript(transcript: Omit<TranscriptRow, "id">): Promise<number> {
-    return await this.add(db.transcripts, transcript);
+  async addTranscript(transcript: Omit<TranscriptRow, 'id'>): Promise<number> {
+    return await this.add(db.transcripts, transcript)
   },
 
   async getTranscript(id: number): Promise<TranscriptRow | undefined> {
-    return await this.get(db.transcripts, id);
+    return await this.get(db.transcripts, id)
   },
 
   async findTranscriptByFileId(fileId: number): Promise<TranscriptRow | undefined> {
     try {
-      return await db.transcripts.where("fileId").equals(fileId).first();
+      return await db.transcripts.where('fileId').equals(fileId).first()
     } catch (error) {
-      throw handleError(error, "DBUtils.findTranscriptByFileId");
+      throw handleError(error, 'DBUtils.findTranscriptByFileId')
     }
   },
 
-  async updateTranscriptStatus(id: number, status: TranscriptRow["status"]): Promise<void> {
-    await this.update(db.transcripts, id, { status, updatedAt: new Date() });
+  async updateTranscriptStatus(id: number, status: TranscriptRow['status']): Promise<void> {
+    await this.update(db.transcripts, id, { status, updatedAt: new Date() })
   },
 
-  async getTranscriptsByStatus(status: TranscriptRow["status"]): Promise<TranscriptRow[]> {
-    return await this.where(db.transcripts, (transcript) => transcript.status === status);
+  async getTranscriptsByStatus(status: TranscriptRow['status']): Promise<TranscriptRow[]> {
+    return await this.where(db.transcripts, (transcript) => transcript.status === status)
   },
 
   /** * Segment-specific operations*/
-  async addSegment(segment: Omit<Segment, "id">): Promise<number> {
-    return await this.add(db.segments, segment);
+  async addSegment(segment: Omit<Segment, 'id'>): Promise<number> {
+    return await this.add(db.segments, segment)
   },
 
   async getSegment(id: number): Promise<Segment | undefined> {
-    return await this.get(db.segments, id);
+    return await this.get(db.segments, id)
   },
 
   async getSegmentsByTranscriptId(transcriptId: number): Promise<Segment[]> {
     try {
-      return await db.segments.where("transcriptId").equals(transcriptId).toArray();
+      return await db.segments.where('transcriptId').equals(transcriptId).toArray()
     } catch (error) {
-      throw handleError(error, "DBUtils.getSegmentsByTranscriptId");
+      throw handleError(error, 'DBUtils.getSegmentsByTranscriptId')
     }
   },
 
   async getSegmentsByTranscriptIdOrdered(transcriptId: number): Promise<Segment[]> {
     try {
-      return await db.segments.where("transcriptId").equals(transcriptId).sortBy("start");
+      return await db.segments.where('transcriptId').equals(transcriptId).sortBy('start')
     } catch (error) {
-      throw handleError(error, "DBUtils.getSegmentsByTranscriptIdOrdered");
+      throw handleError(error, 'DBUtils.getSegmentsByTranscriptIdOrdered')
     }
   },
 
   async addSegments(
-    segments: Omit<Segment, "id">[],
+    segments: Omit<Segment, 'id'>[],
     options?: {
-      batchSize?: number;
+      batchSize?: number
       onProgress?: (progress: {
-        processed: number;
-        total: number;
-        percentage: number;
-        status: string;
-        message: string;
-      }) => void;
+        processed: number
+        total: number
+        percentage: number
+        status: string
+        message: string
+      }) => void
     },
   ): Promise<void> {
     try {
@@ -329,36 +329,36 @@ export const DBUtils = {
         ...segment,
         createdAt: new Date(),
         updatedAt: new Date(),
-      }));
+      }))
 
-      return await db.transaction("rw", db.segments, async () => {
+      return await db.transaction('rw', db.segments, async () => {
         if (segmentsWithTimestamps.length <= 50) {
-          await db.segments.bulkAdd(segmentsWithTimestamps as Segment[]);
-          return;
+          await db.segments.bulkAdd(segmentsWithTimestamps as Segment[])
+          return
         }
 
-        const batchSize = options?.batchSize || 50;
+        const batchSize = options?.batchSize || 50
         for (let i = 0; i < segmentsWithTimestamps.length; i += batchSize) {
-          const batch = segmentsWithTimestamps.slice(i, i + batchSize);
-          await db.segments.bulkAdd(batch as Segment[]);
+          const batch = segmentsWithTimestamps.slice(i, i + batchSize)
+          await db.segments.bulkAdd(batch as Segment[])
 
           if (options?.onProgress) {
             const progress = Math.min(
               100,
               Math.floor(((i + batch.length) / segmentsWithTimestamps.length) * 100),
-            );
+            )
             options.onProgress({
               processed: i + batch.length,
               total: segmentsWithTimestamps.length,
               percentage: progress,
-              status: "processing",
+              status: 'processing',
               message: `Processing ${i + batch.length}/${segmentsWithTimestamps.length}`,
-            });
+            })
           }
         }
-      });
+      })
     } catch (error) {
-      throw handleError(error, "DBUtils.addSegments");
+      throw handleError(error, 'DBUtils.addSegments')
     }
   },
 
@@ -367,9 +367,9 @@ export const DBUtils = {
     updates: Partial<Segment>,
   ): Promise<number> {
     try {
-      return await db.segments.where("transcriptId").equals(transcriptId).modify(updates);
+      return await db.segments.where('transcriptId').equals(transcriptId).modify(updates)
     } catch (error) {
-      throw handleError(error, "DBUtils.updateSegmentsByTranscriptId");
+      throw handleError(error, 'DBUtils.updateSegmentsByTranscriptId')
     }
   },
 
@@ -380,53 +380,53 @@ export const DBUtils = {
   ): Promise<Segment[]> {
     try {
       return await db.segments
-        .where("transcriptId")
+        .where('transcriptId')
         .equals(transcriptId)
         .and((segment) => segment.start >= startTime && segment.end <= endTime)
-        .toArray();
+        .toArray()
     } catch (error) {
-      throw handleError(error, "DBUtils.findSegmentsByTimeRange");
+      throw handleError(error, 'DBUtils.findSegmentsByTimeRange')
     }
   },
 
   /** * Database maintenance operations*/
   async clearAll(): Promise<void> {
     try {
-      await db.transaction("rw", db.files, db.transcripts, db.segments, async () => {
-        await db.segments.clear();
-        await db.transcripts.clear();
-        await db.files.clear();
-      });
+      await db.transaction('rw', db.files, db.transcripts, db.segments, async () => {
+        await db.segments.clear()
+        await db.transcripts.clear()
+        await db.files.clear()
+      })
     } catch (error) {
-      throw handleError(error, "DBUtils.clearAll");
+      throw handleError(error, 'DBUtils.clearAll')
     }
   },
 
   async getDatabaseStats(): Promise<{
-    totalFiles: number;
-    totalTranscripts: number;
-    totalSegments: number;
-    totalStorageSize: number;
-    averageSegmentsPerTranscript: number;
-    transcriptsByStatus: Record<string, number>;
+    totalFiles: number
+    totalTranscripts: number
+    totalSegments: number
+    totalStorageSize: number
+    averageSegmentsPerTranscript: number
+    transcriptsByStatus: Record<string, number>
   }> {
     try {
       const [files, transcripts, segments] = await Promise.all([
         db.files.toArray(),
         db.transcripts.toArray(),
         db.segments.toArray(),
-      ]);
+      ])
 
-      const totalStorageSize = files.reduce((sum, file) => sum + file.size, 0);
+      const totalStorageSize = files.reduce((sum, file) => sum + file.size, 0)
       const transcriptsByStatus = transcripts.reduce(
         (acc, transcript) => {
-          acc[transcript.status] = (acc[transcript.status] || 0) + 1;
-          return acc;
+          acc[transcript.status] = (acc[transcript.status] || 0) + 1
+          return acc
         },
         {} as Record<string, number>,
-      );
+      )
       const averageSegmentsPerTranscript =
-        transcripts.length > 0 ? segments.length / transcripts.length : 0;
+        transcripts.length > 0 ? segments.length / transcripts.length : 0
 
       return {
         totalFiles: files.length,
@@ -435,12 +435,12 @@ export const DBUtils = {
         totalStorageSize,
         averageSegmentsPerTranscript: Math.round(averageSegmentsPerTranscript * 100) / 100,
         transcriptsByStatus,
-      };
+      }
     } catch (error) {
-      throw handleError(error, "DBUtils.getDatabaseStats");
+      throw handleError(error, 'DBUtils.getDatabaseStats')
     }
   },
-};
+}
 
 // Export database instance
-export default db;
+export default db

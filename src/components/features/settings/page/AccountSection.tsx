@@ -1,4 +1,4 @@
-import { SettingsCard, SettingsSection } from "~/components/features/settings/SettingsCard";
+import { SettingsCard, SettingsSection } from '~/components/features/settings/SettingsCard'
 
 export function AccountSection() {
   return (
@@ -17,11 +17,11 @@ export function AccountSection() {
             <p className="settings-account-label">剩余免费时长</p>
           </div>
           <div className="settings-progress-bar">
-            <div className="settings-progress-fill" style={{ width: "25%" }}></div>
+            <div className="settings-progress-fill" style={{ width: '25%' }}></div>
           </div>
           <p className="settings-progress-text">剩余 15 / 60 分钟</p>
         </div>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

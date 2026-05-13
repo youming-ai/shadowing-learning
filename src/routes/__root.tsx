@@ -1,69 +1,69 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
-import appCss from "../styles/app.css?url";
-import { I18nProvider } from "~/components/layout/contexts/I18nContext";
-import { ThemeProvider } from "~/components/layout/contexts/ThemeContext";
-import { TranscriptionLanguageProvider } from "~/components/layout/contexts/TranscriptionLanguageContext";
-import { QueryProvider } from "~/components/layout/providers/QueryProvider";
-import { PageErrorBoundary } from "~/components/ui/ErrorBoundary";
-import { ToastContainer } from "~/components/ui/ErrorToast";
-import { MonitoringInitializer } from "~/components/ui/MonitoringInitializer";
-import PwaRegister from "~/components/ui/PwaRegister";
-import { ThemeDebuggerToggle } from "~/components/ui/ThemeDebugger";
+import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
+import { I18nProvider } from '~/components/layout/contexts/I18nContext'
+import { ThemeProvider } from '~/components/layout/contexts/ThemeContext'
+import { TranscriptionLanguageProvider } from '~/components/layout/contexts/TranscriptionLanguageContext'
+import { QueryProvider } from '~/components/layout/providers/QueryProvider'
+import { PageErrorBoundary } from '~/components/ui/ErrorBoundary'
+import { ToastContainer } from '~/components/ui/ErrorToast'
+import { MonitoringInitializer } from '~/components/ui/MonitoringInitializer'
+import PwaRegister from '~/components/ui/PwaRegister'
+import { ThemeDebuggerToggle } from '~/components/ui/ThemeDebugger'
+import appCss from '../styles/app.css?url'
 
-const SITE_NAME = "影子跟读 Shadowing";
+const SITE_NAME = '影子跟读 Shadowing'
 const SITE_DESCRIPTION =
-  "影子跟读 Shadowing 是一款基于 AI 的语言跟读练习应用，支持音频自动转录、字幕同步、逐句翻译，覆盖中文、英语、日语、韩语等多语种学习场景。";
+  '影子跟读 Shadowing 是一款基于 AI 的语言跟读练习应用，支持音频自动转录、字幕同步、逐句翻译，覆盖中文、英语、日语、韩语等多语种学习场景。'
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "影子跟读 Shadowing - AI 驱动的多语言跟读学习工具" },
-      { name: "description", content: SITE_DESCRIPTION },
-      { name: "application-name", content: SITE_NAME },
-      { name: "robots", content: "index, follow" },
-      { property: "og:type", content: "website" },
-      { property: "og:locale", content: "zh_CN" },
-      { property: "og:title", content: "影子跟读 Shadowing - AI 驱动的多语言跟读学习工具" },
-      { property: "og:description", content: SITE_DESCRIPTION },
-      { property: "og:site_name", content: SITE_NAME },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "影子跟读 Shadowing - AI 驱动的多语言跟读学习工具" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: SITE_NAME },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+      { title: '影子跟读 Shadowing - AI 驱动的多语言跟读学习工具' },
+      { name: 'description', content: SITE_DESCRIPTION },
+      { name: 'application-name', content: SITE_NAME },
+      { name: 'robots', content: 'index, follow' },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:locale', content: 'zh_CN' },
+      { property: 'og:title', content: '影子跟读 Shadowing - AI 驱动的多语言跟读学习工具' },
+      { property: 'og:description', content: SITE_DESCRIPTION },
+      { property: 'og:site_name', content: SITE_NAME },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: '影子跟读 Shadowing - AI 驱动的多语言跟读学习工具' },
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-title', content: SITE_NAME },
     ],
     links: [
-      { rel: "manifest", href: "/manifest.json" },
-      { rel: "icon", href: "/icon.png" },
-      { rel: "apple-touch-icon", href: "/icon.png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: 'manifest', href: '/manifest.json' },
+      { rel: 'icon', href: '/icon.png' },
+      { rel: 'apple-touch-icon', href: '/icon.png' },
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
       {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap",
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap',
       },
-      { rel: "stylesheet", href: appCss },
+      { rel: 'stylesheet', href: appCss },
     ],
     scripts: [
       {
-        type: "application/ld+json",
+        type: 'application/ld+json',
         text: JSON.stringify([
           {
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
             name: SITE_NAME,
-            applicationCategory: "EducationalApplication",
-            operatingSystem: "Web",
-            inLanguage: ["zh-CN", "zh-TW", "en", "ja", "ko"],
-            offers: { "@type": "Offer", price: "0", priceCurrency: "CNY" },
+            applicationCategory: 'EducationalApplication',
+            operatingSystem: 'Web',
+            inLanguage: ['zh-CN', 'zh-TW', 'en', 'ja', 'ko'],
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'CNY' },
             description: SITE_DESCRIPTION,
           },
           {
-            "@context": "https://schema.org",
-            "@type": "WebSite",
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
             name: SITE_NAME,
-            inLanguage: ["zh-CN", "zh-TW", "en", "ja", "ko"],
+            inLanguage: ['zh-CN', 'zh-TW', 'en', 'ja', 'ko'],
             description: SITE_DESCRIPTION,
           },
         ]),
@@ -71,7 +71,7 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootLayout,
-});
+})
 
 function RootLayout() {
   return (
@@ -105,5 +105,5 @@ function RootLayout() {
         <Scripts />
       </body>
     </html>
-  );
+  )
 }
