@@ -188,6 +188,73 @@ describe('ScrollableSubtitleDisplay Component', () => {
     expect(screen.getByText('ご')).toBeInTheDocument()
   })
 
+  it('attaches furigana to the matching word even when counts differ', () => {
+    // 3 words, but only 1 furigana entry; match must be by text, not index.
+    const jaSegment: Segment = {
+      id: 1,
+      transcriptId: 1,
+      start: 0,
+      end: 3,
+      text: '私 は 日本',
+      normalizedText: '私 は 日本',
+      furigana: JSON.stringify([{ text: '日本', reading: 'にほん' }]),
+      wordTimestamps: [
+        { word: '私', start: 0, end: 1 },
+        { word: 'は', start: 1, end: 2 },
+        { word: '日本', start: 2, end: 3 },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    render(
+      <ScrollableSubtitleDisplay
+        segments={[jaSegment]}
+        currentTime={0.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    )
+
+    // The reading must land on 日本 specifically (index 2), not on the index-0 word 私.
+    const ruby = screen.getByText('にほん').closest('ruby')
+    expect(ruby).not.toBeNull()
+    expect(ruby).toHaveTextContent('日本')
+    expect(ruby).not.toHaveTextContent('私')
+  })
+
+  it('does not attach any reading when no furigana entry matches a word', () => {
+    const jaSegment: Segment = {
+      id: 1,
+      transcriptId: 1,
+      start: 0,
+      end: 2,
+      text: 'foo bar',
+      normalizedText: 'foo bar',
+      furigana: JSON.stringify([{ text: '日本', reading: 'にほん' }]),
+      wordTimestamps: [
+        { word: 'foo', start: 0, end: 1 },
+        { word: 'bar', start: 1, end: 2 },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    render(
+      <ScrollableSubtitleDisplay
+        segments={[jaSegment]}
+        currentTime={0.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    )
+
+    // No word matches the only furigana entry → the stray reading must not render on a word.
+    expect(screen.queryByText('にほん')).not.toBeInTheDocument()
+    expect(screen.getByText('foo')).toBeInTheDocument()
+    expect(screen.getByText('bar')).toBeInTheDocument()
+  })
+
   it('finds active segment quickly for large arrays', () => {
     const manySegments: Segment[] = Array.from({ length: 1000 }, (_, i) => ({
       id: i,

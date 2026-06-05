@@ -20,7 +20,6 @@ interface FuriganaEntry {
 interface Token {
   word: string
   reading?: string
-  romaji?: string
   start?: number
   end?: number
 }
@@ -125,6 +124,46 @@ function normalizeFurigana(rawFurigana: unknown): FuriganaEntry[] {
   return []
 }
 
+/**
+ * 把 furigana 条目按「词文本匹配」附到对应词上，不再按数组下标硬对齐。
+ * furigana 数与词数不等也安全：只在 entry.text === word 时附读音；
+ * 没有任何匹配则返回不带读音的词序列（降级为整段文本）。
+ */
+function attachReadingsToWords(
+  words: { word: string; start: number; end: number }[],
+  furiganaEntries: FuriganaEntry[],
+): Token[] {
+  if (furiganaEntries.length === 0) {
+    return words.map((timestamp) => ({
+      word: timestamp.word,
+      start: timestamp.start,
+      end: timestamp.end,
+    }))
+  }
+
+  const readingByText = new Map<string, string>()
+  for (const entry of furiganaEntries) {
+    if (!readingByText.has(entry.text)) {
+      readingByText.set(entry.text, entry.reading)
+    }
+  }
+
+  // 等长时优先按下标对齐（保持原行为）；否则按文本匹配。
+  const useIndexAlignment = furiganaEntries.length === words.length
+
+  return words.map((timestamp, index) => {
+    const reading = useIndexAlignment
+      ? furiganaEntries[index]?.reading
+      : readingByText.get(timestamp.word)
+    return {
+      word: timestamp.word,
+      reading,
+      start: timestamp.start,
+      end: timestamp.end,
+    }
+  })
+}
+
 const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
   ({ segments, currentTime, isPlaying, onSegmentClick, className }) => {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -193,20 +232,13 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
         const furiganaEntries = normalizeFurigana(segment.furigana as unknown)
 
         if (Array.isArray(segment.wordTimestamps) && segment.wordTimestamps.length > 0) {
-          return segment.wordTimestamps.map((timestamp, index) => ({
-            word: timestamp.word,
-            reading: furiganaEntries[index]?.reading,
-            romaji: furiganaEntries[index]?.reading,
-            start: timestamp.start,
-            end: timestamp.end,
-          })) as Token[]
+          return attachReadingsToWords(segment.wordTimestamps, furiganaEntries)
         }
 
         if (furiganaEntries.length > 0) {
           return furiganaEntries.map((entry) => ({
             word: entry.text,
             reading: entry.reading,
-            romaji: entry.reading,
           })) as Token[]
         }
 
