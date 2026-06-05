@@ -860,28 +860,27 @@
    组件样式层 (@layer components)
    =================================== */
 
+/* Base card styles with consistent sizing.
+   Declared as a Tailwind v4 @utility (not inside @layer components) so that
+   `@apply card-base` resolves — Tailwind v4 cannot @apply a class defined in
+   the same @layer components block. */
+@utility card-base {
+  background-color: var(--surface-card);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-card);
+  padding: var(--space-card-padding-lg);
+  transition: all 0.2s ease;
+}
+
 /* 自定义样式类 */
 @layer components {
   /* ===================================
    卡片组件样式
    =================================== */
 
-  /* Base card styles with consistent sizing */
-  .card-base {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
-    border-radius: var(--radius-card);
-    padding: var(--space-card-padding-lg);
-    transition: all 0.2s ease;
-  }
-
   /* Card variant: Default */
   .card-default {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
-    border-radius: var(--radius-card);
-    padding: var(--space-card-padding-lg);
-    transition: all 0.2s ease;
+    @apply card-base;
     border-bottom-width: 4px;
     box-shadow: var(--shadow-md);
   }
@@ -893,11 +892,7 @@
 
   /* Card variant: Elevated */
   .card-elevated {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
-    border-radius: var(--radius-card);
-    padding: var(--space-card-padding-lg);
-    transition: all 0.2s ease;
+    @apply card-base;
     border-bottom-width: 6px;
     box-shadow: var(--shadow-lg);
   }
@@ -909,11 +904,7 @@
 
   /* Card variant: Bordered */
   .card-bordered {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
-    border-radius: var(--radius-card);
-    padding: var(--space-card-padding-lg);
-    transition: all 0.2s ease;
+    @apply card-base;
     border-bottom-width: 6px;
     border-color: var(--border-strong);
     box-shadow: var(--shadow-sm);
@@ -927,11 +918,7 @@
 
   /* Card variant: Interactive */
   .card-interactive {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
-    border-radius: var(--radius-card);
-    padding: var(--space-card-padding-lg);
-    transition: all 0.2s ease;
+    @apply card-base;
     border-bottom-width: 4px;
     box-shadow: var(--shadow-md);
     cursor: pointer;
@@ -950,21 +937,15 @@
 
   /* Legacy card compatibility - updated with new system */
   .stats-card {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
+    @apply card-base;
     border-radius: var(--radius-card-large);
-    padding: var(--space-card-padding-lg);
-    transition: all 0.2s ease;
     border-bottom-width: 6px;
     box-shadow: var(--shadow-lg);
   }
 
   .file-card {
-    background-color: var(--surface-card);
-    border: 2px solid var(--border-primary);
-    border-radius: var(--radius-card);
+    @apply card-base;
     padding: var(--space-card-padding-sm);
-    transition: all 0.2s ease;
     border-bottom-width: 4px;
     box-shadow: var(--shadow-md);
     cursor: pointer;
@@ -1053,15 +1034,7 @@
 
   /* Button variant: Primary */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    @apply btn-base;
     background-color: var(--button-fill);
     color: var(--button-text-color);
     border-bottom-color: var(--button-shadow-color);
@@ -1088,15 +1061,7 @@
 
   /* Button variant: Secondary */
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    @apply btn-base;
     background-color: var(--surface-muted);
     color: var(--text-primary);
     border-color: var(--border-secondary);
@@ -1124,15 +1089,7 @@
 
   /* Button variant: Outline */
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    @apply btn-base;
     background-color: transparent;
     color: var(--color-primary);
     border-color: var(--color-primary);
@@ -1159,15 +1116,7 @@
 
   /* Button variant: Ghost */
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    @apply btn-base;
     background-color: transparent;
     color: var(--text-secondary);
     border-color: transparent;
@@ -1192,15 +1141,7 @@
 
   /* Button variant: Danger */
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    @apply btn-base;
     background-color: var(--color-error);
     color: var(--button-text-color);
     border-bottom-color: var(--state-error-strong);
@@ -1227,15 +1168,7 @@
 
   /* Icon button variant */
   .btn-icon {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    @apply btn-base;
     width: 3.5rem;
     height: 3.5rem;
     padding: 0;
