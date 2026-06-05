@@ -12,7 +12,7 @@ RUN bun run build
 
 FROM base AS runtime
 ENV NODE_ENV=production
-COPY --from=build /app/.output ./.output
+COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./
 EXPOSE 3000
-CMD ["bun", "run", "./.output/server/index.mjs"]
+CMD ["bun", "run", "dist/server/server.js"]

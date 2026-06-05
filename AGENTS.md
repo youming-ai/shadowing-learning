@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Web-based language shadowing learning application with AI-powered audio transcription (Whisper via Groq). Client-persisted with IndexedDB (Dexie). Next.js 16 App Router + React 19 + TypeScript strict mode.
+Web-based language shadowing learning application with AI-powered audio transcription (Whisper via Groq). Client-persisted with IndexedDB (Dexie). Vite 8 + TanStack Start / TanStack Router (file-based) + React 19 + TypeScript strict mode, running on the Bun runtime.
 
 ## Prerequisites
 
@@ -68,14 +68,14 @@ bun run clean
 ## Theme & Tokens
 
 - 4 themes: dark (default), light, system, high-contrast.
-- CSS custom properties in `src/styles/globals.css`; theme toggling via `data-theme` attribute.
+- CSS custom properties in `src/styles/app.css` (Tailwind v4 `@theme {}` block); theme toggling via `data-theme` attribute.
 - Do not add inline Tailwind arbitrary values that shadow the design tokens.
 
 ## PWA / Deployment
 
-- Output mode: `standalone` (`next.config.js`).
+- Build output: `dist/` (Vite + TanStack Start). Server entry is `dist/server/server.js`, started via `bun run dist/server/server.js`.
+- Docker base image: `oven/bun:1-alpine` (multi-stage; `bun install --frozen-lockfile` → `bun run build`).
 - PWA manifest at `/manifest.json`; service worker registration exists.
-- Security headers and API cache headers configured in `next.config.js`.
 
 ## What to Avoid
 
