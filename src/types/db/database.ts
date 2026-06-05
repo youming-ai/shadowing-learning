@@ -46,7 +46,6 @@ export interface Segment {
   text: string
   normalizedText?: string
   translation?: string
-  romaji?: string
   annotations?: string[]
   furigana?: string
   wordTimestamps?: WordTimestamp[]
