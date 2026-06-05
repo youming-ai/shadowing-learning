@@ -142,12 +142,16 @@ describe('DBUtils', () => {
     })
 
     it('should find transcript by file id', async () => {
+      const transcriptCreatedAt = new Date()
+      const transcriptUpdatedAt = new Date()
       const mockWhere = vi.fn().mockReturnValue({
         equals: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue({
           id: 1,
           fileId: 1,
           status: 'completed',
+          createdAt: transcriptCreatedAt,
+          updatedAt: transcriptUpdatedAt,
         }),
       })
       db.transcripts.where = mockWhere
@@ -159,6 +163,8 @@ describe('DBUtils', () => {
         id: 1,
         fileId: 1,
         status: 'completed',
+        createdAt: transcriptCreatedAt,
+        updatedAt: transcriptUpdatedAt,
       })
     })
   })

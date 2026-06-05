@@ -39,8 +39,22 @@ describe('useFiles', () => {
   describe('初始化', () => {
     it('should load files on mount', async () => {
       const mockFiles = [
-        { id: 1, name: 'test1.mp3', size: 1000, type: 'audio/mpeg' },
-        { id: 2, name: 'test2.mp3', size: 2000, type: 'audio/mpeg' },
+        {
+          id: 1,
+          name: 'test1.mp3',
+          size: 1000,
+          type: 'audio/mpeg',
+          uploadedAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 2,
+          name: 'test2.mp3',
+          size: 2000,
+          type: 'audio/mpeg',
+          uploadedAt: new Date(),
+          updatedAt: new Date(),
+        },
       ]
       ;(DBUtils.getAllFiles as ReturnType<typeof vi.fn>).mockResolvedValue(mockFiles)
 
