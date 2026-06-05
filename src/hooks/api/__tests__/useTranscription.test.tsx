@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DBUtils } from '~/lib/db/db'
 import { handleTranscriptionError } from '~/lib/utils/transcription-error-handler'
+import type { TranscriptRow } from '~/types/db/database'
 import { useTranscription, useTranscriptionStatus } from '../useTranscription'
 
 // Mock dependencies
@@ -80,7 +81,7 @@ describe('useTranscription Hook', () => {
 
   describe('useTranscriptionStatus', () => {
     it('should return transcript and segments when they exist', async () => {
-      const mockTranscript = {
+      const mockTranscript: TranscriptRow = {
         id: 1,
         fileId: 1,
         status: 'completed' as const,
@@ -118,6 +119,7 @@ describe('useTranscription Hook', () => {
         expect(result.current.data).toEqual({
           transcript: mockTranscript,
           segments: mockSegments,
+          postProcessStatus: mockTranscript.postProcessStatus,
         })
       })
     })
@@ -133,6 +135,7 @@ describe('useTranscription Hook', () => {
         expect(result.current.data).toEqual({
           transcript: null,
           segments: [],
+          postProcessStatus: undefined,
         })
       })
     })
@@ -152,8 +155,9 @@ describe('useTranscription Hook', () => {
     beforeEach(() => {
       vi.mocked(DBUtils.getFile).mockResolvedValue(mockFile)
 
-      // Mock fetch
-      global.fetch = vi.fn()
+      // Mock fetch — cast through unknown because vi.fn() does not carry
+      // fetch's `preconnect` member that the DOM `typeof fetch` type requires.
+      global.fetch = vi.fn() as unknown as typeof fetch
     })
 
     it('should start transcription successfully', async () => {
@@ -210,7 +214,7 @@ describe('useTranscription Hook', () => {
         }),
       }
 
-      ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse as any)
+      ;(global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse as any)
 
       const { result } = renderHook(() => useTranscription(), { wrapper })
 
@@ -232,7 +236,7 @@ describe('useTranscription Hook', () => {
     it.skip('should retry failed requests', async () => {
       // Reset fetch mock for this specific test
       const mockFetch = vi.fn()
-      global.fetch = mockFetch
+      global.fetch = mockFetch as unknown as typeof fetch
 
       const mockFailResponse = {
         ok: false,
