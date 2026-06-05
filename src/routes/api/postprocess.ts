@@ -613,7 +613,7 @@ export const Route = createFileRoute('/api/postprocess')({
                 'X-RateLimit-Limit': String(rateLimitConfig.maxRequests),
                 'X-RateLimit-Remaining': String(rateLimit.remaining),
                 'X-RateLimit-Reset': String(rateLimit.resetTime),
-                'Retry-After': String(Math.ceil(rateLimit.resetTime - Date.now() / 1000)),
+                'Retry-After': String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000)),
               },
             })
           }

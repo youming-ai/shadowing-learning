@@ -33,6 +33,26 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // Cache Vite-generated assets (JS/CSS chunks) for offline support
+  if (new URL(request.url).pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then((response) => {
+        if (response) {
+          return response
+        }
+
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse.ok) {
+            const responseToCache = networkResponse.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache))
+          }
+          return networkResponse
+        })
+      }),
+    )
+    return
+  }
+
   event.respondWith(
     caches.match(request).then((response) => {
       if (response) {
@@ -59,6 +79,7 @@ self.addEventListener('activate', (event) => {
           if (cacheName !== CACHE_NAME) {
             return caches.delete(cacheName)
           }
+          return Promise.resolve()
         }),
       )
     }),

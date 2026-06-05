@@ -1,8 +1,8 @@
 import {
   DEFAULT_SHADOWING_CONFIG,
   EPSILON,
-  reduceShadowing,
   type ReduceCtx,
+  reduceShadowing,
   type ShadowingState,
 } from '~/lib/player/shadowing-machine'
 

@@ -1209,14 +1209,6 @@
   /* Icon button variant */
   .btn-icon {
     @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
     width: 3.5rem;
     height: 3.5rem;
     padding: 0;

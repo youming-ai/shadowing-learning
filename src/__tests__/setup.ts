@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import '@testing-library/jest-dom/vitest'
-import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
 
 // Vitest provides the DOM via `environment: 'happy-dom'` in vitest.config.ts,
 // so document/window/HTMLElement/etc. are already on globalThis. We only need
@@ -24,9 +24,8 @@ afterEach(() => {
 // Mock @tanstack/react-router so components/hooks that pull navigation helpers
 // render without a real router. vi.importActual is restored under Vitest.
 vi.mock('@tanstack/react-router', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-router')>(
-    '@tanstack/react-router',
-  )
+  const actual =
+    await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router')
   return {
     ...actual,
     useNavigate: () => vi.fn(),
