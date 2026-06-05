@@ -7,7 +7,9 @@
       "!**/drizzle",
       "!**/.output",
       "!**/.next",
-      "!**/node_modules"
+      "!**/dist",
+      "!**/node_modules",
+      "!**/routeTree.gen.ts"
     ]
   },
   "formatter": {
@@ -17,7 +19,21 @@
   },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+      "a11y": {
+        "useSemanticElements": "warn"
+      }
+    }
   },
   "javascript": {
     "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" }
