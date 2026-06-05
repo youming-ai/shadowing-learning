@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { GroqTranscriptionSegment, GroqTranscriptionWord } from '~/types/transcription'
+import type {
+  GroqTranscriptionSegment,
+  GroqTranscriptionWord,
+  TranscriptionSegment,
+} from '~/types/transcription'
 import {
   buildSegmentsFromPlainText,
   buildSegmentsFromWords,
+  distributeWordsIntoSegments,
   mapGroqSegmentToTranscriptionSegment,
 } from '../groq-transcription-utils'
 
@@ -203,6 +208,110 @@ describe('groq-transcription-utils', () => {
       const result = buildSegmentsFromPlainText(text)
 
       expect(result[0].confidence).toBe(0.95)
+    })
+  })
+
+  describe('distributeWordsIntoSegments', () => {
+    it('assigns a word whose start falls inside a segment', () => {
+      const segments: TranscriptionSegment[] = [
+        { id: 1, start: 0, end: 2, text: 'hello world', confidence: 0.95 },
+        { id: 2, start: 2, end: 4, text: 'foo bar', confidence: 0.95 },
+      ]
+      const words = [
+        { word: 'hello', start: 0, end: 1 },
+        { word: 'world', start: 1, end: 2 },
+        { word: 'foo', start: 2.5, end: 3 },
+        { word: 'bar', start: 3, end: 4 },
+      ]
+
+      const result = distributeWordsIntoSegments(segments, words)
+
+      expect(result[0].wordTimestamps).toEqual([
+        { word: 'hello', start: 0, end: 1 },
+        { word: 'world', start: 1, end: 2 },
+      ])
+      expect(result[1].wordTimestamps).toEqual([
+        { word: 'foo', start: 2.5, end: 3 },
+        { word: 'bar', start: 3, end: 4 },
+      ])
+    })
+
+    it('uses a half-open [start, end) boundary so a word at seg.end goes to the next segment', () => {
+      const segments: TranscriptionSegment[] = [
+        { id: 1, start: 0, end: 2, text: 'a', confidence: 0.95 },
+        { id: 2, start: 2, end: 4, text: 'b', confidence: 0.95 },
+      ]
+      const words = [
+        { word: 'a', start: 0, end: 2 },
+        { word: 'b', start: 2, end: 3 }, // start === seg1.end → belongs to seg2
+      ]
+
+      const result = distributeWordsIntoSegments(segments, words)
+
+      expect(result[0].wordTimestamps).toEqual([{ word: 'a', start: 0, end: 2 }])
+      expect(result[1].wordTimestamps).toEqual([{ word: 'b', start: 2, end: 3 }])
+    })
+
+    it('leaves a segment with no matching words as an empty array', () => {
+      const segments: TranscriptionSegment[] = [
+        { id: 1, start: 0, end: 2, text: 'a', confidence: 0.95 },
+        { id: 2, start: 2, end: 4, text: 'b', confidence: 0.95 },
+      ]
+      const words = [{ word: 'a', start: 0.5, end: 1 }]
+
+      const result = distributeWordsIntoSegments(segments, words)
+
+      expect(result[0].wordTimestamps).toEqual([{ word: 'a', start: 0.5, end: 1 }])
+      expect(result[1].wordTimestamps).toEqual([])
+    })
+
+    it('drops words that fall in a gap between segments (no nearest-snap)', () => {
+      const segments: TranscriptionSegment[] = [
+        { id: 1, start: 0, end: 1, text: 'a', confidence: 0.95 },
+        { id: 2, start: 3, end: 4, text: 'b', confidence: 0.95 },
+      ]
+      const words = [
+        { word: 'a', start: 0.2, end: 0.8 },
+        { word: 'gap', start: 1.5, end: 2.5 }, // in the 1..3 gap → assigned to neither
+        { word: 'b', start: 3.1, end: 3.9 },
+      ]
+
+      const result = distributeWordsIntoSegments(segments, words)
+
+      expect(result[0].wordTimestamps).toEqual([{ word: 'a', start: 0.2, end: 0.8 }])
+      expect(result[1].wordTimestamps).toEqual([{ word: 'b', start: 3.1, end: 3.9 }])
+    })
+
+    it('returns an empty array when segments is empty', () => {
+      const result = distributeWordsIntoSegments([], [{ word: 'x', start: 0, end: 1 }])
+
+      expect(result).toEqual([])
+    })
+
+    it('preserves all non-word fields of each segment', () => {
+      const segments: TranscriptionSegment[] = [
+        { id: 7, start: 0, end: 2, text: 'kept', confidence: 0.42 },
+      ]
+      const words = [{ word: 'kept', start: 0, end: 1 }]
+
+      const result = distributeWordsIntoSegments(segments, words)
+
+      expect(result[0].id).toBe(7)
+      expect(result[0].text).toBe('kept')
+      expect(result[0].confidence).toBe(0.42)
+      expect(result[0].start).toBe(0)
+      expect(result[0].end).toBe(2)
+    })
+
+    it('does not mutate the input segments', () => {
+      const segments: TranscriptionSegment[] = [
+        { id: 1, start: 0, end: 2, text: 'a', confidence: 0.95 },
+      ]
+      const words = [{ word: 'a', start: 0, end: 1 }]
+
+      distributeWordsIntoSegments(segments, words)
+
+      expect(segments[0].wordTimestamps).toBeUndefined()
     })
   })
 })

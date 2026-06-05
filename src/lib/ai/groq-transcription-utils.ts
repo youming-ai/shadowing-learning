@@ -118,6 +118,24 @@ export function buildSegmentsFromPlainText(
   })
 }
 
+/**
+ * Whisper 在 verbose_json 下把逐词时间戳放在顶层 `words` 数组，而不是挂在各 segment 上。
+ * 本函数按 word.start 落在 [seg.start, seg.end) 的半开区间把词分配进对应 segment，
+ * 写入 seg.wordTimestamps。落在段间间隙（不属于任何段）的词被丢弃。
+ * 纯函数：不修改入参，返回新数组。
+ */
+export function distributeWordsIntoSegments(
+  segments: TranscriptionSegment[],
+  words: { word: string; start: number; end: number }[],
+): TranscriptionSegment[] {
+  return segments.map((segment) => ({
+    ...segment,
+    wordTimestamps: words
+      .filter((word) => word.start >= segment.start && word.start < segment.end)
+      .map((word) => ({ word: word.word, start: word.start, end: word.end })),
+  }))
+}
+
 export function extractSegmentsFromGroq(
   transcription: GroqTranscriptionResponse,
 ): TranscriptionSegment[] {
