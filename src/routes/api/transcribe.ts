@@ -5,6 +5,7 @@ import { safeGroqRequest } from '~/lib/ai/groq-request-wrapper'
 import {
   buildSegmentsFromPlainText,
   buildSegmentsFromWords,
+  distributeWordsIntoSegments,
   mapGroqSegmentToTranscriptionSegment,
 } from '~/lib/ai/groq-transcription-utils'
 import { apiError, apiSuccess } from '~/lib/utils/api-response'
@@ -251,6 +252,21 @@ async function processTranscription(
         mapGroqSegmentToTranscriptionSegment(segment, index + 1),
       )
       apiLogger.debug('使用 Groq SDK 返回的 segments:', processedSegments.length)
+
+      if (Array.isArray(transcriptionData.words) && transcriptionData.words.length > 0) {
+        const topLevelWords = transcriptionData.words.map((word) => ({
+          word: word.word ?? '',
+          start: typeof word.start === 'number' ? word.start : 0,
+          end:
+            typeof word.end === 'number'
+              ? word.end
+              : typeof word.start === 'number'
+                ? word.start
+                : 0,
+        }))
+        processedSegments = distributeWordsIntoSegments(processedSegments, topLevelWords)
+        apiLogger.debug('按时间分配顶层 words 进 segments:', topLevelWords.length)
+      }
     } else if (Array.isArray(transcriptionData.words) && transcriptionData.words.length > 0) {
       apiLogger.debug('Groq SDK 未返回 segments，根据 words 生成')
       processedSegments = buildSegmentsFromWords(transcriptionData.words, 10)
