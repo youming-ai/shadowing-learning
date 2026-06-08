@@ -134,7 +134,18 @@ describe('rate-limiter', () => {
       expect(clientId).toBe('192.168.1.100')
     })
 
-    it("should return 'unknown' when no IP headers", () => {
+    it('should hash user-agent when no IP headers', () => {
+      const request = new Request('http://localhost/api/test', {
+        headers: {
+          'user-agent': 'TestBrowser/1.0',
+        },
+      })
+
+      const clientId = getClientIdentifier(request)
+      expect(clientId).toMatch(/^anon:[a-z0-9]+$/)
+    })
+
+    it("should return 'unknown' when no identifying headers", () => {
       const request = new Request('http://localhost/api/test')
 
       const clientId = getClientIdentifier(request)

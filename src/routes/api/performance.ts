@@ -83,6 +83,21 @@ function generateSessionId(userAgent: string): string {
   return `session_${hash}`
 }
 
+function isValidSessionId(sessionId: unknown): sessionId is string {
+  return typeof sessionId === 'string' && /^session_[a-z0-9]{1,64}$/i.test(sessionId)
+}
+
+function isPerformanceAdminAuthorized(request: Request): boolean {
+  const isLocalDev = process.env.NODE_ENV === 'development'
+  if (isLocalDev) {
+    return true
+  }
+
+  const adminToken = process.env.PERFORMANCE_ADMIN_TOKEN
+  const authHeader = request.headers.get('authorization')
+  return Boolean(adminToken && authHeader === `Bearer ${adminToken}`)
+}
+
 function simpleHash(str: string): string {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
@@ -268,7 +283,9 @@ export const Route = createFileRoute('/api/performance')({
             )
           }
 
-          const sessionId = generateSessionId(data.userAgent)
+          const sessionId = isValidSessionId(data.sessionId)
+            ? data.sessionId
+            : generateSessionId(data.userAgent)
           data.sessionId = sessionId
 
           const dateKey = new Date().toISOString().split('T')[0]
@@ -313,19 +330,14 @@ export const Route = createFileRoute('/api/performance')({
       },
       GET: async ({ request }) => {
         try {
-          const adminToken = process.env.PERFORMANCE_ADMIN_TOKEN
-          const authHeader = request.headers.get('authorization')
-
-          if (process.env.NODE_ENV === 'production') {
-            if (!adminToken || authHeader !== `Bearer ${adminToken}`) {
-              return Response.json(
-                {
-                  success: false,
-                  error: 'Not found',
-                },
-                { status: 404 },
-              )
-            }
+          if (!isPerformanceAdminAuthorized(request)) {
+            return Response.json(
+              {
+                success: false,
+                error: 'Not found',
+              },
+              { status: 404 },
+            )
           }
 
           const { searchParams } = new URL(request.url)

@@ -9,6 +9,7 @@ import {
   mapGroqSegmentToTranscriptionSegment,
 } from '~/lib/ai/groq-transcription-utils'
 import { apiError, apiSuccess } from '~/lib/utils/api-response'
+import { isValidAudioFile } from '~/lib/utils/file-validation'
 import { apiLogger } from '~/lib/utils/logger'
 import {
   checkRateLimit,
@@ -104,6 +105,22 @@ function validateFormData(formData: FormData) {
         message: `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`,
         details: { reason: 'FILE_TOO_LARGE', size: uploadedFile.size },
         statusCode: 413,
+      }),
+    }
+  }
+
+  if (!isValidAudioFile(uploadedFile)) {
+    return {
+      success: false as const,
+      error: apiError({
+        code: 'VALIDATION_ERROR',
+        message: 'Unsupported audio file type',
+        details: {
+          reason: 'INVALID_AUDIO_TYPE',
+          type: uploadedFile.type,
+          name: uploadedFile.name,
+        },
+        statusCode: 400,
       }),
     }
   }

@@ -1,4 +1,16 @@
-/** * 基于滑动窗口 API 限流器 * 使用Memory存储，适Used for单实例部署 * * 特点： * - 滑动窗口算法，更平滑限流 * - 支持按 IP 或自定义 key 限流 * - 自动清理过期数据 * - 提供限流state信息*/
+/**
+ * 基于滑动窗口的 API 限流器，使用进程内 Memory 存储。
+ *
+ * **单实例假设：** 计数器存于本进程 `Map`，多副本部署时各实例独立计数，
+ * 等效于放宽限制。生产环境如需水平扩展，应在边缘（Traefik/nginx/Cloudflare）
+ * 或共享存储（Redis）层做全局限流。
+ *
+ * 特点：
+ * - 滑动窗口算法，更平滑限流
+ * - 支持按 IP 或自定义 key 限流
+ * - 自动清理过期数据
+ * - 提供限流 state 信息
+ */
 
 export interface RateLimitConfig {
   /** 时间窗口size（毫seconds）*/
@@ -58,7 +70,7 @@ export const API_RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   },
 }
 
-/** * Memory限流存储 * 使用 Map 存储每个 key requestrecord*/
+/** 进程内限流存储；不跨副本共享，见文件头单实例说明。 */
 class RateLimitStore {
   private store: Map<string, RateLimitEntry> = new Map()
   private cleanupInterval: NodeJS.Timeout | null = null
@@ -190,20 +202,39 @@ export function getRateLimitConfig(pathname: string): RateLimitConfig {
   return API_RATE_LIMIT_CONFIG.default
 }
 
-/** * 从requestin提取client标识 * 优先使用 X-Forwarded-For，其次使用 X-Real-IP*/
+function hashClientFingerprint(value: string): string {
+  let hash = 0
+  for (let i = 0; i < value.length; i++) {
+    const char = value.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash &= hash
+  }
+  return Math.abs(hash).toString(36)
+}
+
+/** 从请求中提取客户端标识；优先可信代理 IP 头，无 IP 时用 UA 指纹分桶。 */
 export function getClientIdentifier(request: Request): string {
   const forwardedFor = request.headers.get('x-forwarded-for')
   if (forwardedFor) {
-    // 取第一个 IP（最原始client IP）
     return forwardedFor.split(',')[0].trim()
   }
 
   const realIp = request.headers.get('x-real-ip')
   if (realIp) {
-    return realIp
+    return realIp.trim()
   }
 
-  // 回退To一个默认标识
+  const cfConnectingIp = request.headers.get('cf-connecting-ip')
+  if (cfConnectingIp) {
+    return cfConnectingIp.trim()
+  }
+
+  const userAgent = request.headers.get('user-agent') ?? ''
+  const acceptLanguage = request.headers.get('accept-language') ?? ''
+  if (userAgent || acceptLanguage) {
+    return `anon:${hashClientFingerprint(`${userAgent}|${acceptLanguage}`)}`
+  }
+
   return 'unknown'
 }
 

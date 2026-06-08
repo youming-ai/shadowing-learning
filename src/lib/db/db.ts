@@ -13,14 +13,6 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('shadowing-learning-db')
 
-    // Define schema
-    this.version(3).stores({
-      files: '++id, name, size, type, uploadedAt, updatedAt, [name+type]',
-      transcripts: '++id, fileId, status, language, createdAt, updatedAt',
-      segments: '++id, transcriptId, start, end, text, [transcriptId+start], [transcriptId+end]',
-    })
-
-    // Migration logic for version updates
     this.version(1)
       .stores({
         files: '++id, name, size, type, uploadedAt, [name+type]',

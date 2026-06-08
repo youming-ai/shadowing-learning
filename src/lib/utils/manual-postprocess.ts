@@ -157,8 +157,8 @@ export async function retranscribeFile(fileId: number): Promise<boolean> {
   }
 }
 
-// 导出To window object，方便在浏览器控制台调用
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+// 导出到 window，仅在开发环境供浏览器控制台调试
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   const win = window as unknown as ManualPostProcessWindow
   win.manualPostProcess = manualPostProcess
   win.retranslateFile = retranslateFile

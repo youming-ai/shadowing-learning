@@ -13,8 +13,6 @@ import { usePlayerDataQuery } from '~/hooks/player/usePlayerDataQuery'
 import { useShadowingMode } from '~/hooks/player/useShadowingMode'
 import { useAudioPlayer } from '~/hooks/ui/useAudioPlayer'
 import { isApiKeyError } from '~/lib/utils/error-handler'
-// 引入手动后Process工具，使其在浏览器控制台可用
-import '~/lib/utils/manual-postprocess'
 import type { Segment } from '~/types/db/database'
 
 export default function PlayerPageComponent({ fileId }: { fileId: string }) {
@@ -58,6 +56,12 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
       return fallback
     }
     return value
+  }, [])
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      void import('~/lib/utils/manual-postprocess')
+    }
   }, [])
 
   useEffect(() => {

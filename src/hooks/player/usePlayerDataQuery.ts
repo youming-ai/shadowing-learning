@@ -31,9 +31,10 @@ export const playerKeys = {
   file: (fileId: number) => [...playerKeys.all, 'file', fileId] as const,
 }
 
-function useFileQuery(fileId: number) {
+function useFileQuery(fileId: number, enabled = true) {
   return useQuery({
     queryKey: playerKeys.file(fileId),
+    enabled,
     queryFn: async () => {
       const file = await DBUtils.getFile(fileId)
       if (!file) {
@@ -64,22 +65,24 @@ interface UsePlayerDataQueryReturn {
 }
 
 export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
-  const parsedFileId = parseInt(fileId, 10)
+  const parsedFileId = Number.parseInt(fileId, 10)
+  const isValidFileId = Number.isFinite(parsedFileId) && parsedFileId > 0
 
-  const fileQuery = useFileQuery(parsedFileId)
+  const fileQuery = useFileQuery(parsedFileId, isValidFileId)
   const file = fileQuery.data?.file || null
   const audioUrl = fileQuery.data?.audioUrl || null
 
-  const transcriptionQuery = useTranscriptionStatus(parsedFileId)
+  const transcriptionQuery = useTranscriptionStatus(parsedFileId, isValidFileId)
   const transcript = transcriptionQuery.data?.transcript || null
   const segments = transcriptionQuery.data?.segments || []
   const postProcessStatus = transcriptionQuery.data?.postProcessStatus
 
-  const { startTranscription } = useFileStatusManager(parsedFileId)
+  const { startTranscription } = useFileStatusManager(isValidFileId ? parsedFileId : 0)
   const autoTranscribingRef = useRef(false)
   const currentBlobRef = useRef<Blob | undefined>(undefined)
 
   useEffect(() => {
+    if (!isValidFileId) return
     if (autoTranscribingRef.current) return
     if (fileQuery.isLoading || fileQuery.error) return
     if (transcriptionQuery.isLoading) return
@@ -94,6 +97,7 @@ export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
       })
     }
   }, [
+    isValidFileId,
     transcript,
     fileQuery.isLoading,
     fileQuery.error,
@@ -121,13 +125,14 @@ export function usePlayerDataQuery(fileId: string): UsePlayerDataQueryReturn {
     }
   }, [])
 
-  const loading = fileQuery.isLoading
-  const error = fileQuery.error?.message || null
+  const loading = isValidFileId ? fileQuery.isLoading : false
+  const error = isValidFileId ? fileQuery.error?.message || null : 'Invalid file ID'
 
   const retry = useCallback(() => {
+    if (!isValidFileId) return
     fileQuery.refetch()
     transcriptionQuery.refetch()
-  }, [fileQuery, transcriptionQuery])
+  }, [isValidFileId, fileQuery, transcriptionQuery])
 
   return {
     file,

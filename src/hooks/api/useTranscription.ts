@@ -39,9 +39,10 @@ export const transcriptionKeys = {
   progress: (fileId: number) => [...transcriptionKeys.forFile(fileId), 'progress'] as const,
 }
 
-export function useTranscriptionStatus(fileId: number) {
+export function useTranscriptionStatus(fileId: number, enabled = true) {
   return useQuery({
     queryKey: transcriptionKeys.forFile(fileId),
+    enabled,
     queryFn: async () => {
       const transcript = await DBUtils.findTranscriptByFileId(fileId)
 
@@ -162,6 +163,26 @@ async function saveTranscriptionResults(
   }
 }
 
+async function updatePostProcessStatus(
+  transcriptId: number,
+  fileId: number,
+  status: 'pending' | 'completed' | 'failed',
+  queryClient?: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
+  error?: string,
+): Promise<void> {
+  await DBUtils.update(db.transcripts, transcriptId, {
+    postProcessStatus: status,
+    postProcessError: error,
+    updatedAt: new Date(),
+  })
+
+  if (queryClient) {
+    queryClient.invalidateQueries({
+      queryKey: transcriptionKeys.forFile(fileId),
+    })
+  }
+}
+
 async function postProcessTranscription(
   transcriptId: number,
   fileId: number,
@@ -178,10 +199,7 @@ async function postProcessTranscription(
   transcriptionLogger.info(`开始后处理 ${segments.length} 个 segments`)
   transcriptionLogger.info(`源语言(音频): ${sourceLanguage} → 目标语言(翻译): ${targetLanguage}`)
 
-  await DBUtils.update(db.transcripts, transcriptId, {
-    postProcessStatus: 'pending',
-    postProcessError: undefined,
-  })
+  await updatePostProcessStatus(transcriptId, fileId, 'pending', queryClient)
 
   try {
     const response = await fetch('/api/postprocess', {
@@ -202,7 +220,9 @@ async function postProcessTranscription(
     })
 
     if (!response.ok) {
-      transcriptionLogger.error(`后处理 API 失败: ${response.status} ${response.statusText}`)
+      const errorMessage = `后处理 API 失败: ${response.status} ${response.statusText}`
+      transcriptionLogger.error(errorMessage)
+      await updatePostProcessStatus(transcriptId, fileId, 'failed', queryClient, errorMessage)
       return
     }
 
@@ -213,7 +233,9 @@ async function postProcessTranscription(
     })
 
     if (!result.success || !result.data?.segments) {
-      transcriptionLogger.error('后处理响应无效:', result)
+      const errorMessage = '后处理响应无效'
+      transcriptionLogger.error(errorMessage, result)
+      await updatePostProcessStatus(transcriptId, fileId, 'failed', queryClient, errorMessage)
       return
     }
 
@@ -252,16 +274,11 @@ async function postProcessTranscription(
     }
 
     transcriptionLogger.info(`后处理完成，更新了 ${updatedCount} 个 segments`)
-
-    // 只刷新转录数据查询，不要 invalidate playerKeys.file —
-    // 那会触发 file blob 重新读取并生成新的 audioUrl，导致 audio 元素 load() 重置播放。
-    if (queryClient) {
-      queryClient.invalidateQueries({
-        queryKey: transcriptionKeys.forFile(fileId),
-      })
-    }
+    await updatePostProcessStatus(transcriptId, fileId, 'completed', queryClient)
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '后处理异常'
     transcriptionLogger.error('后处理异常:', error)
+    await updatePostProcessStatus(transcriptId, fileId, 'failed', queryClient, errorMessage)
   }
 }
 

@@ -160,7 +160,8 @@ export function setElementContent(
   options: SanitizeOptions = {},
 ): void {
   const securityCheck = checkSecurity(content, options)
-  element.textContent = securityCheck.isSafe ? content : sanitizeHtml(content, options)
+  const sanitized = securityCheck.isSafe ? content : sanitizeHtml(content, options)
+  element.innerHTML = sanitized
 }
 
 export function createSafeElement(

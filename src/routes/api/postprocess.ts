@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { groqClient } from '~/lib/ai/groq-client'
 import { safeGroqRequest } from '~/lib/ai/groq-request-wrapper'
-import { apiError, apiFromError, apiSuccess } from '~/lib/utils/api-response'
+import { apiError, apiSuccess } from '~/lib/utils/api-response'
 import { validationError } from '~/lib/utils/error-handler'
 import { apiLogger } from '~/lib/utils/logger'
 import { checkRateLimit, getClientIdentifier, getRateLimitConfig } from '~/lib/utils/rate-limiter'
@@ -685,7 +685,20 @@ export const Route = createFileRoute('/api/postprocess')({
             }
           }
 
-          return apiFromError(error, 'postprocess/POST')
+          const isProduction = process.env.NODE_ENV === 'production'
+
+          return apiError({
+            code: 'INTERNAL_ERROR',
+            message: isProduction
+              ? '后处理服务暂时不可用，请稍后重试'
+              : 'Internal server error during postprocessing',
+            details: isProduction
+              ? undefined
+              : error instanceof Error
+                ? { message: error.message, stack: error.stack }
+                : undefined,
+            statusCode: 500,
+          })
         }
       },
     },
