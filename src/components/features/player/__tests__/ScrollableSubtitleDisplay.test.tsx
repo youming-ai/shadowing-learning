@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Segment } from "@/types/db/database";
-import ScrollableSubtitleDisplay from "../ScrollableSubtitleDisplay";
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Segment } from '~/types/db/database'
+import ScrollableSubtitleDisplay from '../ScrollableSubtitleDisplay'
 
 const mockSegments: Segment[] = [
   {
@@ -10,12 +10,12 @@ const mockSegments: Segment[] = [
     transcriptId: 1,
     start: 0,
     end: 3,
-    text: "Hello world",
+    text: 'Hello world',
     wordTimestamps: [],
-    normalizedText: "Hello world",
-    translation: "你好世界",
+    normalizedText: 'Hello world',
+    translation: '你好世界',
     annotations: [],
-    furigana: "",
+    furigana: '',
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -24,121 +24,121 @@ const mockSegments: Segment[] = [
     transcriptId: 1,
     start: 3,
     end: 6,
-    text: "This is a test",
+    text: 'This is a test',
     wordTimestamps: [],
-    normalizedText: "This is a test",
-    translation: "这是一个测试",
+    normalizedText: 'This is a test',
+    translation: '这是一个测试',
     annotations: [],
-    furigana: "",
+    furigana: '',
     createdAt: new Date(),
     updatedAt: new Date(),
   },
-];
+]
 
-describe("ScrollableSubtitleDisplay Component", () => {
+describe('ScrollableSubtitleDisplay Component', () => {
   const defaultProps = {
     segments: mockSegments,
     currentTime: 0,
     isPlaying: false,
     onSegmentClick: vi.fn(),
-  };
+  }
 
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    vi.clearAllMocks()
+  })
 
-  it("renders all segments correctly", () => {
-    render(<ScrollableSubtitleDisplay {...defaultProps} />);
+  it('renders all segments correctly', () => {
+    render(<ScrollableSubtitleDisplay {...defaultProps} />)
 
     // Since text is split into words, we check for word elements
-    expect(screen.getByText("Hello")).toBeInTheDocument();
-    expect(screen.getByText("world")).toBeInTheDocument();
-    expect(screen.getByText("This")).toBeInTheDocument();
-    expect(screen.getByText("test")).toBeInTheDocument();
-  });
+    expect(screen.getByText('Hello')).toBeInTheDocument()
+    expect(screen.getByText('world')).toBeInTheDocument()
+    expect(screen.getByText('This')).toBeInTheDocument()
+    expect(screen.getByText('test')).toBeInTheDocument()
+  })
 
-  it("highlights current segment based on currentTime", () => {
-    render(<ScrollableSubtitleDisplay {...defaultProps} currentTime={4} />);
+  it('highlights current segment based on currentTime', () => {
+    render(<ScrollableSubtitleDisplay {...defaultProps} currentTime={4} />)
 
-    const segments = screen.getAllByTestId("subtitle-card");
-    expect(segments[0]).not.toHaveClass("highlight");
-    expect(segments[1]).toHaveClass("highlight");
-  });
+    const segments = screen.getAllByTestId('subtitle-card')
+    expect(segments[0]).not.toHaveClass('highlight')
+    expect(segments[1]).toHaveClass('highlight')
+  })
 
-  it("does not highlight any segment when currentTime is after last segment", () => {
-    render(<ScrollableSubtitleDisplay {...defaultProps} currentTime={10} />);
+  it('does not highlight any segment when currentTime is after last segment', () => {
+    render(<ScrollableSubtitleDisplay {...defaultProps} currentTime={10} />)
 
-    const segments = screen.getAllByTestId("subtitle-card");
+    const segments = screen.getAllByTestId('subtitle-card')
     segments.forEach((segment) => {
-      expect(segment).not.toHaveClass("highlight");
-    });
-  });
+      expect(segment).not.toHaveClass('highlight')
+    })
+  })
 
-  it("calls onSegmentClick when a segment is clicked", async () => {
-    const user = userEvent.setup();
-    const onSegmentClick = vi.fn();
+  it('calls onSegmentClick when a segment is clicked', async () => {
+    const user = userEvent.setup()
+    const onSegmentClick = vi.fn()
 
-    render(<ScrollableSubtitleDisplay {...defaultProps} onSegmentClick={onSegmentClick} />);
+    render(<ScrollableSubtitleDisplay {...defaultProps} onSegmentClick={onSegmentClick} />)
 
-    const firstSegment = screen.getAllByTestId("subtitle-card")[0];
-    await user.click(firstSegment);
+    const firstSegment = screen.getAllByTestId('subtitle-card')[0]
+    await user.click(firstSegment)
 
-    expect(onSegmentClick).toHaveBeenCalledWith(mockSegments[0]);
-  });
+    expect(onSegmentClick).toHaveBeenCalledWith(mockSegments[0])
+  })
 
-  it("displays normalized text components when available", () => {
+  it('displays normalized text components when available', () => {
     const segmentsWithNormalized = [
       {
         ...mockSegments[0],
-        normalizedText: "Normalized text",
-        text: "Original text",
+        normalizedText: 'Normalized text',
+        text: 'Original text',
       },
-    ];
+    ]
 
-    render(<ScrollableSubtitleDisplay {...defaultProps} segments={segmentsWithNormalized} />);
+    render(<ScrollableSubtitleDisplay {...defaultProps} segments={segmentsWithNormalized} />)
 
-    expect(screen.getByText("Normalized")).toBeInTheDocument();
-    expect(screen.getByText("text")).toBeInTheDocument();
-  });
+    expect(screen.getByText('Normalized')).toBeInTheDocument()
+    expect(screen.getByText('text')).toBeInTheDocument()
+  })
 
-  it("displays translation when available", () => {
-    render(<ScrollableSubtitleDisplay {...defaultProps} />);
+  it('displays translation when available', () => {
+    render(<ScrollableSubtitleDisplay {...defaultProps} />)
 
-    expect(screen.getByText("你好世界")).toBeInTheDocument();
-    expect(screen.getByText("这是一个测试")).toBeInTheDocument();
-  });
+    expect(screen.getByText('你好世界')).toBeInTheDocument()
+    expect(screen.getByText('这是一个测试')).toBeInTheDocument()
+  })
 
-  it("handles empty segments array", () => {
-    render(<ScrollableSubtitleDisplay {...defaultProps} segments={[]} />);
+  it('handles empty segments array', () => {
+    render(<ScrollableSubtitleDisplay {...defaultProps} segments={[]} />)
 
-    expect(screen.getByText(/暂无字幕内容/i)).toBeInTheDocument();
-  });
+    expect(screen.getByText(/暂无字幕内容/i)).toBeInTheDocument()
+  })
 
-  it("handles scroll logic calls implicitly", () => {
+  it('handles scroll logic calls implicitly', () => {
     // Check if component renders without crashing with currentTime change
-    const { rerender } = render(<ScrollableSubtitleDisplay {...defaultProps} />);
-    rerender(<ScrollableSubtitleDisplay {...defaultProps} currentTime={4} />);
-    expect(screen.getAllByTestId("subtitle-card")[1]).toHaveClass("highlight");
-  });
+    const { rerender } = render(<ScrollableSubtitleDisplay {...defaultProps} />)
+    rerender(<ScrollableSubtitleDisplay {...defaultProps} currentTime={4} />)
+    expect(screen.getAllByTestId('subtitle-card')[1]).toHaveClass('highlight')
+  })
 
-  it("highlights the active word within the active segment", () => {
+  it('highlights the active word within the active segment', () => {
     const segmentsWithWords: Segment[] = [
       {
         id: 1,
         transcriptId: 1,
         start: 0,
         end: 4,
-        text: "hello world foo bar",
+        text: 'hello world foo bar',
         wordTimestamps: [
-          { word: "hello", start: 0, end: 1 },
-          { word: "world", start: 1, end: 2 },
-          { word: "foo", start: 2, end: 3 },
-          { word: "bar", start: 3, end: 4 },
+          { word: 'hello', start: 0, end: 1 },
+          { word: 'world', start: 1, end: 2 },
+          { word: 'foo', start: 2, end: 3 },
+          { word: 'bar', start: 3, end: 4 },
         ],
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-    ];
+    ]
 
     render(
       <ScrollableSubtitleDisplay
@@ -147,33 +147,33 @@ describe("ScrollableSubtitleDisplay Component", () => {
         isPlaying={false}
         onSegmentClick={vi.fn()}
       />,
-    );
+    )
 
-    const activeWords = screen.getAllByTestId("active-word");
-    expect(activeWords).toHaveLength(1);
-    expect(activeWords[0]).toHaveTextContent("world");
-    expect(activeWords[0]).toHaveClass("active");
-  });
+    const activeWords = screen.getAllByTestId('active-word')
+    expect(activeWords).toHaveLength(1)
+    expect(activeWords[0]).toHaveTextContent('world')
+    expect(activeWords[0]).toHaveClass('active')
+  })
 
-  it("renders furigana as ruby annotation when reading is present", () => {
+  it('renders furigana as ruby annotation when reading is present', () => {
     const jaSegment: Segment = {
       id: 1,
       transcriptId: 1,
       start: 0,
       end: 2,
-      text: "日本語",
-      normalizedText: "日本語",
+      text: '日本語',
+      normalizedText: '日本語',
       furigana: JSON.stringify([
-        { text: "日本", reading: "にほん" },
-        { text: "語", reading: "ご" },
+        { text: '日本', reading: 'にほん' },
+        { text: '語', reading: 'ご' },
       ]),
       wordTimestamps: [
-        { word: "日本", start: 0, end: 1 },
-        { word: "語", start: 1, end: 2 },
+        { word: '日本', start: 0, end: 1 },
+        { word: '語', start: 1, end: 2 },
       ],
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    }
 
     render(
       <ScrollableSubtitleDisplay
@@ -182,13 +182,80 @@ describe("ScrollableSubtitleDisplay Component", () => {
         isPlaying={false}
         onSegmentClick={vi.fn()}
       />,
-    );
+    )
 
-    expect(screen.getByText("にほん")).toBeInTheDocument();
-    expect(screen.getByText("ご")).toBeInTheDocument();
-  });
+    expect(screen.getByText('にほん')).toBeInTheDocument()
+    expect(screen.getByText('ご')).toBeInTheDocument()
+  })
 
-  it("finds active segment quickly for large arrays", () => {
+  it('attaches furigana to the matching word even when counts differ', () => {
+    // 3 words, but only 1 furigana entry; match must be by text, not index.
+    const jaSegment: Segment = {
+      id: 1,
+      transcriptId: 1,
+      start: 0,
+      end: 3,
+      text: '私 は 日本',
+      normalizedText: '私 は 日本',
+      furigana: JSON.stringify([{ text: '日本', reading: 'にほん' }]),
+      wordTimestamps: [
+        { word: '私', start: 0, end: 1 },
+        { word: 'は', start: 1, end: 2 },
+        { word: '日本', start: 2, end: 3 },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    render(
+      <ScrollableSubtitleDisplay
+        segments={[jaSegment]}
+        currentTime={0.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    )
+
+    // The reading must land on 日本 specifically (index 2), not on the index-0 word 私.
+    const ruby = screen.getByText('にほん').closest('ruby')
+    expect(ruby).not.toBeNull()
+    expect(ruby).toHaveTextContent('日本')
+    expect(ruby).not.toHaveTextContent('私')
+  })
+
+  it('does not attach any reading when no furigana entry matches a word', () => {
+    const jaSegment: Segment = {
+      id: 1,
+      transcriptId: 1,
+      start: 0,
+      end: 2,
+      text: 'foo bar',
+      normalizedText: 'foo bar',
+      furigana: JSON.stringify([{ text: '日本', reading: 'にほん' }]),
+      wordTimestamps: [
+        { word: 'foo', start: 0, end: 1 },
+        { word: 'bar', start: 1, end: 2 },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    render(
+      <ScrollableSubtitleDisplay
+        segments={[jaSegment]}
+        currentTime={0.5}
+        isPlaying={false}
+        onSegmentClick={vi.fn()}
+      />,
+    )
+
+    // No word matches the only furigana entry → the stray reading must not render on a word.
+    expect(screen.queryByText('にほん')).not.toBeInTheDocument()
+    expect(screen.getByText('foo')).toBeInTheDocument()
+    expect(screen.getByText('bar')).toBeInTheDocument()
+  })
+
+  it('finds active segment quickly for large arrays', () => {
     const manySegments: Segment[] = Array.from({ length: 1000 }, (_, i) => ({
       id: i,
       transcriptId: 1,
@@ -197,7 +264,7 @@ describe("ScrollableSubtitleDisplay Component", () => {
       text: `segment ${i}`,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }));
+    }))
 
     const { rerender } = render(
       <ScrollableSubtitleDisplay
@@ -206,7 +273,7 @@ describe("ScrollableSubtitleDisplay Component", () => {
         isPlaying={false}
         onSegmentClick={vi.fn()}
       />,
-    );
+    )
 
     rerender(
       <ScrollableSubtitleDisplay
@@ -215,9 +282,9 @@ describe("ScrollableSubtitleDisplay Component", () => {
         isPlaying={false}
         onSegmentClick={vi.fn()}
       />,
-    );
+    )
 
-    const segments = screen.getAllByTestId("subtitle-card");
-    expect(segments[500]).toHaveClass("highlight");
-  });
-});
+    const segments = screen.getAllByTestId('subtitle-card')
+    expect(segments[500]).toHaveClass('highlight')
+  })
+})

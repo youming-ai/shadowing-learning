@@ -1,65 +1,65 @@
 /** * File卡片component * 显示File基本信息和Transcriptionstate，采用参考设计样式*/
 
-"use client";
+'use client'
 
-import type { FileDisplayStatus } from "@/lib/utils/file-status-manager";
-import type { FileRow } from "@/types/db/database";
+import type { FileDisplayStatus } from '~/lib/utils/file-status-manager'
+import type { FileRow } from '~/types/db/database'
 
 interface FileCardProps {
-  file: FileRow & { status: FileDisplayStatus }; // status 必须由父component传入
-  onPlay?: (fileId: number) => void;
-  onDelete?: (fileId: number) => void;
-  onTranscribe?: (fileId: number) => void;
+  file: FileRow & { status: FileDisplayStatus } // status 必须由父component传入
+  onPlay?: (fileId: number) => void
+  onDelete?: (fileId: number) => void
+  onTranscribe?: (fileId: number) => void
 }
 
 export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileCardProps) {
   // 优雅地Process可能缺失 file.id
   if (!file.id) {
-    return null;
+    return null
   }
 
   const getStatusDisplay = () => {
-    const status = file.status;
+    const status = file.status
 
     switch (status) {
-      case "transcribing":
+      case 'transcribing':
         return {
-          icon: "loading",
-          color: "status-processing",
-          label: "正在转录...",
-          type: "音频",
-        };
-      case "completed":
+          icon: 'loading',
+          color: 'status-processing',
+          label: '正在转录...',
+          type: '音频',
+        }
+      case 'completed':
         return {
-          icon: "check_circle",
-          color: "status-success",
-          label: "转录成功",
-          type: "字幕",
-        };
-      case "error":
+          icon: 'check_circle',
+          color: 'status-success',
+          label: '转录成功',
+          type: '字幕',
+        }
+      case 'error':
         return {
-          icon: "warning",
-          color: "status-warning",
-          label: "转录失败",
-          type: "音频",
-        };
+          icon: 'warning',
+          color: 'status-warning',
+          label: '转录失败',
+          type: '音频',
+        }
       default:
         return {
-          icon: "schedule",
-          color: "status-ready",
-          label: "未转录",
-          type: "音频",
-        };
+          icon: 'schedule',
+          color: 'status-ready',
+          label: '未转录',
+          type: '音频',
+        }
     }
-  };
+  }
 
-  const status = getStatusDisplay();
+  const status = getStatusDisplay()
 
   const getActions = () => {
-    const fileStatus = file.status;
+    const fileStatus = file.status
 
     switch (fileStatus) {
-      case "completed":
+      case 'completed':
         return (
           <>
             <button
@@ -79,8 +79,8 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
               <span className="material-symbols-outlined text-2xl">delete</span>
             </button>
           </>
-        );
-      case "transcribing":
+        )
+      case 'transcribing':
         return (
           <>
             <div className="w-10 h-10 animate-spin rounded-full border-4 border-dashed border-blue-500"></div>
@@ -93,8 +93,8 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
               <span className="material-symbols-outlined text-2xl">delete</span>
             </button>
           </>
-        );
-      case "error":
+        )
+      case 'error':
         return (
           <>
             <button
@@ -114,7 +114,7 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
               <span className="material-symbols-outlined text-2xl">delete</span>
             </button>
           </>
-        );
+        )
       default:
         return (
           <>
@@ -135,9 +135,9 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
               <span className="material-symbols-outlined text-2xl">delete</span>
             </button>
           </>
-        );
+        )
     }
-  };
+  }
 
   return (
     <div className="card-default p-4 flex items-center justify-between">
@@ -152,5 +152,5 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
       </div>
       <div className="file-card-actions">{getActions()}</div>
     </div>
-  );
+  )
 }

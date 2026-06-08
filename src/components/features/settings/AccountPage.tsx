@@ -1,34 +1,34 @@
-"use client";
+'use client'
 
-import { useEffect } from "react";
-import { AccountSection } from "@/components/features/settings/page/AccountSection";
-import { ProUpgradeSection } from "@/components/features/settings/page/ProUpgradeSection";
-import { SettingsLayout } from "@/components/features/settings/SettingsLayout";
+import { useEffect } from 'react'
+import { AccountSection } from '~/components/features/settings/page/AccountSection'
+import { ProUpgradeSection } from '~/components/features/settings/page/ProUpgradeSection'
+import { SettingsLayout } from '~/components/features/settings/SettingsLayout'
 
 export function AccountPage() {
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
+    if (typeof window === 'undefined') {
+      return
     }
 
     const scrollToHash = () => {
-      const { hash } = window.location;
+      const { hash } = window.location
       if (!hash) {
-        return;
+        return
       }
 
       requestAnimationFrame(() => {
-        const target = document.querySelector<HTMLElement>(hash);
+        const target = document.querySelector<HTMLElement>(hash)
         if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
-      });
-    };
+      })
+    }
 
-    scrollToHash();
-    window.addEventListener("hashchange", scrollToHash);
-    return () => window.removeEventListener("hashchange", scrollToHash);
-  }, []);
+    scrollToHash()
+    window.addEventListener('hashchange', scrollToHash)
+    return () => window.removeEventListener('hashchange', scrollToHash)
+  }, [])
 
   // TODO: 扩展账户页面以包含订阅管理与使用情况统计。
 
@@ -39,7 +39,7 @@ export function AccountPage() {
         <ProUpgradeSection />
       </div>
     </SettingsLayout>
-  );
+  )
 }
 
-export default AccountPage;
+export default AccountPage

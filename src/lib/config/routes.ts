@@ -2,34 +2,34 @@
 
 export const ROUTES = {
   /** 首页 - File列table*/
-  HOME: "/",
+  HOME: '/',
   /** 播放器页面*/
-  PLAYER: "/player/[fileId]",
+  PLAYER: '/player/[fileId]',
   /** Set页面*/
-  SETTINGS: "/settings",
+  SETTINGS: '/settings',
   /** 账户页面*/
-  ACCOUNT: "/account",
-} as const;
+  ACCOUNT: '/account',
+} as const
 
-export type RouteKey = keyof typeof ROUTES;
+export type RouteKey = keyof typeof ROUTES
 
 /** * 生成路由path * @param key 路由键 * @param params path参数*/
 export function generatePath(key: RouteKey, params?: Record<string, string>): string {
-  const path = ROUTES[key];
+  const path = ROUTES[key]
 
   if (!params) {
-    return path;
+    return path
   }
 
   // Special handling for player route
-  if (key === "PLAYER" && params.fileId) {
-    return path.replace("[fileId]", params.fileId);
+  if (key === 'PLAYER' && params.fileId) {
+    return path.replace('[fileId]', params.fileId)
   }
 
-  return path;
+  return path
 }
 
 /** * Get播放器路由*/
 export function getPlayerRoute(fileId: string): string {
-  return generatePath("PLAYER", { fileId });
+  return generatePath('PLAYER', { fileId })
 }

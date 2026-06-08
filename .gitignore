@@ -1,7 +1,9 @@
 # Dependencies
 node_modules/
 
-# Next.js
+# Build artifacts (Vite / TanStack Start)
+.output/
+.tanstack/
 .next/
 
 # Environment
@@ -29,8 +31,7 @@ coverage/
 # Temp
 .cache/
 
-# Other package managers (project uses pnpm)
-bun.lock
-bun.lockb
+# Other package managers (project uses Bun — bun.lock IS tracked)
 package-lock.json
 yarn.lock
+pnpm-lock.yaml

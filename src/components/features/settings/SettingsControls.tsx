@@ -1,12 +1,12 @@
-"use client";
+'use client'
 
-import { MinusIcon, PlusIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { MinusIcon, PlusIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface SettingsButtonGroupProps {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
+  options: { value: string; label: string }[]
+  value: string
+  onChange: (value: string) => void
 }
 
 export function SettingsButtonGroup({ options, value, onChange }: SettingsButtonGroupProps) {
@@ -16,20 +16,20 @@ export function SettingsButtonGroup({ options, value, onChange }: SettingsButton
         <button
           type="button"
           key={option.value}
-          className={`settings-button ${value === option.value ? "active" : ""}`}
+          className={`settings-button ${value === option.value ? 'active' : ''}`}
           onClick={() => onChange(option.value)}
         >
           {option.label}
         </button>
       ))}
     </div>
-  );
+  )
 }
 
 interface SettingsSelectProps {
-  value: string;
-  onValueChange: (value: string) => void;
-  children: ReactNode;
+  value: string
+  onValueChange: (value: string) => void
+  children: ReactNode
 }
 
 export function SettingsSelect({ value, onValueChange, children }: SettingsSelectProps) {
@@ -43,19 +43,19 @@ export function SettingsSelect({ value, onValueChange, children }: SettingsSelec
         {children}
       </select>
     </div>
-  );
+  )
 }
 
 export function SettingsSelectItem({ value, children }: { value: string; children: ReactNode }) {
-  return <option value={value}>{children}</option>;
+  return <option value={value}>{children}</option>
 }
 
 interface SettingsNumberInputProps {
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
+  value: number
+  onChange: (value: number) => void
+  min?: number
+  max?: number
+  step?: number
 }
 
 export function SettingsNumberInput({
@@ -85,21 +85,21 @@ export function SettingsNumberInput({
         <PlusIcon className="h-4 w-4" />
       </button>
     </div>
-  );
+  )
 }
 
 interface SettingsTextInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  type?: string;
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  type?: string
 }
 
 export function SettingsTextInput({
   value,
   onChange,
   placeholder,
-  type = "text",
+  type = 'text',
 }: SettingsTextInputProps) {
   return (
     <input
@@ -109,5 +109,5 @@ export function SettingsTextInput({
       placeholder={placeholder}
       className="w-32 rounded-lg border-2 border-[var(--border-secondary)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--state-info-text)] focus:outline-none"
     />
-  );
+  )
 }

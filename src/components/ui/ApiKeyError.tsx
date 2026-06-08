@@ -1,15 +1,15 @@
-"use client";
+'use client'
 
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw } from 'lucide-react'
 
 interface ApiKeyErrorProps {
-  onRetry?: () => void;
+  onRetry?: () => void
 }
 
 export default function ApiKeyError({ onRetry }: ApiKeyErrorProps) {
   const handleRefresh = () => {
-    window.location.reload();
-  };
+    window.location.reload()
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -26,7 +26,7 @@ export default function ApiKeyError({ onRetry }: ApiKeyErrorProps) {
             <p className="font-medium mb-2">解决方法：</p>
             <ol className="list-decimal list-inside space-y-1 text-xs">
               <li>
-                在项目根目录创建{" "}
+                在项目根目录创建{' '}
                 <code className="bg-[var(--border-color)] px-1 rounded">.env.local</code> 文件
               </li>
               <li>添加以下内容到文件中：</li>
@@ -35,7 +35,7 @@ export default function ApiKeyError({ onRetry }: ApiKeyErrorProps) {
               GROQ_API_KEY=your_groq_api_key_here
             </div>
             <p className="mt-2 text-xs">
-              获取API密钥：访问{" "}
+              获取API密钥：访问{' '}
               <a
                 href="https://console.groq.com"
                 target="_blank"
@@ -69,5 +69,5 @@ export default function ApiKeyError({ onRetry }: ApiKeyErrorProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -4,10 +4,12 @@
 
 **面向语言学习者的影子跟读练习应用 / AI-powered shadowing practice for language learners**
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg?logo=next.js)](https://nextjs.org/)
+[![Bun](https://img.shields.io/badge/Bun-1.2-000000.svg?logo=bun)](https://bun.sh/)
+[![Vite](https://img.shields.io/badge/Vite-8-646cff.svg?logo=vite)](https://vite.dev/)
+[![TanStack Start](https://img.shields.io/badge/TanStack%20Start-1.x-ef4444.svg)](https://tanstack.com/start)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
-[![Biome](https://img.shields.io/badge/Biome-2.3-60a5fa.svg?logo=biome)](https://biomejs.dev/)
+[![Biome](https://img.shields.io/badge/Biome-2-60a5fa.svg?logo=biome)](https://biomejs.dev/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [架构](./docs/ARCHITECTURE.md) · [开发](./docs/DEVELOPMENT.md) · [数据流](./docs/DATA-FLOW.md) · [部署](./docs/DOKPLOY.md) · [Git 流程](./docs/GIT-WORKFLOW.md)
@@ -35,20 +37,21 @@
 - **主题系统**：浅色 / 深色 / 跟随系统 / 高对比度，CSS 变量驱动
 - **性能监控**：内置 Web Vitals 上报（可选 token 保护）
 - **类型安全**：严格 TypeScript + Zod 校验 API 边界
-- **测试**：Vitest + jsdom + fake-indexeddb（104+ 用例）
+- **测试**：bun test（内置）+ happy-dom + fake-indexeddb
 
 ## 技术栈
 
 | 类别       | 选型                                           |
 | ---------- | ---------------------------------------------- |
-| 框架       | Next.js 16（App Router, standalone 输出）      |
-| 视图       | React 19, Tailwind CSS 3, Radix UI, lucide-react |
+| 运行时     | Bun ≥1.2（运行时 + 包管理器，lockfile `bun.lock`） |
+| 框架       | Vite 8 + TanStack Start / TanStack Router（文件路由 + SSR） |
+| 视图       | React 19, Tailwind CSS v4, Radix UI, lucide-react |
 | 状态       | TanStack Query（服务态） + React Context（UI 态） |
 | 持久化     | Dexie / IndexedDB（v3 schema）                  |
 | AI         | Groq SDK（Whisper-large-v3-turbo + LLM 后处理） |
 | 校验       | Zod                                            |
 | 通知       | sonner                                         |
-| 工具链     | pnpm 10, Biome 2（lint + format）, Vitest 4    |
+| 工具链     | Biome 2（lint + format）, bun test             |
 | 部署       | Docker (multi-stage) + Dokploy（VPS, Traefik） |
 
 ## 架构
@@ -78,8 +81,7 @@
 
 ### 环境要求
 
-- Node.js ≥ 20
-- pnpm ≥ 9（lockfile 锁定 pnpm 10.22.0）
+- [Bun](https://bun.sh/) ≥ 1.2.0（同时作为运行时与包管理器；**不要用 npm/pnpm/yarn/node**）
 - 一个 [Groq API key](https://console.groq.com/keys)（免费层即可）
 
 ### 安装
@@ -87,10 +89,10 @@
 ```bash
 git clone https://github.com/youming-ai/shadowing-learning.git
 cd shadowing-learning
-pnpm install
+bun install
 cp .env.example .env.local
 # 在 .env.local 中填入 GROQ_API_KEY
-pnpm dev
+bun run dev
 ```
 
 打开 [http://localhost:3000](http://localhost:3000)。
@@ -99,8 +101,8 @@ pnpm dev
 
 | 变量名                      | 必填 | 说明                                          |
 | --------------------------- | ---- | --------------------------------------------- |
-| `GROQ_API_KEY`              | ✓    | Groq Whisper + LLM 调用                       |
-| `NEXT_PUBLIC_APP_URL`       |      | 站点公开 URL，影响 metadata / sitemap / robots |
+| `GROQ_API_KEY`              | ✓    | Groq Whisper + LLM 调用（服务端）             |
+| `VITE_APP_URL`              |      | 站点公开 URL；客户端读取需 `VITE_` 前缀，默认 `http://localhost:3000` |
 | `PERFORMANCE_ADMIN_TOKEN`   |      | 保护 `/api/performance` 上报端点              |
 
 切勿将 `.env*` 提交到仓库。
@@ -109,42 +111,42 @@ pnpm dev
 
 ```bash
 # 开发
-pnpm dev               # 开发服务器（http://localhost:3000）
-pnpm build             # 生产构建（output: standalone）
-pnpm start             # 启动构建产物
+bun run dev            # 开发服务器（http://localhost:3000）
+bun run build          # 生产构建 → dist/（含 dist/server/server.js）
+bun run start          # 启动构建产物（bun run dist/server/server.js）
+bun run preview        # 预览生产构建
+bun run clean          # 清理 .output / dist / 缓存
 
 # 质量
-pnpm lint              # Biome check
-pnpm format            # Biome format --write
-pnpm type-check        # tsc --noEmit
+bun run lint           # Biome check
+bun run format         # Biome format --write
+bun run type-check     # tsc --noEmit
 
-# 测试
-pnpm test              # 监视模式
-pnpm test:run          # 单次执行
-pnpm test:coverage     # v8 覆盖率报告
-
-# 单文件 / 单用例
-pnpm test:run path/to/file.test.ts
-pnpm test:run -t "test name pattern"
+# 测试（Bun 内置 runner）
+bun test               # 单次执行（监视模式加 --watch）
+bun test --coverage    # 覆盖率
+bun test path/to/file.test.ts   # 单文件
+bun test -t "test name pattern" # 按名称匹配单用例
 ```
 
 ## 项目结构
 
 ```
 src/
-├── app/                       # Next.js App Router
-│   ├── api/                   # transcribe / postprocess / health / performance
-│   ├── player/[fileId]/       # 播放器页面（client component + layout 元数据）
-│   ├── settings/              # 设置（noindex）
-│   ├── account/               # 账户（noindex）
-│   ├── layout.tsx             # 根布局 + metadata + JSON-LD
-│   ├── opengraph-image.tsx    # 自动生成 1200×630 OG 图
-│   ├── sitemap.ts / robots.ts # SEO
-│   └── page.tsx
+├── routes/                    # TanStack Router 文件路由
+│   ├── __root.tsx             # 根布局 + head（meta / JSON-LD / PWA）+ Provider 栈
+│   ├── index.tsx              # 首页
+│   ├── player.$fileId.tsx     # 播放器页面
+│   ├── settings.tsx           # 设置
+│   ├── account.tsx            # 账户
+│   └── api/                   # TanStack Start 服务端 handler
+│       └── transcribe / postprocess / health / performance
+├── router.tsx                 # createRouter（getRouter）
+├── routeTree.gen.ts           # 自动生成的路由树（勿手改）
 ├── components/
 │   ├── ui/                    # 基础组件（Radix 包装 + sonner）
 │   ├── features/              # file / player / settings 业务模块
-│   ├── layout/                # 布局 + Context（Theme / I18n / TranscriptionLanguage）
+│   ├── layout/                # 布局 + Context（Theme / I18n / TranscriptionLanguage）+ Providers
 │   └── transcription/
 ├── hooks/
 │   ├── api/                   # 服务态（含 transcriptionKeys 工厂）
@@ -157,9 +159,9 @@ src/
 │   ├── i18n/                  # 多语种翻译字典
 │   ├── utils/                 # api-response / rate-limiter / error-handler 等
 │   └── config/
-├── styles/globals.css         # CSS 变量主题
+├── styles/app.css             # Tailwind v4 + CSS 变量主题（@theme 块）
 ├── types/                     # api / db / ui 类型
-└── __tests__/setup.ts         # Vitest 全局 setup（fake-indexeddb 等）
+└── __tests__/setup.ts         # 测试全局 setup（happy-dom / fake-indexeddb，经 bunfig.toml 预加载）
 ```
 
 ## 部署
@@ -171,7 +173,7 @@ src/
 docker compose up --build
 ```
 
-- [Dockerfile](./Dockerfile) 多阶段构建于 `node:22-alpine`，产物为 `.next/standalone`
+- [Dockerfile](./Dockerfile) 多阶段构建于 `oven/bun:1-alpine`，产物为 `dist/`，以 `bun run dist/server/server.js` 启动
 - [docker-compose.yml](./docker-compose.yml) 用 `expose: 3000` 而非 `ports:`，由 Dokploy 接入 Traefik 网络
 - 完整流程见 [docs/DOKPLOY.md](./docs/DOKPLOY.md)
 
@@ -179,28 +181,27 @@ docker compose up --build
 
 ## 测试
 
-- 框架：Vitest 4 + jsdom + `fake-indexeddb`
+- 运行器：Bun 内置 `bun test`（测试代码用 Vitest 风格的 `vi.*`，由 `bun:test` 提供该 API）
+- 环境：happy-dom + `fake-indexeddb`
 - 测试与源代码就近（`__tests__/` 子目录）
-- 全局 setup：[`src/__tests__/setup.ts`](./src/__tests__/setup.ts)
-- mock 一律用 `vi.fn()`（不是 `jest.fn()`）
+- 全局 setup：[`src/__tests__/setup.ts`](./src/__tests__/setup.ts)，经 `bunfig.toml` 的 `[test] preload` 预加载（含 happy-dom 全局、jest-dom 匹配器、router/sonner mock）
 
 ```bash
-pnpm test:run            # 全量
-pnpm test:coverage       # 覆盖率（v8）
+bun test                 # 全量
+bun test --coverage      # 覆盖率
 ```
 
 ## SEO
 
-- Next.js Metadata API 集中管理 title / description / OG / Twitter
-- `hreflang` 声明 5 种语言（zh-CN / zh-TW / en / ja / ko / x-default）
-- 自动生成 1200×630 OG 与 Twitter 卡片图（edge runtime）
-- 私有路径（`/player/`、`/settings`、`/account`）声明 `robots: noindex` 并在 `robots.ts` 屏蔽
+- 文档 head 由 TanStack Start 在 [`src/routes/__root.tsx`](./src/routes/__root.tsx) 的 `head()` 集中管理：title / description / OG / Twitter 卡片
 - `SoftwareApplication` + `WebSite` JSON-LD
+- `robots.txt` 与 `sitemap.xml` 为 [`public/`](./public/) 下的静态文件
+- PWA：`manifest.json` + Service Worker 注册
 
 ## 贡献
 
 1. Fork & 新建分支：`git checkout -b feat/your-feature`
-2. 修改后跑通：`pnpm lint && pnpm type-check && pnpm test:run`
+2. 修改后跑通：`bun run lint && bun run type-check && bun test`
 3. 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 提交信息
 4. 推送并开 PR（参考 [docs/GIT-WORKFLOW.md](./docs/GIT-WORKFLOW.md)）
 
@@ -212,7 +213,7 @@ pnpm test:coverage       # 覆盖率（v8）
 
 ## 致谢
 
-[Next.js](https://nextjs.org/) · [React](https://react.dev/) · [Radix UI](https://www.radix-ui.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Dexie](https://dexie.org/) · [TanStack Query](https://tanstack.com/query) · [Groq](https://groq.com/) · [Vitest](https://vitest.dev/) · [Biome](https://biomejs.dev/)
+[Bun](https://bun.sh/) · [Vite](https://vite.dev/) · [TanStack Start](https://tanstack.com/start) · [React](https://react.dev/) · [Radix UI](https://www.radix-ui.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Dexie](https://dexie.org/) · [TanStack Query](https://tanstack.com/query) · [Groq](https://groq.com/) · [Biome](https://biomejs.dev/)
 
 ---
 

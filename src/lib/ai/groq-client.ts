@@ -1,16 +1,16 @@
-import Groq from "groq-sdk";
+import Groq from 'groq-sdk'
 
-let _groqClient: Groq | null = null;
+let _groqClient: Groq | null = null
 
 function getOrCreateClient(): Groq {
   if (!_groqClient) {
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
-      throw new Error("GROQ_API_KEY is not configured. Set the GROQ_API_KEY environment variable.");
+      throw new Error('GROQ_API_KEY is not configured. Set the GROQ_API_KEY environment variable.')
     }
-    _groqClient = new Groq({ apiKey });
+    _groqClient = new Groq({ apiKey })
   }
-  return _groqClient;
+  return _groqClient
 }
 
 /**
@@ -22,11 +22,11 @@ function getOrCreateClient(): Groq {
  */
 export const groqClient = new Proxy({} as Groq, {
   get(_target, prop, receiver) {
-    const client = getOrCreateClient();
-    const value = Reflect.get(client, prop, receiver);
-    if (typeof value === "function") {
-      return value.bind(client);
+    const client = getOrCreateClient()
+    const value = Reflect.get(client, prop, receiver)
+    if (typeof value === 'function') {
+      return value.bind(client)
     }
-    return value;
+    return value
   },
-});
+})

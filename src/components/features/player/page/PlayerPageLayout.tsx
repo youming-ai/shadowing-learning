@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
-import Navigation from "@/components/ui/Navigation";
+import type { ReactNode } from 'react'
+import Navigation from '~/components/ui/Navigation'
 
 interface PlayerPageLayoutProps {
-  subtitleContainerId: string;
-  children: ReactNode;
-  footer?: ReactNode;
-  showFooter?: boolean;
+  subtitleContainerId: string
+  children: ReactNode
+  footer?: ReactNode
+  showFooter?: boolean
 }
 
 export function PlayerPageLayout({
@@ -29,8 +29,8 @@ export function PlayerPageLayout({
         className="min-h-0 flex-1 overflow-y-auto safe-area-inset-top"
         style={{
           paddingBottom: showFooter
-            ? "var(--space-player-controls)"
-            : "var(--space-player-content)",
+            ? 'var(--space-player-controls)'
+            : 'var(--space-player-content)',
         }}
       >
         <div className="flex-1 px-4 py-20 sm:px-6 lg:px-8 mt-24">
@@ -45,5 +45,5 @@ export function PlayerPageLayout({
         <footer className="flex-shrink-0 safe-area-inset-bottom">{footer}</footer>
       )}
     </div>
-  );
+  )
 }

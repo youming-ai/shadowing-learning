@@ -1,31 +1,31 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { useShadowingMode } from "../useShadowingMode";
+import { act, renderHook } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { useShadowingMode } from '../useShadowingMode'
 
-describe("useShadowingMode", () => {
+describe('useShadowingMode', () => {
   const segments = [
     { id: 1, start: 0, end: 3 },
     { id: 2, start: 3, end: 6 },
     { id: 3, start: 6, end: 10 },
-  ];
+  ]
 
-  it("returns isShadowingMode false by default", () => {
+  it('returns isShadowingMode false by default', () => {
     const { result } = renderHook(() =>
       useShadowingMode({ segments, isPlaying: true, currentTime: 0 }),
-    );
-    expect(result.current.isShadowingMode).toBe(false);
-  });
+    )
+    expect(result.current.isShadowingMode).toBe(false)
+  })
 
-  it("toggles shadowing mode", () => {
+  it('toggles shadowing mode', () => {
     const { result } = renderHook(() =>
       useShadowingMode({ segments, isPlaying: true, currentTime: 0 }),
-    );
-    act(() => result.current.toggleShadowingMode());
-    expect(result.current.isShadowingMode).toBe(true);
-  });
+    )
+    act(() => result.current.toggleShadowingMode())
+    expect(result.current.isShadowingMode).toBe(true)
+  })
 
-  it("requests pause when currentTime reaches end of active segment while shadowing", () => {
-    const onRequestPause = vi.fn();
+  it('requests pause when currentTime reaches end of active segment while shadowing', () => {
+    const onRequestPause = vi.fn()
     const { result, rerender } = renderHook(
       ({ currentTime }) =>
         useShadowingMode({
@@ -37,17 +37,17 @@ describe("useShadowingMode", () => {
       {
         initialProps: { currentTime: 2.0 },
       },
-    );
+    )
 
-    act(() => result.current.toggleShadowingMode());
+    act(() => result.current.toggleShadowingMode())
 
-    rerender({ currentTime: 3.0 });
+    rerender({ currentTime: 3.0 })
 
-    expect(onRequestPause).toHaveBeenCalled();
-  });
+    expect(onRequestPause).toHaveBeenCalled()
+  })
 
-  it("does not request pause when shadowing mode is off", () => {
-    const onRequestPause = vi.fn();
+  it('does not request pause when shadowing mode is off', () => {
+    const onRequestPause = vi.fn()
     const { rerender } = renderHook(
       ({ currentTime }) =>
         useShadowingMode({
@@ -59,9 +59,9 @@ describe("useShadowingMode", () => {
       {
         initialProps: { currentTime: 2.0 },
       },
-    );
+    )
 
-    rerender({ currentTime: 3.0 });
-    expect(onRequestPause).not.toHaveBeenCalled();
-  });
-});
+    rerender({ currentTime: 3.0 })
+    expect(onRequestPause).not.toHaveBeenCalled()
+  })
+})

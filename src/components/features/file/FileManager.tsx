@@ -1,103 +1,103 @@
 /** * SimplifiedFile管理器component * 使用统一Filestate管理系统*/
 
-"use client";
+'use client'
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState } from 'react'
 
-import { Card, CardContent } from "@/components/ui/card";
-import { useFiles } from "@/hooks";
-import { useFileStatus, useFileStatusManager } from "@/hooks/useFileStatus";
-import type { FileRow } from "@/types/db/database";
-import FileCard from "./FileCard";
-import FileUpload from "./FileUpload";
+import { Card, CardContent } from '~/components/ui/card'
+import { useFiles } from '~/hooks'
+import { useFileStatus, useFileStatusManager } from '~/hooks/useFileStatus'
+import type { FileRow } from '~/types/db/database'
+import FileCard from './FileCard'
+import FileUpload from './FileUpload'
 
 interface FileManagerProps {
-  className?: string;
+  className?: string
 }
 
 export default function FileManager({ className }: FileManagerProps) {
   // 基础state
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedCount, setUploadedCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedCount, setUploadedCount] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
 
   // Hooks
-  const { files, addFiles, deleteFile } = useFiles();
+  const { files, addFiles, deleteFile } = useFiles()
 
   // 统一FileIDProcessas字符串
   const handleDeleteFile = useCallback(
     (fileId: number) => {
-      deleteFile(fileId.toString());
+      deleteFile(fileId.toString())
     },
     [deleteFile],
-  );
+  )
 
   // Process播放
   const handlePlayFile = useCallback((fileId: number) => {
-    window.location.href = `/player/${fileId}`;
-  }, []);
+    window.location.href = `/player/${fileId}`
+  }, [])
 
   // ProcessFileupload
   const handleFilesSelected = useCallback(
     async (selectedFiles: File[]) => {
       try {
-        setIsUploading(true);
-        setUploadedCount(0);
-        setTotalCount(0);
+        setIsUploading(true)
+        setUploadedCount(0)
+        setTotalCount(0)
 
         // CheckFile数量限制
-        const currentFileCount = files?.length || 0;
-        const maxFiles = 5;
-        const remainingSlots = maxFiles - currentFileCount;
+        const currentFileCount = files?.length || 0
+        const maxFiles = 5
+        const remainingSlots = maxFiles - currentFileCount
 
         if (remainingSlots <= 0) {
-          const { toast } = await import("sonner");
-          toast.error(`已达到最大文件数量限制 (${maxFiles}个文件)`);
-          setIsUploading(false);
-          return;
+          const { toast } = await import('sonner')
+          toast.error(`已达到最大文件数量限制 (${maxFiles}个文件)`)
+          setIsUploading(false)
+          return
         }
 
         // If选择File超过剩余槽位，只取前面File
-        const filesToAdd = selectedFiles.slice(0, remainingSlots);
+        const filesToAdd = selectedFiles.slice(0, remainingSlots)
         if (filesToAdd.length < selectedFiles.length) {
-          const { toast } = await import("sonner");
-          toast.warning(`只能添加 ${remainingSlots} 个文件，已达到最大限制`);
+          const { toast } = await import('sonner')
+          toast.warning(`只能添加 ${remainingSlots} 个文件，已达到最大限制`)
         }
 
-        setTotalCount(filesToAdd.length);
+        setTotalCount(filesToAdd.length)
 
         await addFiles(filesToAdd, {
           onProgress: (uploaded, total) => {
-            setUploadedCount(uploaded);
-            setTotalCount(total);
+            setUploadedCount(uploaded)
+            setTotalCount(total)
           },
-        });
+        })
 
-        const { toast } = await import("sonner");
-        toast.success(`成功上传 ${filesToAdd.length} 个文件`);
+        const { toast } = await import('sonner')
+        toast.success(`成功上传 ${filesToAdd.length} 个文件`)
 
-        setIsUploading(false);
-        setUploadedCount(0);
-        setTotalCount(0);
+        setIsUploading(false)
+        setUploadedCount(0)
+        setTotalCount(0)
       } catch (error) {
-        const { toast } = await import("sonner");
-        toast.error(`文件上传失败: ${error instanceof Error ? error.message : "未知错误"}`);
-        setIsUploading(false);
-        setUploadedCount(0);
-        setTotalCount(0);
+        const { toast } = await import('sonner')
+        toast.error(`文件上传失败: ${error instanceof Error ? error.message : '未知错误'}`)
+        setIsUploading(false)
+        setUploadedCount(0)
+        setTotalCount(0)
       }
     },
     [addFiles, files?.length],
-  );
+  )
 
   // 排序File（按upload日期倒序）
   const sortedFiles = React.useMemo(() => {
-    if (!files) return [];
+    if (!files) return []
 
     return files.sort((a, b) => {
-      return (b.uploadedAt?.getTime() || 0) - (a.uploadedAt?.getTime() || 0);
-    });
-  }, [files]);
+      return (b.uploadedAt?.getTime() || 0) - (a.uploadedAt?.getTime() || 0)
+    })
+  }, [files])
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -142,7 +142,7 @@ export default function FileManager({ className }: FileManagerProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 /** * File卡片包装器，负责state管理*/
@@ -151,13 +151,13 @@ function FileCardWrapper({
   onPlay,
   onDelete,
 }: {
-  file: FileRow;
-  onPlay: (fileId: number) => void;
-  onDelete: (fileId: number) => void;
+  file: FileRow
+  onPlay: (fileId: number) => void
+  onDelete: (fileId: number) => void
 }) {
   // Hooks must be called before any early returns - Add空值Check
-  const { data: statusData, isLoading } = useFileStatus(file.id || 0);
-  const { startTranscription } = useFileStatusManager(file.id || 0);
+  const { data: statusData, isLoading } = useFileStatus(file.id || 0)
+  const { startTranscription } = useFileStatusManager(file.id || 0)
 
   // 优雅地Process可能缺失 file.id
   if (!file.id) {
@@ -167,7 +167,7 @@ function FileCardWrapper({
           <div className="text-center text-gray-500">文件信息不完整</div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (isLoading || !statusData) {
@@ -181,19 +181,19 @@ function FileCardWrapper({
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   // 合并File信息
   const fileWithStatus = {
     ...file,
     status: statusData.status,
-  };
+  }
 
   // 转录由 Whisper auto-detect 决定源语言；不再传 settings 的语言。
   const handleTranscribe = () => {
-    startTranscription();
-  };
+    startTranscription()
+  }
 
   return (
     <FileCard
@@ -202,5 +202,5 @@ function FileCardWrapper({
       onDelete={onDelete}
       onTranscribe={() => handleTranscribe()}
     />
-  );
+  )
 }

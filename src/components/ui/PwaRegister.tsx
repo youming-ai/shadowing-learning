@@ -1,119 +1,119 @@
-"use client";
+'use client'
 
-import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface BeforeInstallPromptEvent extends Event {
-  prompt(): void;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  prompt(): void
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 export default function PWARegister() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [, setShowInstallButton] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [, setShowInstallButton] = useState(false)
 
   const handleInstallClick = useCallback(async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) return
 
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
 
-    if (outcome === "accepted") {
+    if (outcome === 'accepted') {
       // User accepted the install prompt
     } else {
       // User dismissed the install prompt
     }
 
-    setDeferredPrompt(null);
-    setShowInstallButton(false);
-  }, [deferredPrompt]);
+    setDeferredPrompt(null)
+    setShowInstallButton(false)
+  }, [deferredPrompt])
 
   useEffect(() => {
     // Register service worker
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register('/sw.js')
         .then((registration) => {
           // Check for updates
-          registration.addEventListener("updatefound", () => {
-            const newWorker = registration.installing;
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing
             if (newWorker) {
-              newWorker.addEventListener("statechange", () => {
-                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                   // New update available
-                  toast.info("New version available! Restart to update.", {
+                  toast.info('New version available! Restart to update.', {
                     action: {
-                      label: "Update",
+                      label: 'Update',
                       onClick: () => window.location.reload(),
                     },
                     duration: 10000,
-                  });
+                  })
                 }
-              });
+              })
             }
-          });
+          })
         })
         .catch((_registrationError) => {
           // Service worker registration failed
-        });
+        })
     }
 
     // Handle beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallButton(true);
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstallButton(true)
 
-      toast.info("安装影子跟读应用以获得更好的体验！", {
+      toast.info('安装影子跟读应用以获得更好的体验！', {
         action: {
-          label: "Install",
+          label: 'Install',
           onClick: () => handleInstallClick(),
         },
         duration: 8000,
-      });
-    };
+      })
+    }
 
     // Handle app installed event
     const handleAppInstalled = () => {
-      setShowInstallButton(false);
-      toast.success("App installed successfully!");
-    };
+      setShowInstallButton(false)
+      toast.success('App installed successfully!')
+    }
 
     // Add event listeners
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt as EventListener);
-    window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener)
+    window.addEventListener('appinstalled', handleAppInstalled)
 
     // Check if app i already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setShowInstallButton(false);
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallButton(false)
     }
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt as EventListener);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
-  }, [handleInstallClick]);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [handleInstallClick])
 
   // Handle online/offline status
   useEffect(() => {
     const handleOnline = () => {
-      toast.success("Connection restored!", { duration: 3000 });
-    };
+      toast.success('Connection restored!', { duration: 3000 })
+    }
 
     const handleOffline = () => {
-      toast.warning("You are now offline. Some features may be limited.", {
+      toast.warning('You are now offline. Some features may be limited.', {
         duration: 5000,
-      });
-    };
+      })
+    }
 
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
 
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
-  return null;
+  return null
 }

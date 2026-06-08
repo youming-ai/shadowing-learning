@@ -1,34 +1,34 @@
 /** * API 性能监控 Hook * * 提供 API request性能监控functionality： * - request耗时统计 * - Error率追踪 * - 自动重试监控*/
 
-import { useCallback, useRef } from "react";
-import { reportCustomMetric } from "@/lib/utils/web-vitals";
+import { useCallback, useRef } from 'react'
+import { reportCustomMetric } from '~/lib/utils/web-vitals'
 
 export interface ApiMetrics {
   /** API 端点*/
-  endpoint: string;
+  endpoint: string
   /** requestmethod*/
-  method: string;
+  method: string
   /** responsestate码*/
-  status: number;
+  status: number
   /** request耗时（毫seconds）*/
-  duration: number;
+  duration: number
   /** i否Success*/
-  success: boolean;
+  success: boolean
   /** i否a重试request*/
-  isRetry: boolean;
+  isRetry: boolean
   /** 重试次数*/
-  retryCount: number;
+  retryCount: number
   /** requestsize（字节）*/
-  requestSize?: number;
+  requestSize?: number
   /** responsesize（字节）*/
-  responseSize?: number;
+  responseSize?: number
   /** Error信息*/
-  error?: string;
+  error?: string
 }
 
 /** * 报告 API 指标*/
 export function reportApiMetrics(metrics: ApiMetrics): void {
-  reportCustomMetric("api-request", metrics.duration, {
+  reportCustomMetric('api-request', metrics.duration, {
     endpoint: metrics.endpoint,
     method: metrics.method,
     status: metrics.status,
@@ -38,7 +38,7 @@ export function reportApiMetrics(metrics: ApiMetrics): void {
     requestSize: metrics.requestSize,
     responseSize: metrics.responseSize,
     error: metrics.error,
-  });
+  })
 }
 
 /** * 包装 fetch request，自动收集性能指标*/
@@ -46,30 +46,30 @@ export async function monitoredFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-  const method = init?.method || "GET";
-  const startTime = performance.now();
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const method = init?.method || 'GET'
+  const startTime = performance.now()
 
   // 估算requestsize
-  let requestSize = 0;
+  let requestSize = 0
   if (init?.body) {
-    if (typeof init.body === "string") {
-      requestSize = new Blob([init.body]).size;
+    if (typeof init.body === 'string') {
+      requestSize = new Blob([init.body]).size
     } else if (init.body instanceof Blob) {
-      requestSize = init.body.size;
+      requestSize = init.body.size
     } else if (init.body instanceof FormData) {
       // FormData size估算比较复杂，这里SimplifiedProcess
-      requestSize = 0;
+      requestSize = 0
     }
   }
 
   try {
-    const response = await fetch(input, init);
-    const duration = performance.now() - startTime;
+    const response = await fetch(input, init)
+    const duration = performance.now() - startTime
 
     // Getresponsesize
-    const contentLength = response.headers.get("content-length");
-    const responseSize = contentLength ? parseInt(contentLength, 10) : undefined;
+    const contentLength = response.headers.get('content-length')
+    const responseSize = contentLength ? parseInt(contentLength, 10) : undefined
 
     reportApiMetrics({
       endpoint: new URL(url, window.location.origin).pathname,
@@ -81,11 +81,11 @@ export async function monitoredFetch(
       retryCount: 0,
       requestSize,
       responseSize,
-    });
+    })
 
-    return response;
+    return response
   } catch (error) {
-    const duration = performance.now() - startTime;
+    const duration = performance.now() - startTime
 
     reportApiMetrics({
       endpoint: new URL(url, window.location.origin).pathname,
@@ -97,65 +97,65 @@ export async function monitoredFetch(
       retryCount: 0,
       requestSize,
       error: error instanceof Error ? error.message : String(error),
-    });
+    })
 
-    throw error;
+    throw error
   }
 }
 
 /** * API 性能监控 Hook * * 提供带有性能监控 fetch method*/
 export function useApiMonitoring() {
-  const retryCountRef = useRef<Map<string, number>>(new Map());
+  const retryCountRef = useRef<Map<string, number>>(new Map())
 
   /** * 带监控 fetch request*/
   const fetchWithMonitoring = useCallback(
     async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      const cacheKey = `${init?.method || "GET"}:${url}`;
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const cacheKey = `${init?.method || 'GET'}:${url}`
 
-      const currentRetryCount = retryCountRef.current.get(cacheKey) || 0;
-      const startTime = performance.now();
+      const currentRetryCount = retryCountRef.current.get(cacheKey) || 0
+      const startTime = performance.now()
 
       try {
-        const response = await fetch(input, init);
-        const duration = performance.now() - startTime;
+        const response = await fetch(input, init)
+        const duration = performance.now() - startTime
 
         // Success后重置重试计数
-        retryCountRef.current.delete(cacheKey);
+        retryCountRef.current.delete(cacheKey)
 
         reportApiMetrics({
           endpoint: new URL(url, window.location.origin).pathname,
-          method: init?.method || "GET",
+          method: init?.method || 'GET',
           status: response.status,
           duration,
           success: response.ok,
           isRetry: currentRetryCount > 0,
           retryCount: currentRetryCount,
-        });
+        })
 
-        return response;
+        return response
       } catch (error) {
-        const duration = performance.now() - startTime;
+        const duration = performance.now() - startTime
 
         // 增加重试计数
-        retryCountRef.current.set(cacheKey, currentRetryCount + 1);
+        retryCountRef.current.set(cacheKey, currentRetryCount + 1)
 
         reportApiMetrics({
           endpoint: new URL(url, window.location.origin).pathname,
-          method: init?.method || "GET",
+          method: init?.method || 'GET',
           status: 0,
           duration,
           success: false,
           isRetry: currentRetryCount > 0,
           retryCount: currentRetryCount,
           error: error instanceof Error ? error.message : String(error),
-        });
+        })
 
-        throw error;
+        throw error
       }
     },
     [],
-  );
+  )
 
   /** * 测量 API 调用性能*/
   const measureApiCall = useCallback(
@@ -164,36 +164,36 @@ export function useApiMonitoring() {
       apiCall: () => Promise<T>,
       metadata?: Record<string, unknown>,
     ): Promise<T> => {
-      const startTime = performance.now();
+      const startTime = performance.now()
 
       try {
-        const result = await apiCall();
-        const duration = performance.now() - startTime;
+        const result = await apiCall()
+        const duration = performance.now() - startTime
 
         reportCustomMetric(`api:${name}`, duration, {
-          status: "success",
+          status: 'success',
           ...metadata,
-        });
+        })
 
-        return result;
+        return result
       } catch (error) {
-        const duration = performance.now() - startTime;
+        const duration = performance.now() - startTime
 
         reportCustomMetric(`api:${name}`, duration, {
-          status: "error",
+          status: 'error',
           error: error instanceof Error ? error.message : String(error),
           ...metadata,
-        });
+        })
 
-        throw error;
+        throw error
       }
     },
     [],
-  );
+  )
 
   return {
     fetchWithMonitoring,
     measureApiCall,
     monitoredFetch,
-  };
+  }
 }

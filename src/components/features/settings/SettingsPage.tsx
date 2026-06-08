@@ -1,8 +1,8 @@
-"use client";
+'use client'
 
-import { FeedbackSection } from "@/components/features/settings/page/FeedbackSection";
-import { LearningLanguageSection } from "@/components/features/settings/page/LearningLanguageSection";
-import { SettingsLayout } from "@/components/features/settings/SettingsLayout";
+import { FeedbackSection } from '~/components/features/settings/page/FeedbackSection'
+import { LearningLanguageSection } from '~/components/features/settings/page/LearningLanguageSection'
+import { SettingsLayout } from '~/components/features/settings/SettingsLayout'
 
 export default function SettingsPage() {
   return (
@@ -12,5 +12,5 @@ export default function SettingsPage() {
         <FeedbackSection />
       </div>
     </SettingsLayout>
-  );
+  )
 }

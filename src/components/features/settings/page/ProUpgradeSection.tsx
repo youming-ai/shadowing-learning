@@ -1,4 +1,4 @@
-import { SettingsCard, SettingsSection } from "@/components/features/settings/SettingsCard";
+import { SettingsCard, SettingsSection } from '~/components/features/settings/SettingsCard'
 
 export function ProUpgradeSection() {
   return (
@@ -18,5 +18,5 @@ export function ProUpgradeSection() {
         </div>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

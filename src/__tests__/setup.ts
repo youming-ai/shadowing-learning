@@ -1,79 +1,46 @@
-import "@testing-library/jest-dom/vitest";
-import { afterEach, beforeAll, vi } from "vitest";
+import 'fake-indexeddb/auto'
+import '@testing-library/jest-dom/vitest'
+import { cleanup } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
 
-// Set fake-indexeddb
-import "fake-indexeddb/auto";
+// Vitest provides the DOM via `environment: 'happy-dom'` in vitest.config.ts,
+// so document/window/HTMLElement/etc. are already on globalThis. We only need
+// to (a) register jest-dom matchers (done by the import above), (b) ensure
+// URL.createObjectURL / revokeObjectURL exist for the audio blob-URL paths,
+// and (c) reset the DOM and mocks between tests.
 
-// 清理 mock
+if (typeof globalThis.URL.createObjectURL !== 'function') {
+  let counter = 0
+  globalThis.URL.createObjectURL = (_object: Blob | MediaSource): string =>
+    `blob:vitest/${counter++}`
+  globalThis.URL.revokeObjectURL = (_url: string): void => {}
+}
+
 afterEach(() => {
-  vi.clearAllMocks();
-});
+  cleanup()
+  vi.clearAllMocks()
+})
 
-// 模拟 window.matchMedia
-beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+// Mock @tanstack/react-router so components/hooks that pull navigation helpers
+// render without a real router. vi.importActual is restored under Vitest.
+vi.mock('@tanstack/react-router', async () => {
+  const actual =
+    await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router')
+  return {
+    ...actual,
+    useNavigate: () => vi.fn(),
+    useLocation: () => ({ pathname: '/', search: {}, hash: '' }),
+    useSearch: () => ({}),
+    useParams: () => ({}),
+  }
+})
 
-  // 模拟 ResizeObserver
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
-
-  // 模拟 IntersectionObserver
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
-
-  // 模拟 PerformanceObserver
-  const MockPerformanceObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    disconnect: vi.fn(),
-  }));
-  (MockPerformanceObserver as unknown as { supportedEntryTypes: string[] }).supportedEntryTypes = [
-    "mark",
-    "measure",
-    "navigation",
-  ];
-  global.PerformanceObserver = MockPerformanceObserver as unknown as typeof PerformanceObserver;
-
-  // 模拟 URL.createObjectURL
-  global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
-  global.URL.revokeObjectURL = vi.fn();
-});
-
-// 模拟 next/navigation
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    back: vi.fn(),
-    prefetch: vi.fn(),
-  }),
-  usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-// 模拟 sonner toast
-vi.mock("sonner", () => ({
+// Mock sonner toast (user-visible notifications) to inert spies.
+vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
   },
-}));
+}))

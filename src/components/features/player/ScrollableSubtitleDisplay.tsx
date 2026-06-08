@@ -1,34 +1,33 @@
-"use client";
+'use client'
 
-import React, { useEffect, useMemo, useRef } from "react";
-import { cn } from "@/lib/utils/utils";
-import type { Segment } from "@/types/db/database";
+import React, { useEffect, useMemo, useRef } from 'react'
+import { cn } from '~/lib/utils/utils'
+import type { Segment } from '~/types/db/database'
 
 interface ScrollableSubtitleDisplayProps {
-  segments: Segment[];
-  currentTime: number;
-  isPlaying: boolean;
-  onSegmentClick?: (segment: Segment) => void;
-  className?: string;
+  segments: Segment[]
+  currentTime: number
+  isPlaying: boolean
+  onSegmentClick?: (segment: Segment) => void
+  className?: string
 }
 
 interface FuriganaEntry {
-  text: string;
-  reading: string;
+  text: string
+  reading: string
 }
 
 interface Token {
-  word: string;
-  reading?: string;
-  romaji?: string;
-  start?: number;
-  end?: number;
+  word: string
+  reading?: string
+  start?: number
+  end?: number
 }
 
 function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
 /**
@@ -36,121 +35,160 @@ function formatTime(seconds: number): string {
  * 用于判断字幕是否已经在滚动视口内可见。
  */
 function findActiveSegmentIndexBinary(segments: Segment[], currentTime: number): number {
-  let left = 0;
-  let right = segments.length - 1;
+  let left = 0
+  let right = segments.length - 1
 
   while (left <= right) {
-    const mid = (left + right) >> 1;
-    const segment = segments[mid];
+    const mid = (left + right) >> 1
+    const segment = segments[mid]
     if (currentTime >= segment.start && currentTime <= segment.end) {
-      return mid;
+      return mid
     }
     if (currentTime < segment.start) {
-      right = mid - 1;
+      right = mid - 1
     } else {
-      left = mid + 1;
+      left = mid + 1
     }
   }
 
-  return -1;
+  return -1
 }
 
 function findScrollParent(element: HTMLElement): HTMLElement | null {
-  let current: HTMLElement | null = element.parentElement;
+  let current: HTMLElement | null = element.parentElement
   while (current) {
-    const style = window.getComputedStyle(current);
-    const overflowY = style.overflowY;
+    const style = window.getComputedStyle(current)
+    const overflowY = style.overflowY
     if (
-      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
       current.scrollHeight > current.clientHeight
     ) {
-      return current;
+      return current
     }
-    current = current.parentElement;
+    current = current.parentElement
   }
-  return document.scrollingElement as HTMLElement | null;
+  return document.scrollingElement as HTMLElement | null
 }
 
 function normalizeFurigana(rawFurigana: unknown): FuriganaEntry[] {
   if (!rawFurigana) {
-    return [];
+    return []
   }
 
   if (Array.isArray(rawFurigana)) {
     return rawFurigana
       .map((entry) => {
-        if (typeof entry === "string") {
-          const trimmed = entry.trim();
-          return trimmed ? { text: trimmed, reading: trimmed } : null;
+        if (typeof entry === 'string') {
+          const trimmed = entry.trim()
+          return trimmed ? { text: trimmed, reading: trimmed } : null
         }
 
-        if (entry && typeof entry === "object") {
-          const candidate = entry as Record<string, unknown>;
-          const textValue = typeof candidate.text === "string" ? candidate.text : undefined;
-          const readingValue =
-            typeof candidate.reading === "string" ? candidate.reading : undefined;
+        if (entry && typeof entry === 'object') {
+          const candidate = entry as Record<string, unknown>
+          const textValue = typeof candidate.text === 'string' ? candidate.text : undefined
+          const readingValue = typeof candidate.reading === 'string' ? candidate.reading : undefined
 
           if (textValue || readingValue) {
-            const safeText = (textValue ?? readingValue ?? "").trim();
-            const safeReading = (readingValue ?? textValue ?? "").trim();
+            const safeText = (textValue ?? readingValue ?? '').trim()
+            const safeReading = (readingValue ?? textValue ?? '').trim()
             if (safeText && safeReading) {
-              return { text: safeText, reading: safeReading };
+              return { text: safeText, reading: safeReading }
             }
           }
         }
 
-        return null;
+        return null
       })
-      .filter((entry): entry is FuriganaEntry => !!entry);
+      .filter((entry): entry is FuriganaEntry => !!entry)
   }
 
-  if (typeof rawFurigana === "string") {
-    const trimmed = rawFurigana.trim();
-    if (!trimmed) return [];
+  if (typeof rawFurigana === 'string') {
+    const trimmed = rawFurigana.trim()
+    if (!trimmed) return []
 
     try {
-      const parsed = JSON.parse(trimmed);
-      return normalizeFurigana(parsed);
+      const parsed = JSON.parse(trimmed)
+      return normalizeFurigana(parsed)
     } catch (_error) {
       return trimmed
         .split(/\s+/)
         .filter(Boolean)
-        .map((token) => ({ text: token, reading: token }));
+        .map((token) => ({ text: token, reading: token }))
     }
   }
 
-  if (typeof rawFurigana === "object") {
-    return normalizeFurigana(Object.values(rawFurigana ?? {}));
+  if (typeof rawFurigana === 'object') {
+    return normalizeFurigana(Object.values(rawFurigana ?? {}))
   }
 
-  return [];
+  return []
+}
+
+/**
+ * 把 furigana 条目按「词文本匹配」附到对应词上，不再按数组下标硬对齐。
+ * furigana 数与词数不等也安全：只在 entry.text === word 时附读音；
+ * 没有任何匹配则返回不带读音的词序列（降级为整段文本）。
+ */
+function attachReadingsToWords(
+  words: { word: string; start: number; end: number }[],
+  furiganaEntries: FuriganaEntry[],
+): Token[] {
+  if (furiganaEntries.length === 0) {
+    return words.map((timestamp) => ({
+      word: timestamp.word,
+      start: timestamp.start,
+      end: timestamp.end,
+    }))
+  }
+
+  const readingByText = new Map<string, string>()
+  for (const entry of furiganaEntries) {
+    if (!readingByText.has(entry.text)) {
+      readingByText.set(entry.text, entry.reading)
+    }
+  }
+
+  // 等长时优先按下标对齐（保持原行为）；否则按文本匹配。
+  const useIndexAlignment = furiganaEntries.length === words.length
+
+  return words.map((timestamp, index) => {
+    const reading = useIndexAlignment
+      ? furiganaEntries[index]?.reading
+      : readingByText.get(timestamp.word)
+    return {
+      word: timestamp.word,
+      reading,
+      start: timestamp.start,
+      end: timestamp.end,
+    }
+  })
 }
 
 const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
   ({ segments, currentTime, isPlaying, onSegmentClick, className }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const activeSegmentRef = useRef<HTMLButtonElement>(null);
-    const previousActiveIndex = useRef<number>(-1);
-    const scrollTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null)
+    const activeSegmentRef = useRef<HTMLButtonElement>(null)
+    const previousActiveIndex = useRef<number>(-1)
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
     const safeCurrentTime =
-      Number.isFinite(currentTime) && !Number.isNaN(currentTime) ? currentTime : 0;
+      Number.isFinite(currentTime) && !Number.isNaN(currentTime) ? currentTime : 0
 
     const activeIndex = useMemo(() => {
-      return findActiveSegmentIndexBinary(segments, safeCurrentTime);
-    }, [segments, safeCurrentTime]);
+      return findActiveSegmentIndexBinary(segments, safeCurrentTime)
+    }, [segments, safeCurrentTime])
 
     useEffect(() => {
       // 使用 activeIndex 替代 findActiveSegmentIndex()
       if (activeIndex === previousActiveIndex.current || activeIndex === -1) {
-        return;
+        return
       }
 
-      previousActiveIndex.current = activeIndex;
+      previousActiveIndex.current = activeIndex
 
       // 清除之前timeout
       if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+        clearTimeout(scrollTimeoutRef.current)
       }
 
       // 实际滚动容器是 ScrollableSubtitleDisplay 的最近 overflow 祖先（通常是 <main>）。
@@ -158,71 +196,64 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
       // 改用 scrollIntoView，由浏览器自动查找滚动祖先；同时手动检查可见性避免抖动。
       scrollTimeoutRef.current = setTimeout(
         () => {
-          const activeElement = activeSegmentRef.current;
-          if (!activeElement) return;
+          const activeElement = activeSegmentRef.current
+          if (!activeElement) return
 
-          const scrollParent = findScrollParent(activeElement);
-          if (!scrollParent) return;
+          const scrollParent = findScrollParent(activeElement)
+          if (!scrollParent) return
 
-          const elementRect = activeElement.getBoundingClientRect();
-          const parentRect = scrollParent.getBoundingClientRect();
+          const elementRect = activeElement.getBoundingClientRect()
+          const parentRect = scrollParent.getBoundingClientRect()
 
           const fullyVisible =
-            elementRect.top >= parentRect.top && elementRect.bottom <= parentRect.bottom;
+            elementRect.top >= parentRect.top && elementRect.bottom <= parentRect.bottom
 
           if (fullyVisible) {
-            return;
+            return
           }
 
           activeElement.scrollIntoView({
-            block: "center",
-            behavior: isPlaying ? "smooth" : "auto",
-          });
+            block: 'center',
+            behavior: isPlaying ? 'smooth' : 'auto',
+          })
         },
         isPlaying ? 100 : 0,
-      );
+      )
 
       return () => {
         if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
+          clearTimeout(scrollTimeoutRef.current)
         }
-      };
-    }, [activeIndex, isPlaying]);
+      }
+    }, [activeIndex, isPlaying])
 
     const segmentTokens = useMemo<Token[][]>(() => {
       return segments.map((segment) => {
-        const furiganaEntries = normalizeFurigana(segment.furigana as unknown);
+        const furiganaEntries = normalizeFurigana(segment.furigana as unknown)
 
         if (Array.isArray(segment.wordTimestamps) && segment.wordTimestamps.length > 0) {
-          return segment.wordTimestamps.map((timestamp, index) => ({
-            word: timestamp.word,
-            reading: furiganaEntries[index]?.reading,
-            romaji: furiganaEntries[index]?.reading,
-            start: timestamp.start,
-            end: timestamp.end,
-          })) as Token[];
+          return attachReadingsToWords(segment.wordTimestamps, furiganaEntries)
         }
 
         if (furiganaEntries.length > 0) {
           return furiganaEntries.map((entry) => ({
             word: entry.text,
             reading: entry.reading,
-            romaji: entry.reading,
-          })) as Token[];
+          })) as Token[]
         }
 
-        const tokenBaseText = segment.normalizedText || segment.text;
+        const tokenBaseText = segment.normalizedText || segment.text
         if (tokenBaseText) {
-          const tokens = tokenBaseText.split(/\s+/).filter(Boolean);
+          const tokens = tokenBaseText.split(/\s+/).filter(Boolean)
 
           if (tokens.length > 1) {
-            return tokens.map((word) => ({ word })) as Token[];
+            return tokens.map((word) => ({ word })) as Token[]
           }
         }
 
-        return [] as Token[];
-      }) as Token[][];
-    }, [segments]);
+        return [] as Token[]
+      }) as Token[][]
+    }, [segments])
 
     return (
       <>
@@ -230,7 +261,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
         <div
           ref={containerRef}
           className={cn(
-            "player-subtitle-container space-y-[var(--space-subtitle-gap)] text-left",
+            'player-subtitle-container space-y-[var(--space-subtitle-gap)] text-left',
             className,
           )}
           data-testid="subtitle-scroll-container"
@@ -238,7 +269,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
           <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
             {isPlaying && activeIndex >= 0 && segments[activeIndex]
               ? segments[activeIndex].text
-              : ""}
+              : ''}
           </div>
           {segments.length === 0 ? (
             <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
@@ -246,15 +277,15 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
             </div>
           ) : (
             segments.map((segment, index) => {
-              const isActive = index === activeIndex;
-              const tokens = segmentTokens[index] || [];
-              const hasTokens = tokens.length > 0;
+              const isActive = index === activeIndex
+              const tokens = segmentTokens[index] || []
+              const hasTokens = tokens.length > 0
 
-              const displayText = segment.normalizedText || segment.text;
+              const displayText = segment.normalizedText || segment.text
               const lines = displayText
                 .split(/\n+/)
                 .map((line) => line.trim())
-                .filter(Boolean);
+                .filter(Boolean)
 
               return (
                 <button
@@ -263,23 +294,23 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                   ref={isActive ? activeSegmentRef : null}
                   onClick={() => onSegmentClick?.(segment)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSegmentClick?.(segment);
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      onSegmentClick?.(segment)
                     }
                   }}
-                  aria-current={isActive ? "true" : undefined}
+                  aria-current={isActive ? 'true' : undefined}
                   aria-label={`Jump to ${formatTime(segment.start)}: ${displayText}`}
                   data-testid="subtitle-card"
                   data-active={isActive}
                   className={cn(
-                    "subtitle-line mb-[var(--space-subtitle-gap)] w-full text-left",
-                    isActive && "highlight",
+                    'subtitle-line mb-[var(--space-subtitle-gap)] w-full text-left',
+                    isActive && 'highlight',
                   )}
                   style={{
                     marginBottom: isActive
-                      ? "var(--space-status-gap)"
-                      : "var(--space-subtitle-gap)",
+                      ? 'var(--space-status-gap)'
+                      : 'var(--space-subtitle-gap)',
                   }}
                 >
                   {hasTokens ? (
@@ -287,17 +318,17 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                       {tokens.map((token, tokenIndex) => {
                         const isTokenActive =
                           isActive &&
-                          typeof token.start === "number" &&
-                          typeof token.end === "number" &&
+                          typeof token.start === 'number' &&
+                          typeof token.end === 'number' &&
                           safeCurrentTime >= token.start &&
-                          safeCurrentTime <= token.end;
+                          safeCurrentTime <= token.end
 
                         return (
                           <div
                             // biome-ignore lint/suspicious/noArrayIndexKey: tokens come from a single segment's wordTimestamps and never reorder; word strings can repeat (e.g. "the"), so position-based key is the stable choice.
                             key={`${segment.id ?? index}-token-${tokenIndex}-${token.word}`}
-                            className={cn("player-word-group", isTokenActive && "active")}
-                            data-testid={isTokenActive ? "active-word" : undefined}
+                            className={cn('player-word-group', isTokenActive && 'active')}
+                            data-testid={isTokenActive ? 'active-word' : undefined}
                           >
                             {token.reading ? (
                               <ruby className="player-word-surface">
@@ -308,7 +339,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                               <span className="player-word-surface">{token.word}</span>
                             )}
                           </div>
-                        );
+                        )
                       })}
                     </div>
                   ) : (
@@ -334,15 +365,15 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                     <p className="player-subtitle-translation">{segment.translation}</p>
                   )}
                 </button>
-              );
+              )
             })
           )}
         </div>
       </>
-    );
+    )
   },
-);
+)
 
-ScrollableSubtitleDisplay.displayName = "ScrollableSubtitleDisplay";
+ScrollableSubtitleDisplay.displayName = 'ScrollableSubtitleDisplay'
 
-export default ScrollableSubtitleDisplay;
+export default ScrollableSubtitleDisplay

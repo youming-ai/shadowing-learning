@@ -1,23 +1,23 @@
 /** * 学习语言设置 — 只保留"母语"（=翻译目标语言）。 * 音频源语言由 Whisper auto-detect，不再在 settings 中暴露。*/
 
-"use client";
+'use client'
 
 import {
   SettingsCard,
   SettingsRow,
   SettingsRowContent,
   SettingsSection,
-} from "@/components/features/settings/SettingsCard";
-import { useTranscriptionLanguage } from "@/components/layout/contexts/TranscriptionLanguageContext";
+} from '~/components/features/settings/SettingsCard'
+import { useTranscriptionLanguage } from '~/components/layout/contexts/TranscriptionLanguageContext'
 
 export function LearningLanguageSection() {
   const { learningLanguage, setLearningLanguage, getSupportedLanguages } =
-    useTranscriptionLanguage();
-  const supportedLanguages = getSupportedLanguages();
+    useTranscriptionLanguage()
+  const supportedLanguages = getSupportedLanguages()
 
   const handleNativeLanguageChange = (languageCode: string) => {
-    setLearningLanguage({ nativeLanguage: languageCode });
-  };
+    setLearningLanguage({ nativeLanguage: languageCode })
+  }
 
   return (
     <SettingsSection title="学习语言">
@@ -35,8 +35,8 @@ export function LearningLanguageSection() {
                   transition-all duration-200
                   ${
                     learningLanguage.nativeLanguage === code
-                      ? "bg-primary/20 ring-2 ring-primary scale-110"
-                      : "bg-muted/50 hover:bg-muted hover:scale-105"
+                      ? 'bg-primary/20 ring-2 ring-primary scale-110'
+                      : 'bg-muted/50 hover:bg-muted hover:scale-105'
                   }
                 `}
                 title={config.name}
@@ -50,5 +50,5 @@ export function LearningLanguageSection() {
         </SettingsRow>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

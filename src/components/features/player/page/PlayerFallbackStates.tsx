@@ -1,14 +1,14 @@
-import { AlertCircle, Loader2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlertCircle, Loader2 } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface PlayerErrorStateProps {
-  message: string;
-  onRetry: () => void;
-  onBack: () => void;
+  message: string
+  onRetry: () => void
+  onBack: () => void
 }
 
 interface PlayerMissingFileStateProps {
-  onBack: () => void;
+  onBack: () => void
 }
 
 export function PlayerLoadingState() {
@@ -17,7 +17,7 @@ export function PlayerLoadingState() {
       <Loader2 className="h-10 w-10 animate-spin text-[var(--player-accent-color)]" />
       <p>加载播放器中...</p>
     </div>
-  );
+  )
 }
 
 export function PlayerErrorState({ message, onRetry, onBack }: PlayerErrorStateProps) {
@@ -39,7 +39,7 @@ export function PlayerErrorState({ message, onRetry, onBack }: PlayerErrorStateP
         </PlayerStateButton>
       </div>
     </div>
-  );
+  )
 }
 
 export function PlayerMissingFileState({ onBack }: PlayerMissingFileStateProps) {
@@ -54,14 +54,14 @@ export function PlayerMissingFileState({ onBack }: PlayerMissingFileStateProps) 
         返回主页
       </PlayerStateButton>
     </div>
-  );
+  )
 }
 
 interface PlayerStateButtonProps {
-  children: ReactNode;
-  onClick: () => void;
-  variant: "primary" | "outline";
-  fullWidth?: boolean;
+  children: ReactNode
+  onClick: () => void
+  variant: 'primary' | 'outline'
+  fullWidth?: boolean
 }
 
 function PlayerStateButton({
@@ -71,14 +71,14 @@ function PlayerStateButton({
   fullWidth = false,
 }: PlayerStateButtonProps) {
   const baseClasses =
-    "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--player-accent-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-color)]";
+    'inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--player-accent-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-color)]'
 
-  const widthClass = fullWidth ? " flex-1" : "";
+  const widthClass = fullWidth ? ' flex-1' : ''
 
   const variantClasses =
-    variant === "primary"
-      ? "bg-[var(--player-accent-color)] text-[var(--player-tooltip-text)] shadow hover:brightness-110"
-      : "border border-[var(--border-muted)] text-[var(--text-color)]/80 hover:bg-[var(--state-info-surface)]";
+    variant === 'primary'
+      ? 'bg-[var(--player-accent-color)] text-[var(--player-tooltip-text)] shadow hover:brightness-110'
+      : 'border border-[var(--border-muted)] text-[var(--text-color)]/80 hover:bg-[var(--state-info-surface)]'
 
   return (
     <button
@@ -88,5 +88,5 @@ function PlayerStateButton({
     >
       {children}
     </button>
-  );
+  )
 }
