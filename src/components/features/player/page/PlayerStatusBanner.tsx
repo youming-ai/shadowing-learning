@@ -1,9 +1,9 @@
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '~/lib/utils/utils'
-import type { TranscriptRow } from '~/types/db/database'
+import type { SubtitleRow } from '~/types/db/database'
 
 interface PlayerStatusBannerProps {
-  transcript?: TranscriptRow | null
+  transcript?: SubtitleRow | null
   isTranscribing?: boolean
   transcriptionProgress?: number
 }
@@ -63,7 +63,7 @@ export function PlayerStatusBanner({
   )
 }
 
-function getStatusMessage(status: TranscriptRow['status']): string {
+function getStatusMessage(status: SubtitleRow['status']): string {
   switch (status) {
     case 'pending':
       return '等待转录...'

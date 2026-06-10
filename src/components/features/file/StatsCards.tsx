@@ -14,13 +14,13 @@ export default function StatsCards({ className }: StatsCardsProps) {
 
   // 计算统计数据
   const totalFiles = files.length
-  const totalDuration = files.reduce((acc, file) => acc + (file.duration || 0), 0)
+  const totalDuration = files.reduce((acc, file) => acc + (file.durationSec || 0), 0)
 
   // Query正在ProcessinTranscription数量
   useEffect(() => {
     const checkProcessingStatus = async () => {
       try {
-        const processingTranscripts = await db.transcripts
+        const processingTranscripts = await db.subtitles
           .where('status')
           .equals('processing')
           .count()

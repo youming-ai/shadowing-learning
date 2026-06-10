@@ -3,15 +3,16 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DBUtils } from '~/lib/db/db'
 import { handleTranscriptionError } from '~/lib/utils/transcription-error-handler'
-import type { TranscriptRow } from '~/types/db/database'
+import type { SubtitleRow } from '~/types/db/database'
 import { useTranscription, useTranscriptionStatus } from '../useTranscription'
 
 // Mock dependencies
 vi.mock('~/lib/db/db', () => ({
   DBUtils: {
-    findTranscriptByFileId: vi.fn(),
+    findSubtitleByMediaId: vi.fn(),
     getSegmentsByTranscriptIdOrdered: vi.fn(),
-    getFile: vi.fn(),
+    getMedia: vi.fn(),
+    update: vi.fn(),
   },
   db: {
     transaction: vi.fn().mockImplementation(async (_mode, ..._tablesAndCallback) => {
@@ -44,7 +45,7 @@ vi.mock('~/lib/db/db', () => ({
         modify: vi.fn(),
       })),
     },
-    transcripts: {
+    subtitles: {
       where: vi.fn(() => ({
         first: vi.fn(),
       })),
@@ -81,12 +82,13 @@ describe('useTranscription Hook', () => {
 
   describe('useTranscriptionStatus', () => {
     it('should return transcript and segments when they exist', async () => {
-      const mockTranscript: TranscriptRow = {
+      const mockTranscript: SubtitleRow = {
         id: 1,
-        fileId: 1,
+        mediaId: 1,
+        source: 'whisper',
         status: 'completed' as const,
-        language: 'en',
-        processingTime: 1000,
+        sourceLanguage: 'en',
+        targetLanguage: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -108,7 +110,7 @@ describe('useTranscription Hook', () => {
         },
       ]
 
-      vi.mocked(DBUtils.findTranscriptByFileId).mockResolvedValue(mockTranscript)
+      vi.mocked(DBUtils.findSubtitleByMediaId).mockResolvedValue(mockTranscript)
       vi.mocked(DBUtils.getSegmentsByTranscriptIdOrdered).mockResolvedValue(mockSegments)
 
       const { result } = renderHook(() => useTranscriptionStatus(1), {
@@ -125,7 +127,7 @@ describe('useTranscription Hook', () => {
     })
 
     it('should return empty state when no transcript exists', async () => {
-      vi.mocked(DBUtils.findTranscriptByFileId).mockResolvedValue(undefined)
+      vi.mocked(DBUtils.findSubtitleByMediaId).mockResolvedValue(undefined)
 
       const { result } = renderHook(() => useTranscriptionStatus(1), {
         wrapper,
@@ -144,16 +146,19 @@ describe('useTranscription Hook', () => {
   describe('useTranscription', () => {
     const mockFile = {
       id: 1,
-      name: 'test.mp3',
-      size: 1024,
-      type: 'audio/mpeg',
+      kind: 'audio' as const,
+      title: 'test.mp3',
+      durationSec: null,
       blob: new Blob(['test'], { type: 'audio/mpeg' }),
-      uploadedAt: new Date(),
+      fileName: 'test.mp3',
+      fileSize: 1024,
+      mimeType: 'audio/mpeg',
+      addedAt: new Date(),
       updatedAt: new Date(),
     }
 
     beforeEach(() => {
-      vi.mocked(DBUtils.getFile).mockResolvedValue(mockFile)
+      vi.mocked(DBUtils.getMedia).mockResolvedValue(mockFile)
 
       // Mock fetch — cast through unknown because vi.fn() does not carry
       // fetch's `preconnect` member that the DOM `typeof fetch` type requires.
@@ -284,7 +289,7 @@ describe('useTranscription Hook', () => {
     })
 
     it('should handle file not found error', async () => {
-      vi.mocked(DBUtils.getFile).mockResolvedValue(undefined)
+      vi.mocked(DBUtils.getMedia).mockResolvedValue(undefined)
 
       const { result } = renderHook(() => useTranscription(), { wrapper })
 

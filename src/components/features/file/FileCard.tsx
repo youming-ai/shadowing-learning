@@ -3,10 +3,10 @@
 'use client'
 
 import type { FileDisplayStatus } from '~/lib/utils/file-status-manager'
-import type { FileRow } from '~/types/db/database'
+import type { MediaRow } from '~/types/db/database'
 
 interface FileCardProps {
-  file: FileRow & { status: FileDisplayStatus } // status 必须由父component传入
+  file: MediaRow & { status: FileDisplayStatus } // status 必须由父component传入
   onPlay?: (fileId: number) => void
   onDelete?: (fileId: number) => void
   onTranscribe?: (fileId: number) => void
@@ -144,7 +144,7 @@ export default function FileCard({ file, onPlay, onDelete, onTranscribe }: FileC
       <div className="flex items-center gap-4">
         <span className={`material-symbols-outlined text-4xl ${status.color}`}>{status.icon}</span>
         <div>
-          <p className="text-file-name">{file.name}</p>
+          <p className="text-file-name">{file.title}</p>
           <p className={`text-file-status ${status.color}`}>
             {status.type} · {status.label}
           </p>

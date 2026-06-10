@@ -106,15 +106,12 @@ export interface TranscriptWithSegments extends TranscriptRow {
 }
 
 export interface DatabaseStats {
-  totalFiles: number
-  totalTranscripts: number
+  totalMedia: number
+  totalSubtitles: number
   totalSegments: number
-  processingStatus: {
-    pending: number
-    processing: number
-    completed: number
-    failed: number
-  }
+  totalStorageSize: number
+  averageSegmentsPerSubtitle: number
+  subtitlesByStatus: Record<string, number>
 }
 
 export type { AudioPlayerState } from '../player'

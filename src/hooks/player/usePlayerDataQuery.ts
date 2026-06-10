@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useTranscriptionStatus } from '~/hooks/api/useTranscription'
 import { useFileStatusManager } from '~/hooks/useFileStatus'
 import { DBUtils } from '~/lib/db/db'
-import type { FileRow, Segment, TranscriptRow } from '~/types/db/database'
+import type { MediaRow, Segment, SubtitleRow } from '~/types/db/database'
 
 const audioUrlCache = new WeakMap<Blob, string>()
 
@@ -36,7 +36,7 @@ function useFileQuery(fileId: number, enabled = true) {
     queryKey: playerKeys.file(fileId),
     enabled,
     queryFn: async () => {
-      const file = await DBUtils.getFile(fileId)
+      const file = await DBUtils.getMedia(fileId)
       if (!file) {
         throw new Error('File not found')
       }
@@ -54,9 +54,9 @@ function useFileQuery(fileId: number, enabled = true) {
 }
 
 interface UsePlayerDataQueryReturn {
-  file: FileRow | null
+  file: MediaRow | null
   segments: Segment[]
-  transcript: TranscriptRow | null
+  transcript: SubtitleRow | null
   audioUrl: string | null
   loading: boolean
   error: string | null

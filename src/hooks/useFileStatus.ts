@@ -23,13 +23,13 @@ export function useFileStatus(fileId: number) {
     queryKey: fileStatusKeys.forFile(fileId),
     queryFn: async () => {
       // 从 DBUtils GetFile信息
-      const file = await DBUtils.getFile(fileId)
+      const file = await DBUtils.getMedia(fileId)
       if (!file) {
         return { status: 'error' as FileDisplayStatus, error: 'File not found' }
       }
 
       // Through DBUtils CheckTranscriptionrecord
-      const transcript = await DBUtils.findTranscriptByFileId(fileId)
+      const transcript = await DBUtils.findSubtitleByMediaId(fileId)
 
       // 完全基于 TranscriptRow.status 确定state
       const status = transcript
@@ -61,21 +61,22 @@ export function useFileStatusManager(fileId: number) {
     async (status: 'pending' | 'processing' | 'completed' | 'failed', error?: string) => {
       try {
         // Through DBUtils 查找现有Transcriptionrecord
-        const transcript = await DBUtils.findTranscriptByFileId(fileId)
+        const transcript = await DBUtils.findSubtitleByMediaId(fileId)
 
         if (transcript?.id) {
           // Through DBUtils Update现有Transcriptionrecord
-          await DBUtils.updateTranscriptStatus(transcript.id, status)
+          await DBUtils.updateSubtitleStatus(transcript.id, status)
           if (error) {
-            await DBUtils.update(db.transcripts, transcript.id, { error })
+            await DBUtils.update(db.subtitles, transcript.id, { error })
           }
         } else if (status === 'pending' || status === 'processing') {
           // Through DBUtils 创建新Transcriptionrecord
-          await DBUtils.addTranscript({
-            fileId,
+          await DBUtils.addSubtitle({
+            mediaId: fileId,
+            source: 'whisper',
             status,
-            language: '',
-            processingTime: 0,
+            sourceLanguage: '',
+            targetLanguage: null,
             createdAt: new Date(),
             updatedAt: new Date(),
           })
@@ -162,20 +163,9 @@ export function useFileStatusManager(fileId: number) {
     cancelTranscription()
 
     // Through DBUtils Delete现有Transcriptionrecord
-    const transcript = await DBUtils.findTranscriptByFileId(fileId)
+    const transcript = await DBUtils.findSubtitleByMediaId(fileId)
     if (transcript?.id) {
-      // 先Delete该Transcription所有segments
-      await DBUtils.where(db.segments, (segment) => segment.transcriptId === transcript.id).then(
-        (segments) => {
-          return Promise.all(
-            segments.map((segment) =>
-              segment.id ? DBUtils.delete(db.segments, segment.id) : Promise.resolve(),
-            ),
-          )
-        },
-      )
-      // 再DeleteTranscriptionrecord
-      await DBUtils.delete(db.transcripts, transcript.id)
+      await DBUtils.deleteSubtitleWithSegments(transcript.id)
     }
 
     // 刷新QueryCache
@@ -216,11 +206,12 @@ export function useBatchFileStatus() {
       // Set队列任务回调
       queue.setTaskCallback(async (task) => {
         // Through DBUtils 创建Transcriptionrecord
-        await DBUtils.addTranscript({
-          fileId: task.fileId,
+        await DBUtils.addSubtitle({
+          mediaId: task.fileId,
+          source: 'whisper',
           status: 'processing',
-          language: '',
-          processingTime: 0,
+          sourceLanguage: '',
+          targetLanguage: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -237,9 +228,9 @@ export function useBatchFileStatus() {
         })
 
         // Through DBUtils Updatestateas完成
-        const transcript = await DBUtils.findTranscriptByFileId(task.fileId)
+        const transcript = await DBUtils.findSubtitleByMediaId(task.fileId)
         if (transcript?.id) {
-          await DBUtils.updateTranscriptStatus(transcript.id, 'completed')
+          await DBUtils.updateSubtitleStatus(transcript.id, 'completed')
         }
 
         queryClient.invalidateQueries({
@@ -252,9 +243,9 @@ export function useBatchFileStatus() {
       // Setstate变更回调
       queue.setStatusChangeCallback(async (fileId, status, error) => {
         if (status === 'failed') {
-          const transcript = await DBUtils.findTranscriptByFileId(fileId)
+          const transcript = await DBUtils.findSubtitleByMediaId(fileId)
           if (transcript?.id) {
-            await DBUtils.update(db.transcripts, transcript.id, {
+            await DBUtils.update(db.subtitles, transcript.id, {
               status: 'failed',
               error,
             })

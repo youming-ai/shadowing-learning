@@ -5,8 +5,10 @@
 
 export type {
   FileRow,
+  MediaRow,
   ProcessingStatus,
   Segment,
+  SubtitleRow,
   TranscriptRow,
 } from '../types/db/database'
 // 数据库相关

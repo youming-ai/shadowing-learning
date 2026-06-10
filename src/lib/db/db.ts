@@ -1,7 +1,14 @@
 /** * Simplified database operations file * Removed complex batch processors, keeping core functionality*/
 
 import Dexie, { type Table } from 'dexie'
-import type { FileRow, MediaRow, Segment, SubtitleRow, TranscriptRow } from '~/types/db/database'
+import type {
+  DatabaseStats,
+  FileRow,
+  MediaRow,
+  Segment,
+  SubtitleRow,
+  TranscriptRow,
+} from '~/types/db/database'
 import { handleError } from '../utils/error-handler'
 import { dbLogger } from '../utils/logger'
 
@@ -221,25 +228,47 @@ export const DBUtils = {
     }
   },
 
-  /** * File-specific operations*/
-  async addFile(file: Omit<FileRow, 'id'>): Promise<number> {
-    return await this.add(db.files, file)
+  /** Media operations (v4) */
+  async addMedia(media: Omit<MediaRow, 'id'>): Promise<number> {
+    return await this.add(db.media, media)
   },
 
-  async getFile(id: number): Promise<FileRow | undefined> {
-    return await this.get(db.files, id)
+  async getMedia(id: number): Promise<MediaRow | undefined> {
+    return await this.get(db.media, id)
   },
 
-  async getAllFiles(): Promise<FileRow[]> {
+  async listMedia(): Promise<MediaRow[]> {
     try {
-      return await this.orderBy(db.files, 'uploadedAt', 'desc')
+      return await this.orderBy(db.media, 'addedAt', 'desc')
     } catch (error) {
-      throw handleError(error, 'DBUtils.getAllFiles')
+      throw handleError(error, 'DBUtils.listMedia')
     }
   },
 
-  async findFilesByName(name: string): Promise<FileRow[]> {
-    return await this.where(db.files, (file) => file.name.includes(name))
+  async findMediaByExternalId(externalId: string): Promise<MediaRow | undefined> {
+    try {
+      return await db.media.where('externalId').equals(externalId).first()
+    } catch (error) {
+      throw handleError(error, 'DBUtils.findMediaByExternalId')
+    }
+  },
+
+  /** children-first: segments → subtitles → media */
+  async deleteMedia(id: number): Promise<void> {
+    try {
+      await db.transaction('rw', db.media, db.subtitles, db.segments, async () => {
+        const subtitles = await db.subtitles.where('mediaId').equals(id).toArray()
+        for (const subtitle of subtitles) {
+          if (subtitle.id) {
+            await db.segments.where('transcriptId').equals(subtitle.id).delete()
+          }
+        }
+        await db.subtitles.where('mediaId').equals(id).delete()
+        await db.media.delete(id)
+      })
+    } catch (error) {
+      throw handleError(error, 'DBUtils.deleteMedia')
+    }
   },
 
   async getStorageUsage(): Promise<{
@@ -250,11 +279,12 @@ export const DBUtils = {
     fileCountByType: Record<string, number>
   }> {
     try {
-      const files = await db.files.toArray()
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0)
-      const fileCountByType = files.reduce(
-        (acc, file) => {
-          acc[file.type] = (acc[file.type] || 0) + 1
+      const media = await db.media.toArray()
+      const totalSize = media.reduce((sum, m) => sum + (m.fileSize ?? 0), 0)
+      const fileCountByType = media.reduce(
+        (acc, m) => {
+          const key = m.mimeType ?? 'youtube'
+          acc[key] = (acc[key] || 0) + 1
           return acc
         },
         {} as Record<string, number>,
@@ -262,9 +292,9 @@ export const DBUtils = {
 
       return {
         totalSize,
-        totalFiles: files.length,
-        averageFileSize: files.length > 0 ? Math.round(totalSize / files.length) : 0,
-        largestFileSize: files.length > 0 ? Math.max(...files.map((f) => f.size)) : 0,
+        totalFiles: media.length,
+        averageFileSize: media.length > 0 ? Math.round(totalSize / media.length) : 0,
+        largestFileSize: media.length > 0 ? Math.max(...media.map((m) => m.fileSize ?? 0)) : 0,
         fileCountByType,
       }
     } catch (error) {
@@ -272,81 +302,59 @@ export const DBUtils = {
     }
   },
 
-  async cleanupOldFiles(daysOld: number = 90): Promise<number> {
+  async cleanupOldMedia(daysOld: number = 90): Promise<number> {
     try {
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - daysOld)
-      const oldFiles = await db.files.where('uploadedAt').below(cutoffDate).toArray()
+      const oldMedia = await db.media.where('addedAt').below(cutoffDate).toArray()
 
-      await db.transaction('rw', db.files, db.transcripts, db.segments, async () => {
-        for (const file of oldFiles) {
-          if (file.id) {
-            const transcripts = await db.transcripts.where('fileId').equals(file.id).toArray()
-            for (const transcript of transcripts) {
-              if (transcript.id) {
-                await db.segments.where('transcriptId').equals(transcript.id).delete()
+      await db.transaction('rw', db.media, db.subtitles, db.segments, async () => {
+        for (const m of oldMedia) {
+          if (m.id) {
+            const subtitles = await db.subtitles.where('mediaId').equals(m.id).toArray()
+            for (const subtitle of subtitles) {
+              if (subtitle.id) {
+                await db.segments.where('transcriptId').equals(subtitle.id).delete()
               }
             }
-            await db.transcripts.where('fileId').equals(file.id).delete()
-            await db.files.delete(file.id)
+            await db.subtitles.where('mediaId').equals(m.id).delete()
+            await db.media.delete(m.id)
           }
         }
       })
 
-      return oldFiles.length
+      return oldMedia.length
     } catch (error) {
-      throw handleError(error, 'DBUtils.cleanupOldFiles')
+      throw handleError(error, 'DBUtils.cleanupOldMedia')
     }
   },
 
-  /** * Delete a file and its associated data * Delete order: segments → transcripts → file (children first)*/
-  async deleteFile(id: number): Promise<void> {
+  /** Subtitle operations (v4) */
+  async addSubtitle(subtitle: Omit<SubtitleRow, 'id'>): Promise<number> {
+    return await this.add(db.subtitles, subtitle)
+  },
+
+  async findSubtitleByMediaId(mediaId: number): Promise<SubtitleRow | undefined> {
     try {
-      await db.transaction('rw', db.files, db.transcripts, db.segments, async () => {
-        // 1. Get related transcripts
-        const transcripts = await db.transcripts.where('fileId').equals(id).toArray()
+      return await db.subtitles.where('mediaId').equals(mediaId).first()
+    } catch (error) {
+      throw handleError(error, 'DBUtils.findSubtitleByMediaId')
+    }
+  },
 
-        // 2. Delete each transcript's segments first
-        for (const transcript of transcripts) {
-          if (transcript.id) {
-            await db.segments.where('transcriptId').equals(transcript.id).delete()
-          }
-        }
+  async updateSubtitleStatus(id: number, status: SubtitleRow['status']): Promise<void> {
+    await this.update(db.subtitles, id, { status, updatedAt: new Date() })
+  },
 
-        // 3. Delete transcripts
-        await db.transcripts.where('fileId').equals(id).delete()
-
-        // 4. Finally delete the file
-        await db.files.delete(id)
+  async deleteSubtitleWithSegments(subtitleId: number): Promise<void> {
+    try {
+      await db.transaction('rw', db.subtitles, db.segments, async () => {
+        await db.segments.where('transcriptId').equals(subtitleId).delete()
+        await db.subtitles.delete(subtitleId)
       })
     } catch (error) {
-      throw handleError(error, 'DBUtils.deleteFile')
+      throw handleError(error, 'DBUtils.deleteSubtitleWithSegments')
     }
-  },
-
-  /** * Transcript-specific operations*/
-  async addTranscript(transcript: Omit<TranscriptRow, 'id'>): Promise<number> {
-    return await this.add(db.transcripts, transcript)
-  },
-
-  async getTranscript(id: number): Promise<TranscriptRow | undefined> {
-    return await this.get(db.transcripts, id)
-  },
-
-  async findTranscriptByFileId(fileId: number): Promise<TranscriptRow | undefined> {
-    try {
-      return await db.transcripts.where('fileId').equals(fileId).first()
-    } catch (error) {
-      throw handleError(error, 'DBUtils.findTranscriptByFileId')
-    }
-  },
-
-  async updateTranscriptStatus(id: number, status: TranscriptRow['status']): Promise<void> {
-    await this.update(db.transcripts, id, { status, updatedAt: new Date() })
-  },
-
-  async getTranscriptsByStatus(status: TranscriptRow['status']): Promise<TranscriptRow[]> {
-    return await this.where(db.transcripts, (transcript) => transcript.status === status)
   },
 
   /** * Segment-specific operations*/
@@ -455,49 +463,42 @@ export const DBUtils = {
   /** * Database maintenance operations*/
   async clearAll(): Promise<void> {
     try {
-      await db.transaction('rw', db.files, db.transcripts, db.segments, async () => {
+      await db.transaction('rw', db.media, db.subtitles, db.segments, async () => {
         await db.segments.clear()
-        await db.transcripts.clear()
-        await db.files.clear()
+        await db.subtitles.clear()
+        await db.media.clear()
       })
     } catch (error) {
       throw handleError(error, 'DBUtils.clearAll')
     }
   },
 
-  async getDatabaseStats(): Promise<{
-    totalFiles: number
-    totalTranscripts: number
-    totalSegments: number
-    totalStorageSize: number
-    averageSegmentsPerTranscript: number
-    transcriptsByStatus: Record<string, number>
-  }> {
+  async getDatabaseStats(): Promise<DatabaseStats> {
     try {
-      const [files, transcripts, segments] = await Promise.all([
-        db.files.toArray(),
-        db.transcripts.toArray(),
+      const [media, subtitles, segments] = await Promise.all([
+        db.media.toArray(),
+        db.subtitles.toArray(),
         db.segments.toArray(),
       ])
 
-      const totalStorageSize = files.reduce((sum, file) => sum + file.size, 0)
-      const transcriptsByStatus = transcripts.reduce(
-        (acc, transcript) => {
-          acc[transcript.status] = (acc[transcript.status] || 0) + 1
+      const totalStorageSize = media.reduce((sum, m) => sum + (m.fileSize ?? 0), 0)
+      const subtitlesByStatus = subtitles.reduce(
+        (acc, subtitle) => {
+          acc[subtitle.status] = (acc[subtitle.status] || 0) + 1
           return acc
         },
         {} as Record<string, number>,
       )
-      const averageSegmentsPerTranscript =
-        transcripts.length > 0 ? segments.length / transcripts.length : 0
+      const averageSegmentsPerSubtitle =
+        subtitles.length > 0 ? segments.length / subtitles.length : 0
 
       return {
-        totalFiles: files.length,
-        totalTranscripts: transcripts.length,
+        totalMedia: media.length,
+        totalSubtitles: subtitles.length,
         totalSegments: segments.length,
         totalStorageSize,
-        averageSegmentsPerTranscript: Math.round(averageSegmentsPerTranscript * 100) / 100,
-        transcriptsByStatus,
+        averageSegmentsPerSubtitle: Math.round(averageSegmentsPerSubtitle * 100) / 100,
+        subtitlesByStatus,
       }
     } catch (error) {
       throw handleError(error, 'DBUtils.getDatabaseStats')

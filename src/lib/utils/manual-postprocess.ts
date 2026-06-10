@@ -32,10 +32,10 @@ function readNativeLanguageFromSettings(): string {
   return 'zh-CN'
 }
 
-/** * 从已存在的 transcript 记录读取 Whisper 检测到的源语言。*/
+/** * 从已存在的 subtitle 记录读取 Whisper 检测到的源语言。*/
 async function readSourceLanguageFromTranscript(transcriptId: number): Promise<string> {
-  const transcript = await db.transcripts.get(transcriptId)
-  return transcript?.language || 'auto'
+  const subtitle = await db.subtitles.get(transcriptId)
+  return subtitle?.sourceLanguage || 'auto'
 }
 
 /** * 手动触发后Process * Used foras现有Transcription生成Translation*/
@@ -122,33 +122,33 @@ export async function manualPostProcess(options: PostProcessOptions): Promise<bo
 
 /** * 按 fileId 用 settings 当前的语言重新生成翻译。 * 浏览器控制台便捷入口： `retranslateFile(<fileId>)` */
 export async function retranslateFile(fileId: number): Promise<boolean> {
-  const transcript = await db.transcripts.where('fileId').equals(fileId).first()
-  if (!transcript?.id) {
+  const subtitle = await db.subtitles.where('mediaId').equals(fileId).first()
+  if (!subtitle?.id) {
     transcriptionLogger.error(`找不到 fileId=${fileId} 的转录记录`)
     return false
   }
-  return manualPostProcess({ transcriptId: transcript.id })
+  return manualPostProcess({ transcriptId: subtitle.id })
 }
 
 /** * 清掉一个文件的转录数据（不动 audio blob），让 player 自动重新跑 Whisper。 * 用于 Whisper 输出本身就乱（多语言混杂、识别错误）需要重做的情况。 * 完成后请刷新或返回首页再点进来——usePlayerDataQuery 会检测到没有转录并自动重启。 */
 export async function retranscribeFile(fileId: number): Promise<boolean> {
   transcriptionLogger.info(`清理 fileId=${fileId} 的旧转录...`)
   try {
-    const transcripts = await db.transcripts.where('fileId').equals(fileId).toArray()
-    if (transcripts.length === 0) {
+    const subtitles = await db.subtitles.where('mediaId').equals(fileId).toArray()
+    if (subtitles.length === 0) {
       transcriptionLogger.warn(`fileId=${fileId} 没有转录记录，可以直接刷新页面触发首次转录`)
       return true
     }
-    await db.transaction('rw', [db.transcripts, db.segments], async () => {
-      for (const t of transcripts) {
+    await db.transaction('rw', [db.subtitles, db.segments], async () => {
+      for (const t of subtitles) {
         if (t.id !== undefined) {
           await db.segments.where('transcriptId').equals(t.id).delete()
-          await db.transcripts.delete(t.id)
+          await db.subtitles.delete(t.id)
         }
       }
     })
     transcriptionLogger.info(
-      `已删除 ${transcripts.length} 条转录及其 segments。请刷新此页面或返回首页再次点进文件，会按当前 settings 的学习语言重新转录。`,
+      `已删除 ${subtitles.length} 条转录及其 segments。请刷新此页面或返回首页再次点进文件，会按当前 settings 的学习语言重新转录。`,
     )
     return true
   } catch (error) {

@@ -7,7 +7,7 @@ import React, { useCallback, useState } from 'react'
 import { Card, CardContent } from '~/components/ui/card'
 import { useFiles } from '~/hooks'
 import { useFileStatus, useFileStatusManager } from '~/hooks/useFileStatus'
-import type { FileRow } from '~/types/db/database'
+import type { MediaRow } from '~/types/db/database'
 import FileCard from './FileCard'
 import FileUpload from './FileUpload'
 
@@ -95,7 +95,7 @@ export default function FileManager({ className }: FileManagerProps) {
     if (!files) return []
 
     return files.sort((a, b) => {
-      return (b.uploadedAt?.getTime() || 0) - (a.uploadedAt?.getTime() || 0)
+      return (b.addedAt?.getTime() || 0) - (a.addedAt?.getTime() || 0)
     })
   }, [files])
 
@@ -151,7 +151,7 @@ function FileCardWrapper({
   onPlay,
   onDelete,
 }: {
-  file: FileRow
+  file: MediaRow
   onPlay: (fileId: number) => void
   onDelete: (fileId: number) => void
 }) {

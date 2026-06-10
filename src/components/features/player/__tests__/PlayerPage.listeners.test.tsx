@@ -3,7 +3,31 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { type ReactNode, StrictMode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import PlayerPageComponent from '~/components/features/player/PlayerPage'
-import { DBUtils } from '~/lib/db/db'
+
+const FIXTURE_FILE_ID = 1
+
+vi.mock('~/lib/db/db', () => {
+  const blob = new Blob(['fake audio'], { type: 'audio/mpeg' })
+  return {
+    DBUtils: {
+      getMedia: vi.fn().mockResolvedValue({
+        id: 1,
+        kind: 'audio',
+        title: 'fixture.mp3',
+        durationSec: null,
+        addedAt: new Date(),
+        updatedAt: new Date(),
+        blob,
+        fileName: 'fixture.mp3',
+        fileSize: blob.size,
+        mimeType: blob.type,
+      }),
+      findSubtitleByMediaId: vi.fn().mockResolvedValue(undefined),
+      getSegmentsByTranscriptIdOrdered: vi.fn().mockResolvedValue([]),
+    },
+    db: {},
+  }
+})
 
 vi.mock('~/hooks/useFileStatus', () => ({
   useFileStatusManager: () => ({
@@ -27,17 +51,6 @@ function wrap(client: QueryClient) {
 
 describe('PlayerPage — audio event listeners', () => {
   it('attaches timeupdate listener so subtitles can scroll once data loads', async () => {
-    const blob = new Blob(['fake audio'], { type: 'audio/mpeg' })
-    const fileId = await DBUtils.addFile({
-      name: 'fixture.mp3',
-      size: blob.size,
-      type: blob.type,
-      blob,
-      isChunked: false,
-      uploadedAt: new Date(),
-      updatedAt: new Date(),
-    })
-
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
@@ -47,7 +60,7 @@ describe('PlayerPage — audio event listeners', () => {
     const Wrapper = wrap(client)
     render(
       <Wrapper>
-        <PlayerPageComponent fileId={String(fileId)} />
+        <PlayerPageComponent fileId={String(FIXTURE_FILE_ID)} />
       </Wrapper>,
     )
 

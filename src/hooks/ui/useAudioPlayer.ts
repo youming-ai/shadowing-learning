@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FileRow } from '~/types/db/database'
+import type { MediaRow } from '~/types/db/database'
 import type { AudioPlayerState } from '~/types/player'
 
 export interface UseAudioPlayerReturn {
   audioPlayerState: AudioPlayerState
   loopStart?: number
   loopEnd?: number
-  currentFile?: FileRow | null
+  currentFile?: MediaRow | null
   playbackRate: number
   setPlaybackRate: (rate: number) => void
-  setCurrentFile: (file: FileRow | null) => void
+  setCurrentFile: (file: MediaRow | null) => void
   setLoopPoints: (start?: number, end?: number) => void
   updatePlayerState: (updates: Partial<AudioPlayerState>) => void
   handleSeek: (time: number) => void
@@ -34,7 +34,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
 
   const [loopStart, setLoopStart] = useState<number>()
   const [loopEnd, setLoopEnd] = useState<number>()
-  const [currentFile, setCurrentFile] = useState<FileRow | null>(null)
+  const [currentFile, setCurrentFile] = useState<MediaRow | null>(null)
   const [playbackRate, setPlaybackRate] = useState<number>(1)
 
   const sanitizeTime = useCallback((value: number): number => {

@@ -78,13 +78,13 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
     audio.currentTime = 0
     audio.load()
 
-    const fallbackDuration = file?.duration ?? 0
+    const fallbackDuration = file?.durationSec ?? 0
     updatePlayerState({
       isPlaying: false,
       currentTime: 0,
       duration: sanitizeNumber(fallbackDuration, 0),
     })
-  }, [audioUrl, file?.duration, updatePlayerState, sanitizeNumber])
+  }, [audioUrl, file?.durationSec, updatePlayerState, sanitizeNumber])
 
   useEffect(() => {
     if (!audioRef.current) return
@@ -138,19 +138,19 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
     }
 
     const handleLoadedMetadata = () => {
-      const fallbackDuration = file?.duration ?? 0
+      const fallbackDuration = file?.durationSec ?? 0
       const duration = sanitizeNumber(audio.duration, fallbackDuration)
       updatePlayerState({ duration })
     }
 
     const handleDurationChange = () => {
-      const fallbackDuration = file?.duration ?? 0
+      const fallbackDuration = file?.durationSec ?? 0
       const duration = sanitizeNumber(audio.duration, fallbackDuration)
       updatePlayerState({ duration })
     }
 
     const handleEnded = () => {
-      const duration = sanitizeNumber(audio.duration, file?.duration ?? 0)
+      const duration = sanitizeNumber(audio.duration, file?.durationSec ?? 0)
       updatePlayerState({ isPlaying: false, currentTime: duration })
       onClearLoop()
     }
@@ -178,7 +178,7 @@ export default function PlayerPageComponent({ fileId }: { fileId: string }) {
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
     }
-  }, [audioUrl, updatePlayerState, sanitizeNumber, file?.duration, onClearLoop])
+  }, [audioUrl, updatePlayerState, sanitizeNumber, file?.durationSec, onClearLoop])
 
   const handleSegmentClick = useCallback(
     (segment: Segment) => {

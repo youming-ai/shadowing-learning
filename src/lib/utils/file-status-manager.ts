@@ -1,8 +1,8 @@
-/** * 统一Filestate管理器 * 消除 FileRow.status 和 TranscriptRow.status 不一致问题 * 以 TranscriptRow.status a唯一真实数据源 (Single Source of Truth)*/
+/** * 统一媒体状态管理器 * 以 SubtitleRow.status 为唯一真实数据源 (Single Source of Truth)*/
 
 import { db } from '~/lib/db/db'
 import { dbLogger } from '~/lib/utils/logger'
-import type { ProcessingStatus } from '~/types/db/database'
+import type { ProcessingStatus, SubtitleRow } from '~/types/db/database'
 
 export type FileDisplayStatus = 'uploaded' | 'transcribing' | 'completed' | 'error'
 
@@ -24,20 +24,20 @@ export function mapProcessingStatusToFileStatus(
 export async function getFileRealStatus(fileId: number): Promise<{
   status: FileDisplayStatus
   transcriptId?: number
-  transcript?: any
+  transcript?: SubtitleRow
 }> {
   try {
-    const transcripts = await db.transcripts.where('fileId').equals(fileId).toArray()
-    const transcript = transcripts.length > 0 ? transcripts[0] : null
+    const subtitles = await db.subtitles.where('mediaId').equals(fileId).toArray()
+    const subtitle = subtitles.length > 0 ? subtitles[0] : null
 
-    if (!transcript) {
+    if (!subtitle) {
       return { status: 'uploaded' }
     }
 
     return {
-      status: mapProcessingStatusToFileStatus(transcript.status),
-      transcriptId: transcript.id,
-      transcript,
+      status: mapProcessingStatusToFileStatus(subtitle.status),
+      transcriptId: subtitle.id,
+      transcript: subtitle,
     }
   } catch (error) {
     dbLogger.error('获取文件真实状态失败:', error)
@@ -53,16 +53,16 @@ export async function updateTranscriptionStatus(
   additionalData?: Partial<any>,
 ): Promise<number | undefined> {
   try {
-    return await db.transaction('rw', db.transcripts, async () => {
+    return await db.transaction('rw', db.subtitles, async () => {
       // 查找现有Transcriptionrecord
-      const transcripts = await db.transcripts.where('fileId').equals(fileId).toArray()
+      const subtitles = await db.subtitles.where('mediaId').equals(fileId).toArray()
 
       let transcriptId: number
 
-      if (transcripts.length > 0 && transcripts[0].id) {
+      if (subtitles.length > 0 && subtitles[0].id) {
         // Update现有Transcriptionrecord
-        transcriptId = transcripts[0].id
-        await db.transcripts.update(transcriptId, {
+        transcriptId = subtitles[0].id
+        await db.subtitles.update(transcriptId, {
           status,
           error: error || undefined,
           updatedAt: new Date(),
@@ -70,9 +70,12 @@ export async function updateTranscriptionStatus(
         })
       } else {
         // 创建新Transcriptionrecord（仅在开始Transcription时）
-        transcriptId = await db.transcripts.add({
-          fileId,
+        transcriptId = await db.subtitles.add({
+          mediaId: fileId,
+          source: 'whisper' as const,
           status,
+          sourceLanguage: '',
+          targetLanguage: null,
           error: error || undefined,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -90,7 +93,7 @@ export async function updateTranscriptionStatus(
 
 export async function getFilesStatus(fileIds: number[]): Promise<Map<number, FileDisplayStatus>> {
   try {
-    const transcripts = await db.transcripts.where('fileId').anyOf(fileIds).toArray()
+    const subtitles = await db.subtitles.where('mediaId').anyOf(fileIds).toArray()
 
     const statusMap = new Map<number, FileDisplayStatus>()
 
@@ -98,9 +101,9 @@ export async function getFilesStatus(fileIds: number[]): Promise<Map<number, Fil
       statusMap.set(fileId, 'uploaded')
     })
 
-    transcripts.forEach((transcript) => {
-      if (transcript.fileId) {
-        statusMap.set(transcript.fileId, mapProcessingStatusToFileStatus(transcript.status))
+    subtitles.forEach((subtitle) => {
+      if (subtitle.mediaId) {
+        statusMap.set(subtitle.mediaId, mapProcessingStatusToFileStatus(subtitle.status))
       }
     })
 
@@ -121,22 +124,22 @@ export async function cleanupFailedTranscriptions(olderThanDays: number = 7): Pr
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays)
 
-    const failedTranscripts = await db.transcripts
+    const failedSubtitles = await db.subtitles
       .where('status')
       .equals('failed')
-      .and((transcript) => transcript.updatedAt < cutoffDate)
+      .and((subtitle) => subtitle.updatedAt < cutoffDate)
       .toArray()
 
-    for (const transcript of failedTranscripts) {
-      if (transcript.id) {
+    for (const subtitle of failedSubtitles) {
+      if (subtitle.id) {
         // Delete相关 segments
-        await db.segments.where('transcriptId').equals(transcript.id).delete()
+        await db.segments.where('transcriptId').equals(subtitle.id).delete()
         // DeleteTranscriptionrecord
-        await db.transcripts.delete(transcript.id)
+        await db.subtitles.delete(subtitle.id)
       }
     }
 
-    dbLogger.info(`清理了 ${failedTranscripts.length} 个过期的失败转录记录`)
+    dbLogger.info(`清理了 ${failedSubtitles.length} 个过期的失败转录记录`)
   } catch (error) {
     dbLogger.error('清理过期转录记录失败:', error)
   }
