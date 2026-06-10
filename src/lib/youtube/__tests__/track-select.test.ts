@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { type CaptionTrackMeta, selectCaptionTrack } from '~/lib/youtube/track-select'
 
 const t = (language: string, kind: 'manual' | 'asr', displayName: string): CaptionTrackMeta => ({
-  language, kind, displayName,
+  language,
+  kind,
+  displayName,
 })
 
 describe('selectCaptionTrack — 5 级优先', () => {

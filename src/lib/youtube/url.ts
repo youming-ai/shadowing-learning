@@ -1,6 +1,10 @@
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/
 const ALLOWED_HOSTS = new Set([
-  'www.youtube.com', 'youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be',
+  'www.youtube.com',
+  'youtube.com',
+  'm.youtube.com',
+  'music.youtube.com',
+  'youtu.be',
 ])
 
 /**
