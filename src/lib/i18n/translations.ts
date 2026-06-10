@@ -47,6 +47,49 @@ export interface TranslationKey {
   'transcription.success': string
   'transcription.error': string
 
+  // Library
+  'library.title': string
+  'library.add': string
+  'library.search.placeholder': string
+  'library.empty.title': string
+  'library.empty.cta': string
+  'library.deleteConfirm': string
+
+  // Import dialog
+  'import.tab.youtube': string
+  'import.tab.upload': string
+  'import.url.placeholder': string
+  'import.submit': string
+  'import.resolving': string
+  'import.saving': string
+  'import.error.INVALID_URL': string
+  'import.error.VIDEO_NOT_FOUND': string
+  'import.error.VIDEO_UNAVAILABLE': string
+  'import.error.LIVE_NOT_SUPPORTED': string
+  'import.error.VIDEO_TOO_LONG': string
+  'import.error.AUDIO_TOO_LARGE': string
+  'import.error.YT_BLOCKED': string
+  'import.error.EXTRACTOR_UNAVAILABLE': string
+  'import.error.EXTRACTOR_FAILED': string
+  'import.error.QUOTA_EXHAUSTED': string
+  'import.error.SERVER_BUSY': string
+  'import.error.RATE_LIMITED': string
+
+  // Watch page
+  'watch.subtitleCount': string
+  'watch.regenerate': string
+  'watch.regenerateConfirm': string
+  'watch.openOnYouTube': string
+  'watch.embedBlocked': string
+  'watch.notFound': string
+  'watch.stage.captions': string
+  'watch.stage.transcribing': string
+  'watch.stage.translating': string
+  'watch.retryPipeline': string
+  'watch.prevSentence': string
+  'watch.nextSentence': string
+  'watch.loopSentence': string
+
   // Common
   'common.loading': string
   'common.error': string
@@ -111,6 +154,45 @@ export const translations: Record<string, TranslationKey> = {
     'transcription.success': '转录完成',
     'transcription.error': '转录失败',
 
+    // Library
+    'library.title': '资料库',
+    'library.add': '添加',
+    'library.search.placeholder': '搜索已导入的内容',
+    'library.empty.title': '还没有学习内容',
+    'library.empty.cta': '粘贴一个 YouTube 链接开始学习',
+    'library.deleteConfirm': '删除这个内容及其字幕？',
+    'import.tab.youtube': 'YouTube 链接',
+    'import.tab.upload': '上传音频',
+    'import.url.placeholder': '粘贴 YouTube 视频链接…',
+    'import.submit': '导入',
+    'import.resolving': '获取视频信息…',
+    'import.saving': '保存中…',
+    'import.error.INVALID_URL': '无法识别的 YouTube 链接，请检查格式',
+    'import.error.VIDEO_NOT_FOUND': '视频不存在或已删除',
+    'import.error.VIDEO_UNAVAILABLE': '视频不可用（私享、区域或年龄限制）',
+    'import.error.LIVE_NOT_SUPPORTED': '暂不支持直播内容，请等存档后再导入',
+    'import.error.VIDEO_TOO_LONG': '无字幕视频暂只支持 30 分钟以内',
+    'import.error.AUDIO_TOO_LARGE': '音频超过大小上限，暂无法转写',
+    'import.error.YT_BLOCKED': '服务器暂时无法访问 YouTube，请稍后再试',
+    'import.error.EXTRACTOR_UNAVAILABLE': '服务器未配置转写组件，暂只支持有字幕的视频',
+    'import.error.EXTRACTOR_FAILED': 'YouTube 数据获取失败，请稍后重试',
+    'import.error.QUOTA_EXHAUSTED': '今日 AI 转写额度已用完，请明天再试',
+    'import.error.SERVER_BUSY': '已有转写任务进行中，请稍后再试',
+    'import.error.RATE_LIMITED': '请求过于频繁，请稍后再试',
+    'watch.subtitleCount': '字幕',
+    'watch.regenerate': '重新生成字幕',
+    'watch.regenerateConfirm': '重新转写将消耗 AI 额度，确定继续？',
+    'watch.openOnYouTube': '在 YouTube 打开',
+    'watch.embedBlocked': '该视频不允许嵌入播放',
+    'watch.notFound': '内容不存在，可能已被删除',
+    'watch.stage.captions': '获取字幕中…',
+    'watch.stage.transcribing': 'AI 转写中…',
+    'watch.stage.translating': '翻译中（{done}/{total}）',
+    'watch.retryPipeline': '重试',
+    'watch.prevSentence': '上一句',
+    'watch.nextSentence': '下一句',
+    'watch.loopSentence': '单句循环',
+
     // Common
     'common.loading': '加载中...',
     'common.error': '错误',
@@ -172,6 +254,45 @@ export const translations: Record<string, TranslationKey> = {
     'transcription.retry': '重新轉錄',
     'transcription.success': '轉錄完成',
     'transcription.error': '轉錄失敗',
+
+    // Library
+    'library.title': '資料庫',
+    'library.add': '新增',
+    'library.search.placeholder': '搜尋已匯入的內容',
+    'library.empty.title': '還沒有學習內容',
+    'library.empty.cta': '貼上一個 YouTube 連結開始學習',
+    'library.deleteConfirm': '刪除這個內容及其字幕？',
+    'import.tab.youtube': 'YouTube 連結',
+    'import.tab.upload': '上傳音訊',
+    'import.url.placeholder': '貼上 YouTube 影片連結…',
+    'import.submit': '匯入',
+    'import.resolving': '取得影片資訊…',
+    'import.saving': '儲存中…',
+    'import.error.INVALID_URL': '無法識別的 YouTube 連結，請檢查格式',
+    'import.error.VIDEO_NOT_FOUND': '影片不存在或已刪除',
+    'import.error.VIDEO_UNAVAILABLE': '影片不可用（私人、區域或年齡限制）',
+    'import.error.LIVE_NOT_SUPPORTED': '暫不支援直播內容，請等存檔後再匯入',
+    'import.error.VIDEO_TOO_LONG': '無字幕影片暫只支援 30 分鐘以內',
+    'import.error.AUDIO_TOO_LARGE': '音訊超過大小上限，暫無法轉寫',
+    'import.error.YT_BLOCKED': '伺服器暫時無法存取 YouTube，請稍後再試',
+    'import.error.EXTRACTOR_UNAVAILABLE': '伺服器未設定轉寫元件，暫只支援有字幕的影片',
+    'import.error.EXTRACTOR_FAILED': 'YouTube 資料取得失敗，請稍後重試',
+    'import.error.QUOTA_EXHAUSTED': '今日 AI 轉寫額度已用完，請明天再試',
+    'import.error.SERVER_BUSY': '已有轉寫任務進行中，請稍後再試',
+    'import.error.RATE_LIMITED': '請求過於頻繁，請稍後再試',
+    'watch.subtitleCount': '字幕',
+    'watch.regenerate': '重新產生字幕',
+    'watch.regenerateConfirm': '重新轉寫將消耗 AI 額度，確定繼續？',
+    'watch.openOnYouTube': '在 YouTube 開啟',
+    'watch.embedBlocked': '該影片不允許嵌入播放',
+    'watch.notFound': '內容不存在，可能已被刪除',
+    'watch.stage.captions': '取得字幕中…',
+    'watch.stage.transcribing': 'AI 轉寫中…',
+    'watch.stage.translating': '翻譯中（{done}/{total}）',
+    'watch.retryPipeline': '重試',
+    'watch.prevSentence': '上一句',
+    'watch.nextSentence': '下一句',
+    'watch.loopSentence': '單句循環',
 
     // Common
     'common.loading': '載入中...',
@@ -235,6 +356,46 @@ export const translations: Record<string, TranslationKey> = {
     'transcription.success': 'Transcription Completed',
     'transcription.error': 'Transcription Failed',
 
+    // Library
+    'library.title': 'Library',
+    'library.add': 'Add',
+    'library.search.placeholder': 'Search imported content',
+    'library.empty.title': 'Nothing to learn yet',
+    'library.empty.cta': 'Paste a YouTube link to start learning',
+    'library.deleteConfirm': 'Delete this item and its subtitles?',
+    'import.tab.youtube': 'YouTube link',
+    'import.tab.upload': 'Upload audio',
+    'import.url.placeholder': 'Paste a YouTube video link…',
+    'import.submit': 'Import',
+    'import.resolving': 'Fetching video info…',
+    'import.saving': 'Saving…',
+    'import.error.INVALID_URL': 'Unrecognized YouTube link — please check the format',
+    'import.error.VIDEO_NOT_FOUND': 'Video not found or deleted',
+    'import.error.VIDEO_UNAVAILABLE': 'Video unavailable (private, region or age restricted)',
+    'import.error.LIVE_NOT_SUPPORTED': 'Live streams are not supported yet',
+    'import.error.VIDEO_TOO_LONG': 'Videos without captions are limited to 30 minutes',
+    'import.error.AUDIO_TOO_LARGE': 'Audio exceeds the size limit for transcription',
+    'import.error.YT_BLOCKED': 'The server cannot reach YouTube right now — try again later',
+    'import.error.EXTRACTOR_UNAVAILABLE':
+      'Transcription unavailable on this server; only captioned videos are supported',
+    'import.error.EXTRACTOR_FAILED': 'Failed to fetch YouTube data — please retry',
+    'import.error.QUOTA_EXHAUSTED': 'Daily AI transcription quota reached — try tomorrow',
+    'import.error.SERVER_BUSY': 'Another transcription is running — try again shortly',
+    'import.error.RATE_LIMITED': 'Too many requests — please slow down',
+    'watch.subtitleCount': 'Subtitles',
+    'watch.regenerate': 'Regenerate subtitles',
+    'watch.regenerateConfirm': 'Re-transcribing consumes AI quota. Continue?',
+    'watch.openOnYouTube': 'Open on YouTube',
+    'watch.embedBlocked': 'This video does not allow embedded playback',
+    'watch.notFound': 'Content not found — it may have been deleted',
+    'watch.stage.captions': 'Fetching captions…',
+    'watch.stage.transcribing': 'AI transcribing…',
+    'watch.stage.translating': 'Translating ({done}/{total})',
+    'watch.retryPipeline': 'Retry',
+    'watch.prevSentence': 'Previous sentence',
+    'watch.nextSentence': 'Next sentence',
+    'watch.loopSentence': 'Loop sentence',
+
     // Common
     'common.loading': 'Loading...',
     'common.error': 'Error',
@@ -296,6 +457,47 @@ export const translations: Record<string, TranslationKey> = {
     'transcription.retry': '文字起こしを再試行',
     'transcription.success': '文字起こしが完了しました',
     'transcription.error': '文字起こしに失敗しました',
+
+    // Library
+    'library.title': 'ライブラリ',
+    'library.add': '追加',
+    'library.search.placeholder': 'インポート済みコンテンツを検索',
+    'library.empty.title': 'まだ学習コンテンツがありません',
+    'library.empty.cta': 'YouTube リンクを貼り付けて学習を始める',
+    'library.deleteConfirm': 'このコンテンツと字幕を削除しますか？',
+    'import.tab.youtube': 'YouTube リンク',
+    'import.tab.upload': '音声をアップロード',
+    'import.url.placeholder': 'YouTube 動画のリンクを貼り付け…',
+    'import.submit': 'インポート',
+    'import.resolving': '動画情報を取得中…',
+    'import.saving': '保存中…',
+    'import.error.INVALID_URL': 'YouTube リンクを認識できません。形式を確認してください',
+    'import.error.VIDEO_NOT_FOUND': '動画が存在しないか削除されています',
+    'import.error.VIDEO_UNAVAILABLE': '動画を利用できません（非公開・地域・年齢制限）',
+    'import.error.LIVE_NOT_SUPPORTED': 'ライブ配信は未対応です。アーカイブ後にお試しください',
+    'import.error.VIDEO_TOO_LONG': '字幕なし動画は 30 分以内のみ対応しています',
+    'import.error.AUDIO_TOO_LARGE': '音声がサイズ上限を超えているため転写できません',
+    'import.error.YT_BLOCKED':
+      'サーバーが YouTube にアクセスできません。後でもう一度お試しください',
+    'import.error.EXTRACTOR_UNAVAILABLE':
+      'サーバーに転写コンポーネントがなく、字幕付き動画のみ対応しています',
+    'import.error.EXTRACTOR_FAILED': 'YouTube データの取得に失敗しました。後で再試行してください',
+    'import.error.QUOTA_EXHAUSTED': '本日の AI 転写枠を使い切りました。明日お試しください',
+    'import.error.SERVER_BUSY': '別の転写タスクが実行中です。しばらくしてからお試しください',
+    'import.error.RATE_LIMITED': 'リクエストが多すぎます。しばらくお待ちください',
+    'watch.subtitleCount': '字幕',
+    'watch.regenerate': '字幕を再生成',
+    'watch.regenerateConfirm': '再転写は AI 枠を消費します。続行しますか？',
+    'watch.openOnYouTube': 'YouTube で開く',
+    'watch.embedBlocked': 'この動画は埋め込み再生を許可していません',
+    'watch.notFound': 'コンテンツが見つかりません。削除された可能性があります',
+    'watch.stage.captions': '字幕を取得中…',
+    'watch.stage.transcribing': 'AI 転写中…',
+    'watch.stage.translating': '翻訳中（{done}/{total}）',
+    'watch.retryPipeline': '再試行',
+    'watch.prevSentence': '前の文',
+    'watch.nextSentence': '次の文',
+    'watch.loopSentence': '一文リピート',
 
     // Common
     'common.loading': '読み込み中...',
