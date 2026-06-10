@@ -62,6 +62,21 @@ export const API_RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
     maxRequests: 20,
     message: '文本处理请求过于频繁，请稍后再试',
   },
+  '/api/youtube/resolve': {
+    windowMs: 10 * 60 * 1000,
+    maxRequests: 20,
+    message: '解析请求过于频繁，请稍后再试',
+  },
+  '/api/youtube/captions': {
+    windowMs: 10 * 60 * 1000,
+    maxRequests: 20,
+    message: '字幕请求过于频繁，请稍后再试',
+  },
+  '/api/youtube/transcribe': {
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 4,
+    message: 'AI 转写额度有限，请稍后再试',
+  },
   // 默认 API 限制
   default: {
     windowMs: 60 * 1000,
