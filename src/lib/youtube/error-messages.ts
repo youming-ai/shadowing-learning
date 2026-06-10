@@ -1,3 +1,5 @@
+import type { TranslationKey } from '~/lib/i18n/translations'
+
 const KNOWN_CODES = new Set([
   'INVALID_URL',
   'VIDEO_NOT_FOUND',
@@ -13,6 +15,8 @@ const KNOWN_CODES = new Set([
   'RATE_LIMITED',
 ])
 
-export function youtubeErrorMessageKey(code: string | undefined): string {
-  return code && KNOWN_CODES.has(code) ? `import.error.${code}` : 'import.error.EXTRACTOR_FAILED'
+export function youtubeErrorMessageKey(code: string | undefined): keyof TranslationKey {
+  return (
+    code && KNOWN_CODES.has(code) ? `import.error.${code}` : 'import.error.EXTRACTOR_FAILED'
+  ) as keyof TranslationKey
 }
