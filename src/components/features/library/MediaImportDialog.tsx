@@ -34,8 +34,7 @@ export function MediaImportDialog({ open, onOpenChange }: MediaImportDialogProps
       const mediaId = await importYouTubeUrl(url.trim())
       onOpenChange(false)
       setUrl('')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      navigate({ to: '/watch/$mediaId' as any, params: { mediaId: String(mediaId) } as any })
+      navigate({ to: '/watch/$mediaId', params: { mediaId: String(mediaId) } })
     } catch (error) {
       const code = error instanceof ImportError ? error.code : undefined
       toast.error(t(youtubeErrorMessageKey(code)))

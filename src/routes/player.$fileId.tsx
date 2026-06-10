@@ -1,16 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import PlayerErrorBoundary from '~/components/features/player/PlayerErrorBoundary'
-import PlayerPageComponent from '~/components/features/player/PlayerPage'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/player/$fileId')({
-  component: PlayerRoute,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/watch/$mediaId', params: { mediaId: params.fileId } })
+  },
 })
-
-function PlayerRoute() {
-  const { fileId } = Route.useParams()
-  return (
-    <PlayerErrorBoundary>
-      <PlayerPageComponent fileId={fileId} />
-    </PlayerErrorBoundary>
-  )
-}

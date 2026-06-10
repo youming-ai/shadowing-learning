@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WatchMediaIdRouteImport } from './routes/watch.$mediaId'
 import { Route as PlayerFileIdRouteImport } from './routes/player.$fileId'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiPostprocessRouteImport } from './routes/api/postprocess'
@@ -34,6 +35,11 @@ const AccountRoute = AccountRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WatchMediaIdRoute = WatchMediaIdRouteImport.update({
+  id: '/watch/$mediaId',
+  path: '/watch/$mediaId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayerFileIdRoute = PlayerFileIdRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/api/postprocess': typeof ApiPostprocessRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/player/$fileId': typeof PlayerFileIdRoute
+  '/watch/$mediaId': typeof WatchMediaIdRoute
   '/api/youtube/captions': typeof ApiYoutubeCaptionsRoute
   '/api/youtube/resolve': typeof ApiYoutubeResolveRoute
   '/api/youtube/transcribe': typeof ApiYoutubeTranscribeRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/api/postprocess': typeof ApiPostprocessRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/player/$fileId': typeof PlayerFileIdRoute
+  '/watch/$mediaId': typeof WatchMediaIdRoute
   '/api/youtube/captions': typeof ApiYoutubeCaptionsRoute
   '/api/youtube/resolve': typeof ApiYoutubeResolveRoute
   '/api/youtube/transcribe': typeof ApiYoutubeTranscribeRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/api/postprocess': typeof ApiPostprocessRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/player/$fileId': typeof PlayerFileIdRoute
+  '/watch/$mediaId': typeof WatchMediaIdRoute
   '/api/youtube/captions': typeof ApiYoutubeCaptionsRoute
   '/api/youtube/resolve': typeof ApiYoutubeResolveRoute
   '/api/youtube/transcribe': typeof ApiYoutubeTranscribeRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/api/postprocess'
     | '/api/transcribe'
     | '/player/$fileId'
+    | '/watch/$mediaId'
     | '/api/youtube/captions'
     | '/api/youtube/resolve'
     | '/api/youtube/transcribe'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/api/postprocess'
     | '/api/transcribe'
     | '/player/$fileId'
+    | '/watch/$mediaId'
     | '/api/youtube/captions'
     | '/api/youtube/resolve'
     | '/api/youtube/transcribe'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/api/postprocess'
     | '/api/transcribe'
     | '/player/$fileId'
+    | '/watch/$mediaId'
     | '/api/youtube/captions'
     | '/api/youtube/resolve'
     | '/api/youtube/transcribe'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   ApiPostprocessRoute: typeof ApiPostprocessRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   PlayerFileIdRoute: typeof PlayerFileIdRoute
+  WatchMediaIdRoute: typeof WatchMediaIdRoute
   ApiYoutubeCaptionsRoute: typeof ApiYoutubeCaptionsRoute
   ApiYoutubeResolveRoute: typeof ApiYoutubeResolveRoute
   ApiYoutubeTranscribeRoute: typeof ApiYoutubeTranscribeRoute
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/watch/$mediaId': {
+      id: '/watch/$mediaId'
+      path: '/watch/$mediaId'
+      fullPath: '/watch/$mediaId'
+      preLoaderRoute: typeof WatchMediaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/player/$fileId': {
@@ -264,6 +284,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostprocessRoute: ApiPostprocessRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   PlayerFileIdRoute: PlayerFileIdRoute,
+  WatchMediaIdRoute: WatchMediaIdRoute,
   ApiYoutubeCaptionsRoute: ApiYoutubeCaptionsRoute,
   ApiYoutubeResolveRoute: ApiYoutubeResolveRoute,
   ApiYoutubeTranscribeRoute: ApiYoutubeTranscribeRoute,
