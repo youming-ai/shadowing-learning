@@ -1,7 +1,7 @@
 /** * Simplified database operations file * Removed complex batch processors, keeping core functionality*/
 
 import Dexie, { type Table } from 'dexie'
-import type { FileRow, Segment, TranscriptRow } from '~/types/db/database'
+import type { FileRow, MediaRow, Segment, SubtitleRow, TranscriptRow } from '~/types/db/database'
 import { handleError } from '../utils/error-handler'
 import { dbLogger } from '../utils/logger'
 
@@ -9,6 +9,8 @@ export class AppDatabase extends Dexie {
   files!: Table<FileRow>
   transcripts!: Table<TranscriptRow>
   segments!: Table<Segment>
+  media!: Table<MediaRow>
+  subtitles!: Table<SubtitleRow>
 
   constructor() {
     super('shadowing-learning-db')
@@ -58,11 +60,80 @@ export class AppDatabase extends Dexie {
           dbLogger.error('Database migration to version 3 failed:', error)
         }
       })
+
+    this.version(4)
+      .stores({
+        media: '++id, kind, &externalId, addedAt, [kind+addedAt]',
+        subtitles: '++id, mediaId, status, createdAt',
+        // 以下三表与 v3 逐字一致：不重写行数据、不删旧表（恢复窗口，v5 再删）
+        files: '++id, name, size, type, uploadedAt, [name+type]',
+        transcripts: '++id, fileId, status, language, createdAt, updatedAt',
+        segments:
+          '++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]',
+      })
+      .upgrade(async (tx) => {
+        dbLogger.debug('Database migrating to version 4: unified media model')
+        const files = await tx.table('files').toArray()
+        await tx.table('media').bulkAdd(
+          files.map((f) => ({
+            id: f.id,
+            kind: 'audio' as const,
+            title: f.name,
+            durationSec: f.duration ?? null,
+            addedAt: f.uploadedAt,
+            updatedAt: f.updatedAt,
+            blob: f.blob,
+            fileName: f.name,
+            fileSize: f.size,
+            mimeType: f.type,
+          })),
+        )
+        const transcripts = await tx.table('transcripts').toArray()
+        await tx.table('subtitles').bulkAdd(
+          transcripts.map((t) => ({
+            id: t.id,
+            mediaId: t.fileId,
+            source: 'whisper' as const,
+            status: t.status,
+            sourceLanguage: t.language ?? 'auto',
+            targetLanguage: null,
+            postProcessStatus: t.postProcessStatus,
+            postProcessError: t.postProcessError,
+            rawText: t.rawText,
+            error: t.error,
+            createdAt: t.createdAt,
+            updatedAt: t.updatedAt,
+          })),
+        )
+        dbLogger.debug(`v4 migration done: ${files.length} media, ${transcripts.length} subtitles`)
+      })
   }
 }
 
 // Create database instance
 export const db = new AppDatabase()
+
+// 另一个标签页升级 DB 时，关闭本页连接并刷新，避免阻塞升级（Dexie 推荐做法）。
+// 显式 disableAutoOpen：避免与 Dexie 内置 versionchange 处理的默认行为重复，且我们随即整页刷新。
+db.on('versionchange', () => {
+  db.close({ disableAutoOpen: true })
+  if (typeof window !== 'undefined') {
+    window.location.reload()
+  }
+})
+
+// v4 打开后的一次性行数校验（检测线：不一致只上报，不阻断）
+db.on('ready', async () => {
+  if (typeof window === 'undefined') return
+  try {
+    const [filesCount, mediaCount] = await Promise.all([db.files.count(), db.media.count()])
+    if (mediaCount < filesCount) {
+      dbLogger.error(`v4 row-count mismatch: files=${filesCount} media=${mediaCount}`)
+    }
+  } catch (e) {
+    dbLogger.error('v4 row-count check failed:', e)
+  }
+})
 
 // Simplified database utilities with repository functionality integrated
 export const DBUtils = {
