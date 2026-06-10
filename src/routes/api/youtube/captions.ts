@@ -1,4 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
+// 默认导入（非 `{ z }`）：vitest 的 ESM interop 下 zod v4 的具名导出 `z` 解析为 undefined，
+// 默认导入在 vitest 与生产运行时（zod v4 有 `export default z`）下都可用。勿改回具名导入。
 import z from 'zod'
 import { apiError, apiSuccess } from '~/lib/utils/api-response'
 import {

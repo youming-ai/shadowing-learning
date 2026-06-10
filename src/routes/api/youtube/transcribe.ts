@@ -1,4 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
+// 默认导入（非 `{ z }`）：vitest 的 ESM interop 下 zod v4 的具名导出 `z` 解析为 undefined，
+// 默认导入在 vitest 与生产运行时（zod v4 有 `export default z`）下都可用。勿改回具名导入。
 import z from 'zod'
 import { processTranscription } from '~/lib/ai/groq-whisper'
 import { apiError, apiSuccess } from '~/lib/utils/api-response'
@@ -50,13 +52,9 @@ export async function handleYoutubeTranscribePost(request: Request): Promise<Res
       statusCode: 501,
     })
   }
-  if (!transcribeDailyQuota.tryConsume()) {
-    return apiError({
-      code: 'QUOTA_EXHAUSTED',
-      message: '今日 AI 转写额度已用完，请明天再试或选择有字幕的视频',
-      statusCode: 429,
-    })
-  }
+
+  // 先获取并发信号量（不消耗任何额度），再决定是否消耗每日配额。
+  // 这样被 SERVER_BUSY 或 VIDEO_TOO_LONG 拒绝的请求都不会白白烧掉一个全局配额槽。
   const release = transcribeSemaphore.tryAcquire()
   if (!release) {
     return apiError({
@@ -73,6 +71,14 @@ export async function handleYoutubeTranscribePost(request: Request): Promise<Res
         code: 'VIDEO_TOO_LONG',
         message: '无字幕视频暂只支持 30 分钟以内',
         statusCode: 422,
+      })
+    }
+    // 确认要真正执行下载+转写后，才消耗每日全局配额
+    if (!transcribeDailyQuota.tryConsume()) {
+      return apiError({
+        code: 'QUOTA_EXHAUSTED',
+        message: '今日 AI 转写额度已用完，请明天再试或选择有字幕的视频',
+        statusCode: 429,
       })
     }
     const audioFile = await downloadAudio(videoId)

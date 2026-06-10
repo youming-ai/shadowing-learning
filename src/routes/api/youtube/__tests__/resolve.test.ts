@@ -14,7 +14,7 @@ vi.mock('~/lib/youtube/innertube', () => ({
   classifyYouTubeError: vi.fn(),
 }))
 
-import { getVideoMeta } from '~/lib/youtube/innertube'
+import { getVideoMeta, YouTubeSourceError } from '~/lib/youtube/innertube'
 import { handleResolvePost } from '~/routes/api/youtube/resolve'
 
 function post(body: unknown) {
@@ -67,5 +67,21 @@ describe('POST /api/youtube/resolve', () => {
     const res = await handleResolvePost(post({ url: 'https://youtu.be/dQw4w9WgXcQ' }))
     expect(res.status).toBe(422)
     expect((await res.json()).error.code).toBe('LIVE_NOT_SUPPORTED')
+  })
+
+  it('maps a YouTubeSourceError through to its code/status (e.g. VIDEO_UNAVAILABLE)', async () => {
+    vi.mocked(getVideoMeta).mockRejectedValue(
+      new YouTubeSourceError('VIDEO_UNAVAILABLE', 'private video', 403),
+    )
+    const res = await handleResolvePost(post({ url: 'https://youtu.be/dQw4w9WgXcQ' }))
+    expect(res.status).toBe(403)
+    expect((await res.json()).error.code).toBe('VIDEO_UNAVAILABLE')
+  })
+
+  it('maps an unknown error to EXTRACTOR_FAILED 502', async () => {
+    vi.mocked(getVideoMeta).mockRejectedValue(new Error('boom'))
+    const res = await handleResolvePost(post({ url: 'https://youtu.be/dQw4w9WgXcQ' }))
+    expect(res.status).toBe(502)
+    expect((await res.json()).error.code).toBe('EXTRACTOR_FAILED')
   })
 })
