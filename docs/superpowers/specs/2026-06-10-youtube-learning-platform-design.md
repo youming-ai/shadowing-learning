@@ -514,3 +514,12 @@ usePlayerAdapter(media)
 ## 附：审查记录
 
 本设计经 5 视角并行审查（代码库一致性 / Dexie 迁移 / YouTube 接入可行性 / 跨段一致性 / 测试发布安全）+ 逐发现对抗验证：45 条原始发现，42 条确认（2 blocker / 22 major / 18 minor）全部吸收，3 条被反驳剔除。关键修订：新增 Section 0 spike 决策门、CSP 变更、两阶段迁移、客户端分片翻译编排、yt-dlp 低码率与官方二进制方案、语言轴接线、official 字幕防改写策略、Vitest 测试口径。
+
+---
+
+## 实施后跟进项（Follow-ups）
+
+- **Dexie v5 删表（下个发布周期）**：本期 v4 保留了 `files`/`transcripts` 旧表作为只读恢复窗口。观察一个发布周期、确认迁移无异常后，新增 `version(5)` 声明 `files: null` / `transcripts: null` 删除旧表（Section 2 两阶段迁移的收尾）。
+- **Phase 0 spike（发布前置，未完成）**：`scripts/spike-youtube-vps.ts` 已就绪，但尚未在目标 Dokploy VPS 上实测 youtubei.js / yt-dlp 的可达性。发布前必须运行；若 < 90% 成功率，按 Section 0 的对策阶梯（cookies → PO token → TV_EMBEDDED → 住宅代理）调整后再发布。
+- **手动 DoD（发布前置，未完成）**：Section 6.3 的导入链路 / 播放页 / 回归三组清单需在运行的 app + 真实 YouTube 上人工逐条验证（含浏览器视觉、四主题 ThemeDebugger、CSP 无 console 违规、PWA 离线更新）。
+- **广告期字幕兜底（spec 5.4）**：留待真机观察广告期 `getCurrentTime` 行为后，作为后续小任务补 tick 异常检测。
