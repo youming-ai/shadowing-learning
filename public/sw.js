@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shadowing-learning-v2'
+const CACHE_NAME = 'shadowing-learning-v3'
 const OFFLINE_URL = '/'
 const urlsToCache = [OFFLINE_URL, '/manifest.json', '/icon.png']
 

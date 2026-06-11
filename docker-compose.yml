@@ -11,6 +11,9 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY}
       VITE_APP_URL: ${VITE_APP_URL:-}
       PERFORMANCE_ADMIN_TOKEN: ${PERFORMANCE_ADMIN_TOKEN:-}
+    # 限制 yt-dlp 转写临时音频的磁盘占用（与 /api/youtube/transcribe 的并发信号量配合）
+    tmpfs:
+      - /tmp:size=256M
     networks:
       - dokploy-network
 
