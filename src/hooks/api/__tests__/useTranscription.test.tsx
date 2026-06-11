@@ -210,6 +210,39 @@ describe('useTranscription Hook', () => {
       )
     })
 
+    // 回归守卫：watch 页（useSubtitlePipeline）读的是 subtitleKeys 查询；
+    // 音频转写完成时若不失效它，字幕面板会永远停在空白（refetchOnWindowFocus 已关闭）
+    it('invalidates the watch-page subtitle query on success', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            status: 'completed',
+            text: 'Transcribed text',
+            language: 'en',
+            duration: 10,
+            segments: [{ start: 0, end: 3, text: 'Hello world', wordTimestamps: [] }],
+          },
+        }),
+      }
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as any)
+      vi.mocked(DBUtils.getSegmentsByTranscriptIdOrdered).mockResolvedValue([])
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+      const { result } = renderHook(() => useTranscription(), { wrapper })
+
+      await waitFor(async () => {
+        await expect(
+          result.current.mutateAsync({ fileId: 1, language: 'en' }),
+        ).resolves.toBeDefined()
+      })
+
+      await waitFor(() => {
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['subtitle', 'media', 1] })
+      })
+    })
+
     it('should handle transcription errors', async () => {
       const mockResponse = {
         ok: false,

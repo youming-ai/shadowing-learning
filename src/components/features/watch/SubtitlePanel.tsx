@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useI18n } from '~/components/layout/contexts/I18nContext'
 import type { PipelineStage } from '~/hooks/media/useSubtitlePipeline'
+import { youtubeErrorMessageKey } from '~/lib/youtube/error-messages'
 import type { Segment, SubtitleRow } from '~/types/db/database'
 
 interface SubtitlePanelProps {
@@ -83,7 +84,9 @@ export function SubtitlePanel({
         {stage === 'failed' && segments.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-10">
             <p className="text-sm text-[var(--text-secondary)]">
-              {subtitle?.error ?? t('import.error.EXTRACTOR_FAILED')}
+              {/* subtitle.error 存的是错误码（或 catch 路径的原始 message）——
+                  经 youtubeErrorMessageKey 本地化，未知值回落到通用文案 */}
+              {t(youtubeErrorMessageKey(subtitle?.error))}
             </p>
             <button type="button" onClick={onRetry} className="btn-primary !h-9 !px-4 text-sm">
               {t('watch.retryPipeline')}

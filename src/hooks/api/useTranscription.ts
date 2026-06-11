@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { subtitleKeys } from '~/hooks/media/subtitle-keys'
 import { DBUtils, db } from '~/lib/db/db'
 import { transcriptionLogger } from '~/lib/utils/logger'
 import {
@@ -178,6 +179,11 @@ async function updatePostProcessStatus(
   if (queryClient) {
     queryClient.invalidateQueries({
       queryKey: transcriptionKeys.forFile(fileId),
+    })
+    // watch 页（useSubtitlePipeline）读的是 subtitleKeys 查询——不失效它的话，
+    // 音频转写/翻译完成后字幕面板会一直停在旧数据（refetchOnWindowFocus 已关闭，无自愈机会）
+    queryClient.invalidateQueries({
+      queryKey: subtitleKeys.forMedia(fileId),
     })
   }
 }
@@ -382,6 +388,9 @@ export function useTranscription() {
       queryClient.invalidateQueries({
         queryKey: transcriptionKeys.forFile(variables.fileId),
       })
+      queryClient.invalidateQueries({
+        queryKey: subtitleKeys.forMedia(variables.fileId),
+      })
     },
     onError: (error, variables) => {
       handleTranscriptionError(error, {
@@ -392,6 +401,9 @@ export function useTranscription() {
 
       queryClient.invalidateQueries({
         queryKey: transcriptionKeys.forFile(variables.fileId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: subtitleKeys.forMedia(variables.fileId),
       })
     },
   })

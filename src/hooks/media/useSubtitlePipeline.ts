@@ -1,16 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranscriptionLanguage } from '~/components/layout/contexts/TranscriptionLanguageContext'
+import { subtitleKeys } from '~/hooks/media/subtitle-keys'
 import { useFileStatusManager } from '~/hooks/useFileStatus'
 import { DBUtils, db } from '~/lib/db/db'
 import { type ProcessedSegment, runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
 import { transcriptionLogger } from '~/lib/utils/logger'
 import type { MediaRow, Segment } from '~/types/db/database'
 
-export const subtitleKeys = {
-  all: ['subtitle'] as const,
-  forMedia: (mediaId: number) => [...subtitleKeys.all, 'media', mediaId] as const,
-}
+export { subtitleKeys } from '~/hooks/media/subtitle-keys'
 
 export type PipelineStage =
   | 'idle'
@@ -271,9 +269,27 @@ export function useSubtitlePipeline(media: MediaRow | null) {
         )
       }
     } else if (media.kind === 'audio' && !subtitle) {
+      // 音频走现有转写链路（useTranscription 内部完成时会失效 subtitleKeys）；
+      // 这里补阶段反馈 + 完成后兜底刷新（双保险，防 onSuccess 失效被竞态吞掉）
+      runningRef.current = true
+      setStage('transcribing')
       void startTranscription()
+        .then(() => setStage('done'))
+        .catch(() => setStage('failed'))
+        .finally(() => {
+          runningRef.current = false
+          invalidate()
+        })
     }
-  }, [media, query.isLoading, query.data, runYouTubePipeline, runTranslate, startTranscription])
+  }, [
+    media,
+    query.isLoading,
+    query.data,
+    runYouTubePipeline,
+    runTranslate,
+    startTranscription,
+    invalidate,
+  ])
 
   const retry = useCallback(async () => {
     const subtitle = query.data?.subtitle
