@@ -8,24 +8,26 @@ Shadowing Learning is an offline-first language learning app for shadowing pract
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| Framework | Next.js 16 App Router | Routing, layouts, API routes |
-| UI | React 19, shadcn/ui, Radix UI | Component system |
+| Framework | Vite 8 + TanStack Start / TanStack Router | File-based routing, layouts, API route handlers |
+| UI | React 19, Radix UI, lucide-react | Component system |
 | Language | TypeScript strict mode | Type safety |
-| Styling | Tailwind CSS, CSS variables | Design tokens and themes |
+| Styling | Tailwind CSS v4 (CSS-only), CSS variables | Design tokens and themes |
 | State | TanStack Query v5 | Query cache, mutations, invalidation |
 | Storage | Dexie v4 / IndexedDB | Local-first persistence |
 | AI | Groq SDK | Whisper transcription and text enhancement |
-| Testing | Vitest, React Testing Library | Unit and integration tests |
+| YouTube | youtubei.js + yt-dlp | Caption fetch and audio download |
+| Testing | Vitest, React Testing Library, happy-dom | Unit and integration tests |
 
 ## Directory Structure
 
 ```
 src/
-  app/
-    api/                  # transcribe, postprocess, progress, performance
-    player/[fileId]/      # dynamic player route
-    settings/             # settings route
-    account/              # account route
+  routes/
+    api/                  # transcribe, postprocess, health, performance, youtube/
+      youtube/            # resolve, captions, transcribe
+    watch.$mediaId.tsx    # watch/player route
+    settings.tsx          # settings route
+    account.tsx           # account route
   components/
     features/
       file/               # FileManager, FileUpload, FileCard, StatsCards
@@ -161,24 +163,36 @@ fileStatusKeys = {
 
 ## Storage Schema
 
-Database version: 3
+Database version: 4 (two-phase migration)
+
+**Live tables:**
 
 | Table | Key Fields |
 |-------|------------|
-| files | id, name, size, type, blob, isChunked, duration, uploadedAt, updatedAt |
-| transcripts | id, fileId, status, rawText, language, duration, error, processingTime, createdAt, updatedAt |
-| segments | id, transcriptId, start, end, text, normalizedText, translation, romaji, annotations, furigana, wordTimestamps, createdAt, updatedAt |
+| media | id, kind (`'audio'`\|`'youtube'`), externalId, title, durationSec, blob, fileName, fileSize, mimeType, addedAt, updatedAt |
+| subtitles | id, mediaId, source, status, sourceLanguage, targetLanguage, rawText, error, createdAt, updatedAt |
+| segments | id, transcriptId (`→ subtitles.id`), start, end, text, normalizedText, translation, romaji, annotations, furigana, wordTimestamps, createdAt, updatedAt |
 
-`TranscriptRow.status` is the source of truth for file transcription state. `FileRow` does not store status.
+`SubtitleRow.status` is the source of truth for subtitle processing state. `segments.transcriptId` references `subtitles.id` (field name retained for backwards compatibility).
+
+**Backup tables (v4, read-only — to be removed in v5):**
+
+| Table | Notes |
+|-------|-------|
+| files | Preserved from v3; v4 migration copied all rows to `media` |
+| transcripts | Preserved from v3; v4 migration copied all rows to `subtitles` |
 
 ## API Surface
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| /api/transcribe | POST | Validate audio request, rate-limit, call Groq Whisper, return transcript segments |
-| /api/postprocess | POST | Normalize text, translate, add annotations/furigana through Groq chat completions |
-| /api/progress/[fileId] | GET | Read best-effort in-memory server progress |
-| /api/performance | GET | Performance and monitoring data |
+| Endpoint | Method | Rate Limit | Purpose |
+|----------|--------|------------|---------|
+| /api/transcribe | POST | per-IP sliding window | Validate audio (≤25 MB), call Groq Whisper, return `TranscriptionSegment[]` |
+| /api/postprocess | POST | 20 req / 1 min per-IP | Normalize text, translate, add annotations/furigana via Groq chat completions |
+| /api/health | GET | — | Liveness probe (used by Dokploy) |
+| /api/performance | POST | token-gated | Web Vitals ingestion |
+| /api/youtube/resolve | POST | 20 req / 10 min per-IP | Resolve YouTube URL → video metadata via youtubei.js |
+| /api/youtube/captions | POST | 20 req / 10 min per-IP | Fetch + normalize YouTube caption track; returns `NO_CAPTIONS` if unavailable |
+| /api/youtube/transcribe | POST | 4 req / hr per-IP + concurrency 1 + 24/UTC-day global quota | No-caption fallback: yt-dlp downloads audio → Groq Whisper transcription |
 
 ## Transcription Architecture
 
@@ -210,6 +224,24 @@ sequenceDiagram
     Mut->>Query: invalidate transcription/player queries
 ```
 
+## YouTube Import Pipeline
+
+```
+YouTube URL → POST /api/youtube/resolve  → video metadata (youtubei.js)
+           → client writes `media` row to IndexedDB
+           → watch page self-drives via useSubtitlePipeline:
+               POST /api/youtube/captions       → captions available?
+                 YES → normalize cues → write `subtitles` + `segments`
+                 NO  → POST /api/youtube/transcribe (yt-dlp + Groq Whisper)
+                     → write `subtitles` + `segments`
+           → chunked translation loop:
+               POST /api/postprocess in ≤100-segment / ≤10k-char chunks
+               → update `segments` rows incrementally in IndexedDB
+           → watch/$mediaId subtitle sync → user
+```
+
+`yt-dlp` must be installed in the runtime environment: bundled into the Docker image; locally run `brew install yt-dlp`.
+
 ## Player Data Flow
 
 `usePlayerDataQuery(fileId)` loads the audio file and transcript data, creates a Blob object URL, and automatically starts transcription when the file has no transcript.
@@ -226,12 +258,11 @@ Object URLs are cached per Blob and revoked when the Blob changes or the player 
 
 ## Environment Variables
 
-Only two application-specific variables are currently used:
-
 | Variable | Required | Used By |
 |----------|----------|---------|
-| GROQ_API_KEY | Yes | `/api/transcribe`, `/api/postprocess`, text post-processing utilities |
-| NEXT_PUBLIC_APP_URL | No | metadata, robots, sitemap; defaults to localhost |
+| GROQ_API_KEY | Yes | `/api/transcribe`, `/api/postprocess`, `/api/youtube/transcribe`, text post-processing utilities |
+| VITE_APP_URL | No | Client-side app URL (must be `VITE_`-prefixed); defaults to `http://localhost:3000` |
+| PERFORMANCE_ADMIN_TOKEN | No | Gates `/api/performance` ingestion |
 
 ## Performance Notes
 
