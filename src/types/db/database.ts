@@ -113,5 +113,3 @@ export interface DatabaseStats {
   averageSegmentsPerSubtitle: number
   subtitlesByStatus: Record<string, number>
 }
-
-export type { AudioPlayerState } from '../player'
