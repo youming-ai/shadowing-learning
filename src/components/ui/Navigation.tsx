@@ -10,10 +10,16 @@ export default function Navigation() {
 
   const navLinks = [
     {
-      id: 'home',
-      labelKey: 'nav.home' as const,
-      icon: 'home',
-      href: ROUTES.HOME,
+      id: 'online',
+      labelKey: 'nav.online' as const,
+      icon: 'explore',
+      href: '/',
+    },
+    {
+      id: 'myAudio',
+      labelKey: 'nav.myAudio' as const,
+      icon: 'library_music',
+      href: '/me',
     },
     {
       id: 'settings',
@@ -34,8 +40,9 @@ export default function Navigation() {
       <div className="nav-container">
         {navLinks.map((item) => {
           const isActive =
-            pathname === item.href.replace(/#.*/, '') ||
-            (item.href.startsWith('/') && pathname.startsWith('/player') && item.href === '/')
+            item.href === '/'
+              ? pathname === '/' || pathname.startsWith('/watch') || pathname.startsWith('/player')
+              : pathname === item.href || pathname.startsWith(`${item.href}/`)
 
           return (
             <Link
