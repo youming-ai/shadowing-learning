@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as MeRouteImport } from './routes/me'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchMediaIdRouteImport } from './routes/watch.$mediaId'
@@ -25,6 +26,11 @@ import { Route as ApiYoutubeCaptionsRouteImport } from './routes/api/youtube/cap
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeRoute = MeRouteImport.update({
+  id: '/me',
+  path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountRoute = AccountRouteImport.update({
@@ -86,6 +92,7 @@ const ApiYoutubeCaptionsRoute = ApiYoutubeCaptionsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/performance': typeof ApiPerformanceRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/performance': typeof ApiPerformanceRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/performance': typeof ApiPerformanceRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
+    | '/me'
     | '/settings'
     | '/api/health'
     | '/api/performance'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
+    | '/me'
     | '/settings'
     | '/api/health'
     | '/api/performance'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/account'
+    | '/me'
     | '/settings'
     | '/api/health'
     | '/api/performance'
@@ -174,6 +186,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
+  MeRoute: typeof MeRoute
   SettingsRoute: typeof SettingsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiPerformanceRoute: typeof ApiPerformanceRoute
@@ -193,6 +206,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me': {
+      id: '/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account': {
@@ -278,6 +298,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
+  MeRoute: MeRoute,
   SettingsRoute: SettingsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiPerformanceRoute: ApiPerformanceRoute,
