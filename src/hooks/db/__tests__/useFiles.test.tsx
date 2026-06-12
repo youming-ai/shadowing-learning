@@ -274,4 +274,45 @@ describe('useFiles', () => {
       })
     })
   })
+
+  describe('kind filter', () => {
+    it('filters media by kind when a kind arg is passed', async () => {
+      const allMedia = [
+        {
+          id: 1,
+          kind: 'youtube',
+          title: 'yt',
+          durationSec: 10,
+          addedAt: new Date('2026-01-02'),
+          updatedAt: new Date('2026-01-02'),
+          externalId: 'dQw4w9WgXcQ',
+        },
+        {
+          id: 2,
+          kind: 'audio',
+          title: 'a.mp3',
+          durationSec: null,
+          addedAt: new Date('2026-01-01'),
+          updatedAt: new Date('2026-01-01'),
+          fileName: 'a.mp3',
+          fileSize: 1,
+          mimeType: 'audio/mpeg',
+        },
+      ]
+      ;(DBUtils.listMedia as ReturnType<typeof vi.fn>).mockResolvedValue(allMedia)
+
+      const { result: online } = renderHook(() => useFiles('youtube'), {
+        wrapper: createWrapper(),
+      })
+      await waitFor(() => expect(online.current.files).toHaveLength(1))
+      expect(online.current.files[0].kind).toBe('youtube')
+
+      const { result: mine } = renderHook(() => useFiles('audio'), { wrapper: createWrapper() })
+      await waitFor(() => expect(mine.current.files).toHaveLength(1))
+      expect(mine.current.files[0].kind).toBe('audio')
+
+      const { result: all } = renderHook(() => useFiles(), { wrapper: createWrapper() })
+      await waitFor(() => expect(all.current.files).toHaveLength(2))
+    })
+  })
 })

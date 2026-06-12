@@ -20,7 +20,7 @@ export interface UseFilesReturn {
   error: string | null
 }
 
-export function useFiles(): UseFilesReturn {
+export function useFiles(kind?: MediaRow['kind']): UseFilesReturn {
   const queryClient = useQueryClient()
 
   const {
@@ -33,6 +33,7 @@ export function useFiles(): UseFilesReturn {
     queryFn: async () => {
       return await DBUtils.listMedia()
     },
+    select: (rows) => (kind ? rows.filter((m) => m.kind === kind) : rows),
     staleTime: 0,
     gcTime: 1000 * 60 * 30,
   })
