@@ -90,6 +90,20 @@ export interface TranslationKey {
   'watch.nextSentence': string
   'watch.loopSentence': string
 
+  // Two-line nav + pages
+  'nav.online': string
+  'nav.myAudio': string
+  'online.title': string
+  'online.empty.title': string
+  'online.empty.cta': string
+  'online.tab.youtube': string
+  'online.tab.podcast': string
+  'online.tab.podcastSoon': string
+  'myaudio.title': string
+  'myaudio.empty.title': string
+  'myaudio.empty.cta': string
+  'myaudio.upload': string
+
   // Common
   'common.loading': string
   'common.error': string
@@ -193,6 +207,20 @@ export const translations: Record<string, TranslationKey> = {
     'watch.nextSentence': '下一句',
     'watch.loopSentence': '单句循环',
 
+    // Two-line nav + pages
+    'nav.online': '在线',
+    'nav.myAudio': '我的音频',
+    'online.title': '在线发现',
+    'online.empty.title': '还没有在线内容',
+    'online.empty.cta': '粘贴一个 YouTube 链接开始学习',
+    'online.tab.youtube': 'YouTube',
+    'online.tab.podcast': '播客',
+    'online.tab.podcastSoon': '即将推出',
+    'myaudio.title': '我的音频',
+    'myaudio.empty.title': '还没有上传音频',
+    'myaudio.empty.cta': '上传一段音频开始练习',
+    'myaudio.upload': '上传音频',
+
     // Common
     'common.loading': '加载中...',
     'common.error': '错误',
@@ -293,6 +321,20 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '上一句',
     'watch.nextSentence': '下一句',
     'watch.loopSentence': '單句循環',
+
+    // Two-line nav + pages
+    'nav.online': '線上',
+    'nav.myAudio': '我的音訊',
+    'online.title': '線上探索',
+    'online.empty.title': '還沒有線上內容',
+    'online.empty.cta': '貼上一個 YouTube 連結開始學習',
+    'online.tab.youtube': 'YouTube',
+    'online.tab.podcast': '播客',
+    'online.tab.podcastSoon': '即將推出',
+    'myaudio.title': '我的音訊',
+    'myaudio.empty.title': '還沒有上傳音訊',
+    'myaudio.empty.cta': '上傳一段音訊開始練習',
+    'myaudio.upload': '上傳音訊',
 
     // Common
     'common.loading': '載入中...',
@@ -396,6 +438,20 @@ export const translations: Record<string, TranslationKey> = {
     'watch.nextSentence': 'Next sentence',
     'watch.loopSentence': 'Loop sentence',
 
+    // Two-line nav + pages
+    'nav.online': 'Online',
+    'nav.myAudio': 'My Audio',
+    'online.title': 'Discover',
+    'online.empty.title': 'No online content yet',
+    'online.empty.cta': 'Paste a YouTube link to start learning',
+    'online.tab.youtube': 'YouTube',
+    'online.tab.podcast': 'Podcast',
+    'online.tab.podcastSoon': 'Coming soon',
+    'myaudio.title': 'My Audio',
+    'myaudio.empty.title': 'No uploaded audio yet',
+    'myaudio.empty.cta': 'Upload an audio file to start practicing',
+    'myaudio.upload': 'Upload audio',
+
     // Common
     'common.loading': 'Loading...',
     'common.error': 'Error',
@@ -498,6 +554,20 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '前の文',
     'watch.nextSentence': '次の文',
     'watch.loopSentence': '一文リピート',
+
+    // Two-line nav + pages
+    'nav.online': 'オンライン',
+    'nav.myAudio': 'マイ音声',
+    'online.title': '見つける',
+    'online.empty.title': 'オンラインコンテンツがまだありません',
+    'online.empty.cta': 'YouTube リンクを貼り付けて学習を始める',
+    'online.tab.youtube': 'YouTube',
+    'online.tab.podcast': 'ポッドキャスト',
+    'online.tab.podcastSoon': '近日公開',
+    'myaudio.title': 'マイ音声',
+    'myaudio.empty.title': 'アップロードした音声がまだありません',
+    'myaudio.empty.cta': '音声をアップロードして練習を始める',
+    'myaudio.upload': '音声をアップロード',
 
     // Common
     'common.loading': '読み込み中...',
