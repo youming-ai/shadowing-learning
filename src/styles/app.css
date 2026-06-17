@@ -79,6 +79,10 @@
   --shadow-theme-md: var(--shadow-md);
   --shadow-theme-lg: var(--shadow-lg);
   --shadow-theme-xl: var(--shadow-xl);
+
+  --font-heading:
+    "Iowan Old Style", Palatino, Georgia, "Times New Roman", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
 }
 
 /* Material Icons基础样式 */
@@ -116,6 +120,12 @@
 @layer base {
   * {
     border-color: var(--border-primary);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
   }
 
   /* ===================================
@@ -239,9 +249,9 @@
     --radius-2xl: 1.5rem;
     --radius-pill: 9999px;
 
-    --radius-card: var(--radius-2xl);
-    --radius-card-large: 1.75rem;
-    --radius-control: var(--radius-lg);
+    --radius-card: 0.5rem;
+    --radius-card-large: 0.75rem;
+    --radius-control: 0.375rem;
 
     /* 间距令牌 */
     --space-xs: 0.25rem;
@@ -444,9 +454,9 @@
     --radius-2xl: 1.5rem;
     --radius-pill: 9999px;
 
-    --radius-card: var(--radius-2xl);
-    --radius-card-large: 1.75rem;
-    --radius-control: var(--radius-lg);
+    --radius-card: 0.5rem;
+    --radius-card-large: 0.75rem;
+    --radius-control: 0.375rem;
 
     /* 间距令牌保持不变 */
     --space-xs: 0.25rem;
