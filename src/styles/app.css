@@ -639,6 +639,18 @@
     --color-primary: var(--brand-500);
     --player-accent-color: var(--brand-500);
 
+    /* 暖亮高对比：覆盖从暗色块继承、在白底上不成立的 token */
+    --nav-container-background: rgba(255, 254, 250, 0.92);
+    --player-card-border: var(--border-default);
+    --settings-shadow-color: rgba(0, 0, 0, 0.12);
+    --settings-divider-color: var(--border-default);
+    --settings-muted-color: var(--text-muted);
+    --settings-border-color: var(--border-default);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.12);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.12);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.12);
+
     /* 强制应用高对比度主题关键变量 */
   }
 
@@ -1572,7 +1584,7 @@
 
   .settings-button:hover:not(.active) {
     @apply translate-y-[1px];
-    background-color: rgba(92, 157, 82, 0.08);
+    background-color: rgba(224, 101, 60, 0.08);
   }
 
   .settings-button.active {
