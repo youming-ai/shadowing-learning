@@ -12,7 +12,7 @@ export function CurrentSentence({ segment, showOriginalOnly }: CurrentSentencePr
   const original = showOriginalOnly ? segment.text : (segment.normalizedText ?? segment.text)
   return (
     <div className="flex min-h-[5rem] flex-col items-center gap-2 px-4 py-3 text-center">
-      <p className="text-xl font-bold leading-relaxed text-[var(--text-primary)] sm:text-2xl">
+      <p className="font-heading text-xl font-bold leading-relaxed text-[var(--text-primary)] sm:text-2xl">
         {original}
       </p>
       {segment.translation && (

@@ -56,7 +56,7 @@ export function MediaCard({ media, onDelete }: MediaCardProps) {
           ) : null}
         </div>
         <div className="flex flex-col gap-1 px-3 py-2.5">
-          <p className="line-clamp-2 text-sm font-semibold text-[var(--text-primary)]">
+          <p className="line-clamp-2 font-heading text-sm font-semibold text-[var(--text-primary)]">
             {media.title}
           </p>
           <p className="truncate text-xs text-[var(--text-secondary)]">
