@@ -574,33 +574,33 @@
    =================================== */
   html[data-theme="high-contrast"] {
     /* 高对比度品牌色 */
-    --brand-500: #00ff00;
-    --brand-600: #00cc00;
-    --brand-700: #009900;
+    --brand-500: #a03d20;
+    --brand-600: #7c301a;
+    --brand-700: #5a2413;
 
     /* 高对比度文本色 */
-    --text-primary: #ffffff;
-    --text-secondary: #e0e0e0;
-    --text-tertiary: #c0c0c0;
-    --text-muted: #a0a0a0;
-    --text-inverse: #000000;
+    --text-primary: #161009;
+    --text-secondary: #3a3024;
+    --text-tertiary: #5a4d3a;
+    --text-muted: #6e614f;
+    --text-inverse: #fffefa;
 
     /* 高对比度背景 */
-    --surface-base: #000000;
-    --surface-card: #1a1a1a;
-    --surface-muted: #2d2d2d;
+    --surface-base: #fffefa;
+    --surface-card: #fffefa;
+    --surface-muted: #f3ead8;
 
     /* 高对比度边框 */
-    --border-default: #ffffff;
-    --border-strong: #ffffff;
-    --border-focus: #00ff00;
-    --border-error: #ff0000;
+    --border-default: #c9b89c;
+    --border-strong: #8a7c68;
+    --border-focus: #a03d20;
+    --border-error: #b3261e;
 
     /* 高对比度状态色 */
-    --state-success-text: #00ff00;
-    --state-warning-text: #ffff00;
-    --state-error-text: #ff0000;
-    --state-info-text: #00ffff;
+    --state-success-text: #1f5f3a;
+    --state-warning-text: #8a5a00;
+    --state-error-text: #b3261e;
+    --state-info-text: #1f5577;
 
     /* 间距令牌 */
     --space-xs: 0.25rem;
