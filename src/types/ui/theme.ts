@@ -16,16 +16,16 @@ interface BaseColor {
 
 // Brand colors
 export interface BrandColors extends BaseColor {
-  50: '#f0fdf4'
-  100: '#dcfce7'
-  200: '#bbf7d0'
-  300: '#86efac'
-  400: '#4ade80'
-  500: '#22c55e'
-  600: '#166534'
-  700: '#15803d'
-  800: '#166534'
-  900: '#14532d'
+  50: '#FBF1EC'
+  100: '#F6DFD3'
+  200: '#EFC2AC'
+  300: '#E89F7E'
+  400: '#E47E54'
+  500: '#E0653C'
+  600: '#C44E29'
+  700: '#A03D20'
+  800: '#7C301A'
+  900: '#5A2413'
 }
 
 // Semantic color variations
