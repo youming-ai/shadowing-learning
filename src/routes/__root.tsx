@@ -6,6 +6,7 @@ import { QueryProvider } from '~/components/layout/providers/QueryProvider'
 import { PageErrorBoundary } from '~/components/ui/ErrorBoundary'
 import { MonitoringInitializer } from '~/components/ui/MonitoringInitializer'
 import PwaRegister from '~/components/ui/PwaRegister'
+import { Toaster } from '~/components/ui/sonner'
 import { getCspNonce } from '~/lib/security/csp-nonce'
 import appCss from '../styles/app.css?url'
 
@@ -104,6 +105,7 @@ function RootLayout() {
                 </PageErrorBoundary>
               </QueryProvider>
               <PwaRegister />
+              <Toaster />
             </I18nProvider>
           </TranscriptionLanguageProvider>
         </ThemeProvider>
