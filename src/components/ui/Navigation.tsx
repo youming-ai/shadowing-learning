@@ -41,7 +41,7 @@ export default function Navigation() {
         {navLinks.map((item) => {
           const isActive =
             item.href === '/'
-              ? pathname === '/' || pathname.startsWith('/watch') || pathname.startsWith('/player')
+              ? pathname === '/' || pathname.startsWith('/watch')
               : pathname === item.href || pathname.startsWith(`${item.href}/`)
 
           return (

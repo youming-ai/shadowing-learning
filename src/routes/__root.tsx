@@ -4,10 +4,8 @@ import { ThemeProvider } from '~/components/layout/contexts/ThemeContext'
 import { TranscriptionLanguageProvider } from '~/components/layout/contexts/TranscriptionLanguageContext'
 import { QueryProvider } from '~/components/layout/providers/QueryProvider'
 import { PageErrorBoundary } from '~/components/ui/ErrorBoundary'
-import { ToastContainer } from '~/components/ui/ErrorToast'
 import { MonitoringInitializer } from '~/components/ui/MonitoringInitializer'
 import PwaRegister from '~/components/ui/PwaRegister'
-import { ThemeDebuggerToggle } from '~/components/ui/ThemeDebugger'
 import { getCspNonce } from '~/lib/security/csp-nonce'
 import appCss from '../styles/app.css?url'
 
@@ -105,9 +103,7 @@ function RootLayout() {
                   </div>
                 </PageErrorBoundary>
               </QueryProvider>
-              <ThemeDebuggerToggle />
               <PwaRegister />
-              <ToastContainer>{null}</ToastContainer>
             </I18nProvider>
           </TranscriptionLanguageProvider>
         </ThemeProvider>
