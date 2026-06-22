@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { subtitleKeys } from '~/hooks/media/subtitle-keys'
 import { DBUtils, db } from '~/lib/db/db'
 import { transcriptionLogger } from '~/lib/utils/logger'
 import {
@@ -44,7 +45,7 @@ export function useTranscriptionStatus(fileId: number, enabled = true) {
     queryKey: transcriptionKeys.forFile(fileId),
     enabled,
     queryFn: async () => {
-      const transcript = await DBUtils.findTranscriptByFileId(fileId)
+      const transcript = await DBUtils.findSubtitleByMediaId(fileId)
 
       if (transcript && typeof transcript.id === 'number') {
         const segments = await DBUtils.getSegmentsByTranscriptIdOrdered(transcript.id)
@@ -73,35 +74,34 @@ async function saveTranscriptionResults(
   const startTime = Date.now()
 
   try {
-    return await db.transaction('rw', db.transcripts, db.segments, async (tx) => {
-      const existingTranscripts = await tx
-        .table('transcripts')
-        .where('fileId')
+    return await db.transaction('rw', db.subtitles, db.segments, async (tx) => {
+      const existingSubtitles = await tx
+        .table('subtitles')
+        .where('mediaId')
         .equals(fileId)
         .toArray()
 
       let transcriptId: number
 
-      if (existingTranscripts.length > 0 && existingTranscripts[0].id) {
-        transcriptId = existingTranscripts[0].id
-        await tx.table('transcripts').update(transcriptId, {
+      if (existingSubtitles.length > 0 && existingSubtitles[0].id) {
+        transcriptId = existingSubtitles[0].id
+        await tx.table('subtitles').update(transcriptId, {
           status: 'completed' as const,
           rawText: data.text,
-          language: data.language,
-          duration: data.duration,
+          sourceLanguage: data.language,
           error: undefined,
           updatedAt: new Date(),
         })
 
         await tx.table('segments').where('transcriptId').equals(transcriptId).delete()
       } else {
-        transcriptId = await tx.table('transcripts').add({
-          fileId,
+        transcriptId = await tx.table('subtitles').add({
+          mediaId: fileId,
+          source: 'whisper' as const,
           status: 'completed' as const,
+          sourceLanguage: data.language,
+          targetLanguage: null,
           rawText: data.text,
-          language: data.language,
-          duration: data.duration,
-          processingTime: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -145,13 +145,13 @@ async function saveTranscriptionResults(
     )
 
     try {
-      await db.transaction('rw', db.transcripts, db.segments, async (tx) => {
-        const transcripts = await tx.table('transcripts').where('fileId').equals(fileId).toArray()
+      await db.transaction('rw', db.subtitles, db.segments, async (tx) => {
+        const subtitles = await tx.table('subtitles').where('mediaId').equals(fileId).toArray()
 
-        for (const transcript of transcripts) {
-          if (transcript.id) {
-            await tx.table('segments').where('transcriptId').equals(transcript.id).delete()
-            await tx.table('transcripts').delete(transcript.id)
+        for (const subtitle of subtitles) {
+          if (subtitle.id) {
+            await tx.table('segments').where('transcriptId').equals(subtitle.id).delete()
+            await tx.table('subtitles').delete(subtitle.id)
           }
         }
       })
@@ -170,7 +170,7 @@ async function updatePostProcessStatus(
   queryClient?: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
   error?: string,
 ): Promise<void> {
-  await DBUtils.update(db.transcripts, transcriptId, {
+  await DBUtils.update(db.subtitles, transcriptId, {
     postProcessStatus: status,
     postProcessError: error,
     updatedAt: new Date(),
@@ -179,6 +179,11 @@ async function updatePostProcessStatus(
   if (queryClient) {
     queryClient.invalidateQueries({
       queryKey: transcriptionKeys.forFile(fileId),
+    })
+    // watch 页（useSubtitlePipeline）读的是 subtitleKeys 查询——不失效它的话，
+    // 音频转写/翻译完成后字幕面板会一直停在旧数据（refetchOnWindowFocus 已关闭，无自愈机会）
+    queryClient.invalidateQueries({
+      queryKey: subtitleKeys.forMedia(fileId),
     })
   }
 }
@@ -274,6 +279,7 @@ async function postProcessTranscription(
     }
 
     transcriptionLogger.info(`后处理完成，更新了 ${updatedCount} 个 segments`)
+    await DBUtils.update(db.subtitles, transcriptId, { targetLanguage })
     await updatePostProcessStatus(transcriptId, fileId, 'completed', queryClient)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '后处理异常'
@@ -285,7 +291,7 @@ async function postProcessTranscription(
 async function callTranscribeAPI(
   fileId: number,
   language: string,
-  file: NonNullable<Awaited<ReturnType<typeof DBUtils.getFile>>>,
+  file: NonNullable<Awaited<ReturnType<typeof DBUtils.getMedia>>>,
   signal?: AbortSignal,
 ): Promise<TranscriptionResponse['data']> {
   if (signal?.aborted) {
@@ -293,7 +299,7 @@ async function callTranscribeAPI(
   }
 
   const formData = new FormData()
-  formData.append('audio', file.blob as Blob, file.name)
+  formData.append('audio', file.blob as Blob, file.title)
   formData.append('meta', JSON.stringify({ fileId: file.id?.toString() || '' }))
 
   const response = await fetch(`/api/transcribe?fileId=${fileId}&language=${language}`, {
@@ -341,7 +347,7 @@ export function useTranscription() {
       nativeLanguage?: string
       signal?: AbortSignal
     }) => {
-      const file = await DBUtils.getFile(fileId)
+      const file = await DBUtils.getMedia(fileId)
       if (!file?.blob) {
         throw new Error('File not found or file data is corrupted')
       }
@@ -349,7 +355,7 @@ export function useTranscription() {
       const data = await smartRetry(() => callTranscribeAPI(fileId, language, file, signal), {
         fileId,
         operation: 'transcribe',
-        fileName: file.name,
+        fileName: file.title,
         language,
         attempt: 0,
         maxAttempts: 3,
@@ -382,6 +388,9 @@ export function useTranscription() {
       queryClient.invalidateQueries({
         queryKey: transcriptionKeys.forFile(variables.fileId),
       })
+      queryClient.invalidateQueries({
+        queryKey: subtitleKeys.forMedia(variables.fileId),
+      })
     },
     onError: (error, variables) => {
       handleTranscriptionError(error, {
@@ -392,6 +401,9 @@ export function useTranscription() {
 
       queryClient.invalidateQueries({
         queryKey: transcriptionKeys.forFile(variables.fileId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: subtitleKeys.forMedia(variables.fileId),
       })
     },
   })

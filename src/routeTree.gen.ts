@@ -10,17 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as MeRouteImport } from './routes/me'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PlayerFileIdRouteImport } from './routes/player.$fileId'
+import { Route as WatchMediaIdRouteImport } from './routes/watch.$mediaId'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiPostprocessRouteImport } from './routes/api/postprocess'
-import { Route as ApiPerformanceRouteImport } from './routes/api/performance'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiYoutubeTranscribeRouteImport } from './routes/api/youtube/transcribe'
+import { Route as ApiYoutubeResolveRouteImport } from './routes/api/youtube/resolve'
+import { Route as ApiYoutubeCaptionsRouteImport } from './routes/api/youtube/captions'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeRoute = MeRouteImport.update({
+  id: '/me',
+  path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountRoute = AccountRouteImport.update({
@@ -33,9 +40,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlayerFileIdRoute = PlayerFileIdRouteImport.update({
-  id: '/player/$fileId',
-  path: '/player/$fileId',
+const WatchMediaIdRoute = WatchMediaIdRouteImport.update({
+  id: '/watch/$mediaId',
+  path: '/watch/$mediaId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
@@ -48,90 +55,109 @@ const ApiPostprocessRoute = ApiPostprocessRouteImport.update({
   path: '/api/postprocess',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPerformanceRoute = ApiPerformanceRouteImport.update({
-  id: '/api/performance',
-  path: '/api/performance',
+const ApiYoutubeTranscribeRoute = ApiYoutubeTranscribeRouteImport.update({
+  id: '/api/youtube/transcribe',
+  path: '/api/youtube/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
+const ApiYoutubeResolveRoute = ApiYoutubeResolveRouteImport.update({
+  id: '/api/youtube/resolve',
+  path: '/api/youtube/resolve',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiYoutubeCaptionsRoute = ApiYoutubeCaptionsRouteImport.update({
+  id: '/api/youtube/captions',
+  path: '/api/youtube/captions',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/performance': typeof ApiPerformanceRoute
   '/api/postprocess': typeof ApiPostprocessRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/player/$fileId': typeof PlayerFileIdRoute
+  '/watch/$mediaId': typeof WatchMediaIdRoute
+  '/api/youtube/captions': typeof ApiYoutubeCaptionsRoute
+  '/api/youtube/resolve': typeof ApiYoutubeResolveRoute
+  '/api/youtube/transcribe': typeof ApiYoutubeTranscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/performance': typeof ApiPerformanceRoute
   '/api/postprocess': typeof ApiPostprocessRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/player/$fileId': typeof PlayerFileIdRoute
+  '/watch/$mediaId': typeof WatchMediaIdRoute
+  '/api/youtube/captions': typeof ApiYoutubeCaptionsRoute
+  '/api/youtube/resolve': typeof ApiYoutubeResolveRoute
+  '/api/youtube/transcribe': typeof ApiYoutubeTranscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/performance': typeof ApiPerformanceRoute
   '/api/postprocess': typeof ApiPostprocessRoute
   '/api/transcribe': typeof ApiTranscribeRoute
-  '/player/$fileId': typeof PlayerFileIdRoute
+  '/watch/$mediaId': typeof WatchMediaIdRoute
+  '/api/youtube/captions': typeof ApiYoutubeCaptionsRoute
+  '/api/youtube/resolve': typeof ApiYoutubeResolveRoute
+  '/api/youtube/transcribe': typeof ApiYoutubeTranscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/account'
+    | '/me'
     | '/settings'
-    | '/api/health'
-    | '/api/performance'
     | '/api/postprocess'
     | '/api/transcribe'
-    | '/player/$fileId'
+    | '/watch/$mediaId'
+    | '/api/youtube/captions'
+    | '/api/youtube/resolve'
+    | '/api/youtube/transcribe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/account'
+    | '/me'
     | '/settings'
-    | '/api/health'
-    | '/api/performance'
     | '/api/postprocess'
     | '/api/transcribe'
-    | '/player/$fileId'
+    | '/watch/$mediaId'
+    | '/api/youtube/captions'
+    | '/api/youtube/resolve'
+    | '/api/youtube/transcribe'
   id:
     | '__root__'
     | '/'
     | '/account'
+    | '/me'
     | '/settings'
-    | '/api/health'
-    | '/api/performance'
     | '/api/postprocess'
     | '/api/transcribe'
-    | '/player/$fileId'
+    | '/watch/$mediaId'
+    | '/api/youtube/captions'
+    | '/api/youtube/resolve'
+    | '/api/youtube/transcribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
+  MeRoute: typeof MeRoute
   SettingsRoute: typeof SettingsRoute
-  ApiHealthRoute: typeof ApiHealthRoute
-  ApiPerformanceRoute: typeof ApiPerformanceRoute
   ApiPostprocessRoute: typeof ApiPostprocessRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
-  PlayerFileIdRoute: typeof PlayerFileIdRoute
+  WatchMediaIdRoute: typeof WatchMediaIdRoute
+  ApiYoutubeCaptionsRoute: typeof ApiYoutubeCaptionsRoute
+  ApiYoutubeResolveRoute: typeof ApiYoutubeResolveRoute
+  ApiYoutubeTranscribeRoute: typeof ApiYoutubeTranscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me': {
+      id: '/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account': {
@@ -157,11 +190,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/player/$fileId': {
-      id: '/player/$fileId'
-      path: '/player/$fileId'
-      fullPath: '/player/$fileId'
-      preLoaderRoute: typeof PlayerFileIdRouteImport
+    '/watch/$mediaId': {
+      id: '/watch/$mediaId'
+      path: '/watch/$mediaId'
+      fullPath: '/watch/$mediaId'
+      preLoaderRoute: typeof WatchMediaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/transcribe': {
@@ -178,18 +211,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPostprocessRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/performance': {
-      id: '/api/performance'
-      path: '/api/performance'
-      fullPath: '/api/performance'
-      preLoaderRoute: typeof ApiPerformanceRouteImport
+    '/api/youtube/transcribe': {
+      id: '/api/youtube/transcribe'
+      path: '/api/youtube/transcribe'
+      fullPath: '/api/youtube/transcribe'
+      preLoaderRoute: typeof ApiYoutubeTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
+    '/api/youtube/resolve': {
+      id: '/api/youtube/resolve'
+      path: '/api/youtube/resolve'
+      fullPath: '/api/youtube/resolve'
+      preLoaderRoute: typeof ApiYoutubeResolveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/youtube/captions': {
+      id: '/api/youtube/captions'
+      path: '/api/youtube/captions'
+      fullPath: '/api/youtube/captions'
+      preLoaderRoute: typeof ApiYoutubeCaptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -198,12 +238,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
+  MeRoute: MeRoute,
   SettingsRoute: SettingsRoute,
-  ApiHealthRoute: ApiHealthRoute,
-  ApiPerformanceRoute: ApiPerformanceRoute,
   ApiPostprocessRoute: ApiPostprocessRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
-  PlayerFileIdRoute: PlayerFileIdRoute,
+  WatchMediaIdRoute: WatchMediaIdRoute,
+  ApiYoutubeCaptionsRoute: ApiYoutubeCaptionsRoute,
+  ApiYoutubeResolveRoute: ApiYoutubeResolveRoute,
+  ApiYoutubeTranscribeRoute: ApiYoutubeTranscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

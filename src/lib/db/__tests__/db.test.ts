@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { FileRow, Segment } from '~/types/db/database'
+import type { MediaRow, Segment } from '~/types/db/database'
 import { DBUtils, db } from '../db'
 
 describe('DBUtils', () => {
@@ -12,99 +12,113 @@ describe('DBUtils', () => {
     await DBUtils.clearAll()
   })
 
-  describe('File operations', () => {
-    const createMockFile = (): Omit<FileRow, 'id'> => ({
-      name: 'test-audio.mp3',
-      size: 1024000,
-      type: 'audio/mpeg',
-      uploadedAt: new Date(),
+  describe('Media operations', () => {
+    const createMockMedia = (): Omit<MediaRow, 'id'> => ({
+      kind: 'audio',
+      title: 'test-audio.mp3',
+      durationSec: null,
+      addedAt: new Date(),
       updatedAt: new Date(),
+      blob: new Blob(['x']),
+      fileName: 'test-audio.mp3',
+      fileSize: 1024000,
+      mimeType: 'audio/mpeg',
     })
 
-    describe('addFile', () => {
-      it('should add a file and return its id', async () => {
-        const file = createMockFile()
-        const id = await DBUtils.addFile(file)
+    describe('addMedia', () => {
+      it('should add a media and return its id', async () => {
+        const media = createMockMedia()
+        const id = await DBUtils.addMedia(media)
 
         expect(id).toBeDefined()
         expect(typeof id).toBe('number')
         expect(id).toBeGreaterThan(0)
       })
 
-      it('should store file with all properties', async () => {
-        const file = createMockFile()
-        const id = await DBUtils.addFile(file)
+      it('should store media with all properties', async () => {
+        const media = createMockMedia()
+        const id = await DBUtils.addMedia(media)
 
-        const stored = await DBUtils.getFile(id)
+        const stored = await DBUtils.getMedia(id)
 
         expect(stored).toBeDefined()
-        expect(stored?.name).toBe(file.name)
-        expect(stored?.size).toBe(file.size)
-        expect(stored?.type).toBe(file.type)
+        expect(stored?.title).toBe(media.title)
+        expect(stored?.fileSize).toBe(media.fileSize)
+        expect(stored?.mimeType).toBe(media.mimeType)
       })
     })
 
-    describe('getFile', () => {
+    describe('getMedia', () => {
       it('should return undefined for non-existent id', async () => {
-        const file = await DBUtils.getFile(99999)
-        expect(file).toBeUndefined()
+        const media = await DBUtils.getMedia(99999)
+        expect(media).toBeUndefined()
       })
 
-      it('should retrieve file by id', async () => {
-        const file = createMockFile()
-        const id = await DBUtils.addFile(file)
+      it('should retrieve media by id', async () => {
+        const media = createMockMedia()
+        const id = await DBUtils.addMedia(media)
 
-        const retrieved = await DBUtils.getFile(id)
+        const retrieved = await DBUtils.getMedia(id)
 
         expect(retrieved).toBeDefined()
         expect(retrieved?.id).toBe(id)
       })
     })
 
-    describe('getAllFiles', () => {
-      it('should return empty array when no files', async () => {
-        const files = await DBUtils.getAllFiles()
-        expect(files).toEqual([])
+    describe('listMedia', () => {
+      it('should return empty array when no media', async () => {
+        const media = await DBUtils.listMedia()
+        expect(media).toEqual([])
       })
 
-      it('should return all files ordered by uploadedAt descending', async () => {
-        const file1 = { ...createMockFile(), name: 'file1.mp3' }
-        const file2 = { ...createMockFile(), name: 'file2.mp3' }
+      it('should return all media ordered by addedAt descending', async () => {
+        const media1 = {
+          ...createMockMedia(),
+          title: 'file1.mp3',
+          addedAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+        }
+        const media2 = {
+          ...createMockMedia(),
+          title: 'file2.mp3',
+          addedAt: new Date('2024-01-02'),
+          updatedAt: new Date('2024-01-02'),
+        }
 
-        await DBUtils.addFile(file1)
-        // 小delay确保时间戳不同
-        await new Promise((resolve) => setTimeout(resolve, 10))
-        await DBUtils.addFile(file2)
+        await DBUtils.addMedia(media1)
+        await DBUtils.addMedia(media2)
 
-        const files = await DBUtils.getAllFiles()
+        const list = await DBUtils.listMedia()
 
-        expect(files.length).toBe(2)
-        // 最新File应该在前面
-        expect(files[0].name).toBe('file2.mp3')
-        expect(files[1].name).toBe('file1.mp3')
+        expect(list.length).toBe(2)
+        // 最新media应该在前面
+        expect(list[0].title).toBe('file2.mp3')
+        expect(list[1].title).toBe('file1.mp3')
       })
     })
 
-    describe('deleteFile', () => {
-      it('should delete file by id', async () => {
-        const id = await DBUtils.addFile(createMockFile())
+    describe('deleteMedia', () => {
+      it('should delete media by id', async () => {
+        const id = await DBUtils.addMedia(createMockMedia())
 
-        await DBUtils.deleteFile(id)
+        await DBUtils.deleteMedia(id)
 
-        const file = await DBUtils.getFile(id)
-        expect(file).toBeUndefined()
+        const media = await DBUtils.getMedia(id)
+        expect(media).toBeUndefined()
       })
 
-      it('should delete associated transcripts and segments', async () => {
-        // 创建File
-        const fileId = await DBUtils.addFile(createMockFile())
+      it('should delete associated subtitles and segments', async () => {
+        // 创建Media
+        const mediaId = await DBUtils.addMedia(createMockMedia())
 
-        // 创建Transcriptionrecord
-        const transcriptId = await DBUtils.addTranscript({
-          fileId,
+        // 创建Subtitle记录
+        const subtitleId = await DBUtils.addSubtitle({
+          mediaId,
+          source: 'whisper',
           status: 'completed',
+          sourceLanguage: 'en',
+          targetLanguage: null,
           rawText: 'Test text',
-          language: 'en',
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -112,7 +126,7 @@ describe('DBUtils', () => {
         // 创建Subtitle段
         await DBUtils.addSegments([
           {
-            transcriptId,
+            transcriptId: subtitleId,
             start: 0,
             end: 1,
             text: 'Segment 1',
@@ -121,37 +135,44 @@ describe('DBUtils', () => {
           },
         ])
 
-        // DeleteFile
-        await DBUtils.deleteFile(fileId)
+        // DeleteMedia
+        await DBUtils.deleteMedia(mediaId)
 
         // Validate关联数据也被Delete
-        const transcripts = await db.transcripts.where('fileId').equals(fileId).toArray()
-        expect(transcripts.length).toBe(0)
+        const subtitles = await db.subtitles.where('mediaId').equals(mediaId).toArray()
+        expect(subtitles.length).toBe(0)
 
-        const segments = await db.segments.where('transcriptId').equals(transcriptId).toArray()
+        const segments = await db.segments.where('transcriptId').equals(subtitleId).toArray()
         expect(segments.length).toBe(0)
       })
     })
   })
 
-  describe('Transcript operations', () => {
-    let fileId: number
+  describe('Subtitle operations', () => {
+    let mediaId: number
 
     beforeEach(async () => {
-      fileId = await DBUtils.addFile({
-        name: 'test.mp3',
-        size: 1000,
-        type: 'audio/mpeg',
-        uploadedAt: new Date(),
+      mediaId = await DBUtils.addMedia({
+        kind: 'audio',
+        title: 'test.mp3',
+        durationSec: null,
+        addedAt: new Date(),
         updatedAt: new Date(),
+        blob: new Blob(['x']),
+        fileName: 'test.mp3',
+        fileSize: 1000,
+        mimeType: 'audio/mpeg',
       })
     })
 
-    describe('addTranscript', () => {
-      it('should add transcript and return its id', async () => {
-        const id = await DBUtils.addTranscript({
-          fileId,
+    describe('addSubtitle', () => {
+      it('should add subtitle and return its id', async () => {
+        const id = await DBUtils.addSubtitle({
+          mediaId,
+          source: 'whisper',
           status: 'pending',
+          sourceLanguage: '',
+          targetLanguage: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -161,34 +182,40 @@ describe('DBUtils', () => {
       })
     })
 
-    describe('updateTranscriptStatus', () => {
-      it('should update transcript status', async () => {
-        const id = await DBUtils.addTranscript({
-          fileId,
+    describe('updateSubtitleStatus', () => {
+      it('should update subtitle status', async () => {
+        const id = await DBUtils.addSubtitle({
+          mediaId,
+          source: 'whisper',
           status: 'pending',
+          sourceLanguage: '',
+          targetLanguage: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
 
-        await DBUtils.updateTranscriptStatus(id, 'completed')
+        await DBUtils.updateSubtitleStatus(id, 'completed')
 
-        const transcript = await db.transcripts.get(id)
-        expect(transcript?.status).toBe('completed')
+        const subtitle = await db.subtitles.get(id)
+        expect(subtitle?.status).toBe('completed')
       })
 
       it('should update updatedAt timestamp', async () => {
         const initialDate = new Date('2024-01-01')
-        const id = await DBUtils.addTranscript({
-          fileId,
+        const id = await DBUtils.addSubtitle({
+          mediaId,
+          source: 'whisper',
           status: 'pending',
+          sourceLanguage: '',
+          targetLanguage: null,
           createdAt: initialDate,
           updatedAt: initialDate,
         })
 
-        await DBUtils.updateTranscriptStatus(id, 'processing')
+        await DBUtils.updateSubtitleStatus(id, 'processing')
 
-        const transcript = await db.transcripts.get(id)
-        expect(transcript?.updatedAt.getTime()).toBeGreaterThan(initialDate.getTime())
+        const subtitle = await db.subtitles.get(id)
+        expect(subtitle?.updatedAt.getTime()).toBeGreaterThan(initialDate.getTime())
       })
     })
   })
@@ -197,17 +224,24 @@ describe('DBUtils', () => {
     let transcriptId: number
 
     beforeEach(async () => {
-      const fileId = await DBUtils.addFile({
-        name: 'test.mp3',
-        size: 1000,
-        type: 'audio/mpeg',
-        uploadedAt: new Date(),
+      const mediaId = await DBUtils.addMedia({
+        kind: 'audio',
+        title: 'test.mp3',
+        durationSec: null,
+        addedAt: new Date(),
         updatedAt: new Date(),
+        blob: new Blob(['x']),
+        fileName: 'test.mp3',
+        fileSize: 1000,
+        mimeType: 'audio/mpeg',
       })
 
-      transcriptId = await DBUtils.addTranscript({
-        fileId,
+      transcriptId = await DBUtils.addSubtitle({
+        mediaId,
+        source: 'whisper',
         status: 'completed',
+        sourceLanguage: '',
+        targetLanguage: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -291,17 +325,24 @@ describe('DBUtils', () => {
   describe('clearAll', () => {
     it('should clear all data from database', async () => {
       // Add一些数据
-      const fileId = await DBUtils.addFile({
-        name: 'test.mp3',
-        size: 1000,
-        type: 'audio/mpeg',
-        uploadedAt: new Date(),
+      const mediaId = await DBUtils.addMedia({
+        kind: 'audio',
+        title: 'test.mp3',
+        durationSec: null,
+        addedAt: new Date(),
         updatedAt: new Date(),
+        blob: new Blob(['x']),
+        fileName: 'test.mp3',
+        fileSize: 1000,
+        mimeType: 'audio/mpeg',
       })
 
-      await DBUtils.addTranscript({
-        fileId,
+      await DBUtils.addSubtitle({
+        mediaId,
+        source: 'whisper',
         status: 'pending',
+        sourceLanguage: '',
+        targetLanguage: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -310,12 +351,12 @@ describe('DBUtils', () => {
       await DBUtils.clearAll()
 
       // Validate
-      const files = await DBUtils.getAllFiles()
-      const transcripts = await db.transcripts.toArray()
+      const media = await DBUtils.listMedia()
+      const subtitles = await db.subtitles.toArray()
       const segments = await db.segments.toArray()
 
-      expect(files.length).toBe(0)
-      expect(transcripts.length).toBe(0)
+      expect(media.length).toBe(0)
+      expect(subtitles.length).toBe(0)
       expect(segments.length).toBe(0)
     })
   })

@@ -1,8 +1,11 @@
-/** * 监控服务模块 * 提供系统监控、性能跟踪和日志recordfunctionality*/
+/**
+ * 监控服务模块 — 提供系统监控、性能跟踪和日志记录。
+ * 数据仅保留在内存,不上报远端。
+ */
 
 import type { AppError, ErrorContext, ExtendedErrorMonitor } from './error-handler'
 
-// 性能指标API
+// 性能指标 API
 export interface PerformanceMetrics {
   timestamp: number
   pageLoad: number
@@ -14,7 +17,7 @@ export interface PerformanceMetrics {
   largestContentfulPaint?: number
 }
 
-// 用户行asAPI
+// 用户行为 API
 export interface UserAction {
   id: string
   timestamp: number
@@ -36,7 +39,7 @@ export interface ResourceMetrics {
   status: number
 }
 
-// 自定义事件API
+// 自定义事件 API
 export interface CustomEvent {
   id: string
   timestamp: number
@@ -46,10 +49,10 @@ export interface CustomEvent {
   metadata?: Record<string, unknown>
 }
 
-// 监控配置API
+// 监控配置
 export interface MonitoringConfig {
   enabled: boolean
-  sampleRate: number // 采样率 0-1
+  sampleRate: number
   maxBatchSize: number
   maxQueueSize: number
   flushInterval: number
@@ -58,50 +61,42 @@ export interface MonitoringConfig {
   trackResources: boolean
   trackCustomEvents: boolean
   enableConsoleCapture: boolean
-  apiEndpoint?: string | null
 }
 
-// 监控数据批ProcessAPI
-export interface MonitoringBatch {
-  timestamp: number
-  sessionId: string
-  userAgent: string
-  url: string
-  metrics: {
-    performance?: PerformanceMetrics
-    userActions: UserAction[]
-    resources: ResourceMetrics[]
-    customEvents: CustomEvent[]
-    errors: Array<{
-      error: Error
-      context: ErrorContext
-      timestamp: number
-    }>
-  }
+// 内存队列条目
+type MetricsQueue = {
+  userActions: UserAction[]
+  resources: ResourceMetrics[]
+  customEvents: CustomEvent[]
+  errors: Array<{ error: Error; context: ErrorContext; timestamp: number }>
 }
 
-// 默认监控配置
 const DEFAULT_MONITORING_CONFIG: Required<MonitoringConfig> = {
   enabled: true,
   sampleRate: 1.0,
   maxBatchSize: 50,
   maxQueueSize: 1000,
-  flushInterval: 30000, // 30seconds
+  flushInterval: 30000,
   trackPerformance: true,
   trackUserActions: true,
   trackResources: true,
   trackCustomEvents: true,
   enableConsoleCapture: false,
-  apiEndpoint: null as string | null,
 }
 
-// 监控服务class
 export class MonitoringService implements ExtendedErrorMonitor {
   private config: Required<MonitoringConfig>
   private sessionId: string
-  private queue: MonitoringBatch['metrics']
+  private queue: MetricsQueue
   private flushTimer: NodeJS.Timeout | null = null
   private isInitialized = false
+
+  // Stored references for cleanup
+  private clickHandler: ((e: MouseEvent) => void) | null = null
+  private errorHandler: ((event: ErrorEvent) => void) | null = null
+  private rejectionHandler: ((event: PromiseRejectionEvent) => void) | null = null
+  private resourceObserver: PerformanceObserver | null = null
+  private originalConsoleError: typeof console.error | null = null
 
   constructor(config: Partial<MonitoringConfig> = {}) {
     this.config = { ...DEFAULT_MONITORING_CONFIG, ...config }
@@ -114,7 +109,6 @@ export class MonitoringService implements ExtendedErrorMonitor {
     }
   }
 
-  // 初始化监控服务
   initialize(): void {
     if (this.isInitialized || !this.config.enabled) {
       return
@@ -132,58 +126,68 @@ export class MonitoringService implements ExtendedErrorMonitor {
     this.logInfo('Monitoring service initialized', { sessionId: this.sessionId })
   }
 
-  // 销毁监控服务
   destroy(): void {
     this.stopFlushTimer()
     this.flush()
+
+    if (this.clickHandler && typeof document !== 'undefined') {
+      document.removeEventListener('click', this.clickHandler)
+      this.clickHandler = null
+    }
+    if (this.errorHandler && typeof window !== 'undefined') {
+      window.removeEventListener('error', this.errorHandler)
+      this.errorHandler = null
+    }
+    if (this.rejectionHandler && typeof window !== 'undefined') {
+      window.removeEventListener('unhandledrejection', this.rejectionHandler)
+      this.rejectionHandler = null
+    }
+    if (this.resourceObserver) {
+      this.resourceObserver.disconnect()
+      this.resourceObserver = null
+    }
+    if (this.originalConsoleError) {
+      console.error = this.originalConsoleError
+      this.originalConsoleError = null
+    }
+
     this.isInitialized = false
   }
 
-  // recordError（实现ErrorMonitorAPI）
   logError(error: Error | AppError, context?: ErrorContext): void {
     if (!this.shouldSample()) return
 
-    // 将AppError转换asError
     const errorObj = error instanceof Error ? error : new Error(error.message)
 
     this.queue.errors.push({
       error: errorObj,
-      context: {
-        timestamp: Date.now(),
-        ...context,
-      },
+      context: { timestamp: Date.now(), ...context },
       timestamp: Date.now(),
     })
 
     this.checkQueueSize()
   }
 
-  // record信息
   logInfo(message: string, context?: ErrorContext): void {
     this.logCustomEvent('system', 'info', { message, ...context })
   }
 
-  // record警告
   logWarning(message: string, context?: ErrorContext): void {
     this.logCustomEvent('system', 'warning', { message, ...context })
   }
 
-  // record用户operations
   logUserAction(action: Omit<UserAction, 'id' | 'timestamp' | 'url'>): void {
     if (!this.config.trackUserActions || !this.shouldSample()) return
 
-    const userAction: UserAction = {
+    this.queue.userActions.push({
       id: this.generateEventId(),
       timestamp: Date.now(),
       url: window.location.href,
       ...action,
-    }
-
-    this.queue.userActions.push(userAction)
+    })
     this.checkQueueSize()
   }
 
-  // record自定义事件
   logCustomEvent(
     category: string,
     name: string,
@@ -192,33 +196,24 @@ export class MonitoringService implements ExtendedErrorMonitor {
   ): void {
     if (!this.config.trackCustomEvents || !this.shouldSample()) return
 
-    const event: CustomEvent = {
+    this.queue.customEvents.push({
       id: this.generateEventId(),
       timestamp: Date.now(),
       name,
       category,
       value,
       metadata,
-    }
-
-    this.queue.customEvents.push(event)
+    })
     this.checkQueueSize()
   }
 
-  // record资源加载
   logResource(resource: Omit<ResourceMetrics, 'timestamp'>): void {
     if (!this.config.trackResources || !this.shouldSample()) return
 
-    const resourceMetrics: ResourceMetrics = {
-      timestamp: Date.now(),
-      ...resource,
-    }
-
-    this.queue.resources.push(resourceMetrics)
+    this.queue.resources.push({ timestamp: Date.now(), ...resource })
     this.checkQueueSize()
   }
 
-  // Get性能指标
   getPerformanceMetrics(): PerformanceMetrics | null {
     if (!this.config.trackPerformance) return null
 
@@ -239,21 +234,16 @@ export class MonitoringService implements ExtendedErrorMonitor {
     }
   }
 
-  // 手动刷新数据
+  // 数据不上报,flush 仅清空内存队列
   async flush(): Promise<void> {
     if (!this.hasData()) return
-
-    const batch = this.createBatch()
-    await this.sendBatch(batch)
     this.clearQueue()
   }
 
-  // Get会话ID
   getSessionId(): string {
     return this.sessionId
   }
 
-  // Get队列size
   getQueueSize(): number {
     return (
       this.queue.userActions.length +
@@ -263,7 +253,7 @@ export class MonitoringService implements ExtendedErrorMonitor {
     )
   }
 
-  // 私有method
+  // 私有方法
 
   private shouldSample(): boolean {
     return Math.random() < this.config.sampleRate
@@ -281,42 +271,6 @@ export class MonitoringService implements ExtendedErrorMonitor {
     return this.getQueueSize() > 0
   }
 
-  private createBatch(): MonitoringBatch {
-    return {
-      timestamp: Date.now(),
-      sessionId: this.sessionId,
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-      metrics: {
-        performance: this.getPerformanceMetrics() || undefined,
-        userActions: [...this.queue.userActions],
-        resources: [...this.queue.resources],
-        customEvents: [...this.queue.customEvents],
-        errors: [...this.queue.errors],
-      },
-    }
-  }
-
-  private async sendBatch(batch: MonitoringBatch): Promise<void> {
-    if (!this.config.apiEndpoint) {
-      return
-    }
-
-    try {
-      const response = await fetch(this.config.apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(batch),
-        keepalive: true, // 使用keepalive确保页面卸载时也能发送
-      })
-
-      if (!response.ok) {
-      }
-    } catch (_error) {}
-  }
-
   private clearQueue(): void {
     this.queue = {
       userActions: [],
@@ -330,7 +284,6 @@ export class MonitoringService implements ExtendedErrorMonitor {
     if (this.getQueueSize() >= this.config.maxBatchSize) {
       this.flush()
     } else if (this.getQueueSize() >= this.config.maxQueueSize) {
-      // 队列过满，清理旧数据
       this.trimQueue()
     }
   }
@@ -367,219 +320,106 @@ export class MonitoringService implements ExtendedErrorMonitor {
   }
 
   private setupPerformanceTracking(): void {
-    if (!this.config.trackPerformance) return
-
-    // 页面卸载时发送剩余数据
-    window.addEventListener('beforeunload', () => {
-      this.flush()
-    })
-
-    // 页面可见性变化时刷新
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        this.flush()
-      }
-    })
+    // 由 web-vitals 主导
   }
 
   private setupUserActionTracking(): void {
-    if (!this.config.trackUserActions) return
-
-    // 点击事件
-    document.addEventListener('click', (event) => {
-      const target = event.target as HTMLElement
+    if (typeof document === 'undefined') return
+    this.clickHandler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
       this.logUserAction({
         type: 'click',
-        element: target.tagName.toLowerCase(),
-        metadata: {
-          targetId: target.id,
-          targetClass: target.className,
-          text: target.textContent?.substring(0, 100),
-        },
+        element: target?.tagName?.toLowerCase(),
       })
-    })
-
-    // 滚动事件（节流）
-    let scrollTimer: NodeJS.Timeout
-    document.addEventListener('scroll', () => {
-      clearTimeout(scrollTimer)
-      scrollTimer = setTimeout(() => {
-        this.logUserAction({
-          type: 'scroll',
-          metadata: {
-            scrollY: window.scrollY,
-            scrollX: window.scrollX,
-          },
-        })
-      }, 100)
-    })
-
-    // 输入事件
-    document.addEventListener('input', (event) => {
-      const target = event.target as HTMLInputElement
-      this.logUserAction({
-        type: 'input',
-        element: target.tagName.toLowerCase(),
-        value: target.type === 'password' ? '[hidden]' : target.value,
-        metadata: {
-          inputType: target.type,
-          inputName: target.name,
-        },
-      })
-    })
-
-    // 页面导航
-    window.addEventListener('popstate', () => {
-      this.logUserAction({
-        type: 'navigation',
-        metadata: {
-          method: 'popstate',
-          url: window.location.href,
-        },
-      })
-    })
+    }
+    document.addEventListener('click', this.clickHandler)
   }
 
   private setupResourceTracking(): void {
-    if (!this.config.trackResources) return
-
-    // 监听资源加载
-    const observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if (entry.entryType === 'resource') {
-          const resource = entry as PerformanceResourceTiming
+    if (typeof PerformanceObserver === 'undefined') return
+    try {
+      this.resourceObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          const resourceEntry = entry as PerformanceResourceTiming
           this.logResource({
-            url: resource.name,
-            duration: resource.duration,
-            size: resource.transferSize || 0,
-            type: this.getResourceType(resource.initiatorType),
-            cached: resource.transferSize === 0,
-            status: 200, // 无法从PerformanceResourceTimingGetstate码
+            url: resourceEntry.name,
+            duration: resourceEntry.duration,
+            size: resourceEntry.transferSize || 0,
+            type: (resourceEntry.initiatorType as ResourceMetrics['type']) || 'other',
+            cached: resourceEntry.transferSize === 0 && resourceEntry.duration === 0,
+            status: 200,
           })
         }
-      }
-    })
-
-    try {
-      observer.observe({ entryTypes: ['resource'] })
-    } catch (_error) {}
-  }
-
-  private getResourceType(initiatorType: string): ResourceMetrics['type'] {
-    switch (initiatorType) {
-      case 'script':
-        return 'script'
-      case 'link':
-        return 'style'
-      case 'img':
-        return 'image'
-      case 'css':
-      case 'other':
-        return 'other'
-      default:
-        return 'other'
+      })
+      this.resourceObserver.observe({ entryTypes: ['resource'] })
+    } catch {
+      // 浏览器不支持时静默失败
     }
   }
 
   private setupErrorHandling(): void {
-    // 全局ErrorProcess
-    window.addEventListener('error', (event) => {
-      this.logError(event.error, {
-        component: 'global',
-        action: 'error',
-        additional: {
-          filename: event.filename,
-          lineno: event.lineno,
-          colno: event.colno,
-          message: event.message,
-        },
-      })
-    })
-
-    // 未ProcessPromise拒绝
-    window.addEventListener('unhandledrejection', (event) => {
-      this.logError(new Error(event.reason), {
-        component: 'global',
-        action: 'unhandledrejection',
-        additional: {
-          promise: event.promise,
-        },
-      })
-    })
+    if (typeof window === 'undefined') return
+    this.errorHandler = (event: ErrorEvent) => {
+      this.logError(event.error ?? new Error(event.message), { component: 'window.error' })
+    }
+    this.rejectionHandler = (event: PromiseRejectionEvent) => {
+      this.logError(
+        event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
+        { component: 'unhandledrejection' },
+      )
+    }
+    window.addEventListener('error', this.errorHandler)
+    window.addEventListener('unhandledrejection', this.rejectionHandler)
   }
 
   private setupConsoleCapture(): void {
-    if (!this.config.enableConsoleCapture) return
-
-    const consoleApi = globalThis.console
-    const originalConsoleError = consoleApi.error.bind(consoleApi)
-    const originalConsoleWarn = consoleApi.warn.bind(consoleApi)
-    const originalConsoleInfo = consoleApi.info.bind(consoleApi)
-
-    globalThis.console.error = (...args) => {
-      originalConsoleError(...args)
-      this.logCustomEvent('console', 'error', { args: args.map((arg) => String(arg)) })
-    }
-
-    globalThis.console.warn = (...args) => {
-      originalConsoleWarn(...args)
-      this.logCustomEvent('console', 'warn', { args: args.map((arg) => String(arg)) })
-    }
-
-    globalThis.console.info = (...args) => {
-      originalConsoleInfo(...args)
-      this.logCustomEvent('console', 'info', { args: args.map((arg) => String(arg)) })
+    if (!this.config.enableConsoleCapture || typeof console === 'undefined') return
+    this.originalConsoleError = console.error
+    const captured = this.originalConsoleError
+    console.error = (...args: unknown[]) => {
+      this.logError(new Error(args.map(String).join(' ')), { component: 'console.error' })
+      captured.apply(console, args)
     }
   }
 }
 
-// 全局监控服务实例
-let globalMonitoringService: MonitoringService | null = null
+let _instance: MonitoringService | null = null
 
-// Get全局监控服务
 export function getMonitoringService(): MonitoringService {
-  if (!globalMonitoringService) {
-    globalMonitoringService = new MonitoringService()
+  if (!_instance) {
+    _instance = new MonitoringService()
   }
-  return globalMonitoringService
+  return _instance
 }
 
-// 初始化全局监控服务
-export function initializeMonitoring(_config?: Partial<MonitoringConfig>): void {
-  const service = getMonitoringService()
-  service.initialize()
+export function initializeMonitoring(config?: Partial<MonitoringConfig>): void {
+  if (config) {
+    _instance = new MonitoringService(config)
+  }
+  getMonitoringService().initialize()
 }
 
-// 便捷用户operationsrecord函数
 export function trackUserAction(action: Omit<UserAction, 'id' | 'timestamp' | 'url'>): void {
-  const service = getMonitoringService()
-  service.logUserAction(action)
+  getMonitoringService().logUserAction(action)
 }
 
-// 便捷自定义事件record函数
 export function trackCustomEvent(
   category: string,
   name: string,
   metadata?: Record<string, unknown>,
   value?: number,
 ): void {
-  const service = getMonitoringService()
-  service.logCustomEvent(category, name, metadata, value)
+  getMonitoringService().logCustomEvent(category, name, metadata, value)
 }
 
-// 便捷性能指标Get函数
 export function getPerformanceMetrics(): PerformanceMetrics | null {
-  const service = getMonitoringService()
-  return service.getPerformanceMetrics()
+  return getMonitoringService().getPerformanceMetrics()
 }
 
-// 监控Hook
 export function useMonitoring() {
   return {
+    service: getMonitoringService(),
     trackUserAction,
     trackCustomEvent,
-    getPerformanceMetrics,
-    getSessionId: () => getMonitoringService().getSessionId(),
-    flush: () => getMonitoringService().flush(),
   }
 }

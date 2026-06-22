@@ -1,3 +1,4 @@
+import Dexie from 'dexie'
 import { toast } from 'sonner'
 import {
   type AppError,
@@ -339,6 +340,15 @@ export function isApiKeyError(error: unknown): boolean {
 export function getFriendlyErrorMessage(error: unknown): string {
   if (isApiKeyError(error)) {
     return '请配置 GROQ_API_KEY 环境变量以使用转录功能'
+  }
+
+  if (
+    error instanceof Dexie.VersionError ||
+    error instanceof Dexie.DatabaseClosedError ||
+    (error instanceof Error &&
+      (error.name === 'VersionError' || error.name === 'DatabaseClosedError'))
+  ) {
+    return '应用已更新，请刷新页面以加载新版本'
   }
 
   if (error instanceof Error) {

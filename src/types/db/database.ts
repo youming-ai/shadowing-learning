@@ -39,6 +39,7 @@ export interface WordTimestamp {
 
 export interface Segment {
   id?: number
+  /** v4 起指向 subtitles.id（历史字段名保留，避免重写最大的表） */
   transcriptId: number
   segmentIndex?: number
   start: number
@@ -53,6 +54,49 @@ export interface Segment {
   updatedAt: Date
 }
 
+// ===== v4 unified media model =====
+
+export type MediaKind = 'audio' | 'youtube'
+
+export interface MediaRow {
+  id?: number
+  kind: MediaKind
+  title: string
+  durationSec: number | null
+  addedAt: Date
+  updatedAt: Date
+  // kind: 'audio'
+  blob?: Blob
+  fileName?: string
+  fileSize?: number
+  mimeType?: string
+  // kind: 'youtube'
+  externalId?: string
+  channelName?: string
+  thumbnailUrl?: string
+  sourceUrl?: string
+}
+
+export type AudioMedia = MediaRow & { kind: 'audio'; blob: Blob }
+export type YouTubeMedia = MediaRow & { kind: 'youtube'; externalId: string }
+
+export type SubtitleSource = 'official' | 'whisper'
+
+export interface SubtitleRow {
+  id?: number
+  mediaId: number
+  source: SubtitleSource
+  status: ProcessingStatus // 'pending' | 'processing' | 'completed' | 'failed'
+  sourceLanguage: string
+  targetLanguage: string | null
+  postProcessStatus?: 'pending' | 'completed' | 'failed'
+  postProcessError?: string
+  rawText?: string
+  error?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface FileWithTranscripts extends FileRow {
   transcripts: TranscriptRow[]
 }
@@ -62,15 +106,10 @@ export interface TranscriptWithSegments extends TranscriptRow {
 }
 
 export interface DatabaseStats {
-  totalFiles: number
-  totalTranscripts: number
+  totalMedia: number
+  totalSubtitles: number
   totalSegments: number
-  processingStatus: {
-    pending: number
-    processing: number
-    completed: number
-    failed: number
-  }
+  totalStorageSize: number
+  averageSegmentsPerSubtitle: number
+  subtitlesByStatus: Record<string, number>
 }
-
-export type { AudioPlayerState } from '../player'

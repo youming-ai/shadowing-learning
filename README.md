@@ -83,6 +83,7 @@
 
 - [Bun](https://bun.sh/) ≥ 1.2.0（同时作为运行时与包管理器；**不要用 npm/pnpm/yarn/node**）
 - 一个 [Groq API key](https://console.groq.com/keys)（免费层即可）
+- （可选）[yt-dlp](https://github.com/yt-dlp/yt-dlp)：`brew install yt-dlp` — 仅在转写无内置字幕的 YouTube 视频时需要（生产镜像已内置）
 
 ### 安装
 

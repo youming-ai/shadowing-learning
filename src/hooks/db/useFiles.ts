@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { DBUtils } from '~/lib/db/db'
-import type { FileRow } from '~/types/db/database'
+import type { MediaRow } from '~/types/db/database'
 
 export const filesKeys = {
   all: ['files'] as const,
@@ -12,7 +12,7 @@ export interface AddFilesOptions {
 }
 
 export interface UseFilesReturn {
-  files: FileRow[]
+  files: MediaRow[]
   isLoading: boolean
   refreshFiles: () => Promise<void>
   addFiles: (files: File[], options?: AddFilesOptions) => Promise<void>
@@ -20,7 +20,7 @@ export interface UseFilesReturn {
   error: string | null
 }
 
-export function useFiles(): UseFilesReturn {
+export function useFiles(kind?: MediaRow['kind']): UseFilesReturn {
   const queryClient = useQueryClient()
 
   const {
@@ -31,8 +31,9 @@ export function useFiles(): UseFilesReturn {
   } = useQuery({
     queryKey: filesKeys.all,
     queryFn: async () => {
-      return await DBUtils.getAllFiles()
+      return await DBUtils.listMedia()
     },
+    select: (rows) => (kind ? rows.filter((m) => m.kind === kind) : rows),
     staleTime: 0,
     gcTime: 1000 * 60 * 30,
   })
@@ -56,14 +57,17 @@ export function useFiles(): UseFilesReturn {
       let uploaded = 0
       for (const file of newFiles) {
         const now = new Date()
-        await DBUtils.addFile({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          blob: file,
-          isChunked: false,
-          uploadedAt: now,
+        // 本期上传入口仅支持音频；若未来支持视频文件需按 file.type 推断 kind
+        await DBUtils.addMedia({
+          kind: 'audio',
+          title: file.name,
+          durationSec: null,
+          addedAt: now,
           updatedAt: now,
+          blob: file,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
         })
         uploaded += 1
         options?.onProgress?.(uploaded, total)
@@ -83,7 +87,7 @@ export function useFiles(): UseFilesReturn {
 
   const deleteFileMutation = useMutation({
     mutationFn: async (id: number) => {
-      await DBUtils.deleteFile(id)
+      await DBUtils.deleteMedia(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: filesKeys.all })

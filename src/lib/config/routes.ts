@@ -1,10 +1,12 @@
 /** * 应用路由常量定义 * 统一管理所有路由path，避免硬编码*/
 
 export const ROUTES = {
-  /** 首页 - File列table*/
+  /** 首页 - Online discover library */
   HOME: '/',
-  /** 播放器页面*/
-  PLAYER: '/player/[fileId]',
+  /** Online discover library (alias for HOME) */
+  ONLINE: '/',
+  /** My audio library */
+  MY_AUDIO: '/me',
   /** Set页面*/
   SETTINGS: '/settings',
   /** 账户页面*/
@@ -21,15 +23,5 @@ export function generatePath(key: RouteKey, params?: Record<string, string>): st
     return path
   }
 
-  // Special handling for player route
-  if (key === 'PLAYER' && params.fileId) {
-    return path.replace('[fileId]', params.fileId)
-  }
-
   return path
-}
-
-/** * Get播放器路由*/
-export function getPlayerRoute(fileId: string): string {
-  return generatePath('PLAYER', { fileId })
 }

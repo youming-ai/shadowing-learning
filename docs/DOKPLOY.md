@@ -5,8 +5,8 @@ This project is ready to deploy on an Oracle VPS through Dokploy using the inclu
 ## Runtime
 
 - App port: `3000`
-- Start command inside container: `node server.js`
-- Next.js output mode: `standalone`
+- Start command inside container: `bun run dist/server/server.js`
+- The runtime image bundles **yt-dlp** (official release binary, pinned via `YTDLP_VERSION` build arg), `python3`, and `nodejs` — required for transcribing YouTube videos that have no captions.
 
 ## Environment Variables
 
@@ -14,7 +14,8 @@ Configure these in Dokploy, not in the repository:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
-NEXT_PUBLIC_APP_URL=https://your-domain.com
+VITE_APP_URL=https://your-domain.com
+PERFORMANCE_ADMIN_TOKEN=optional_admin_token
 ```
 
 ## Dokploy Setup
@@ -63,6 +64,7 @@ docker compose run --service-ports app  # if you need host:3000 mapped
 - The app stores user files and transcripts in browser IndexedDB, so no database is required on the VPS.
 - The current rate limiter is in-memory. This is acceptable for a single Dokploy container. If you scale to multiple replicas, move rate limiting to Redis or another shared store.
 - Audio transcription and post-processing require outbound network access from the container to Groq.
+- **Traefik `x-forwarded-for` sanitization (required):** The per-IP rate limiter trusts the first element of the `x-forwarded-for` header. Configure Traefik to replace/sanitize this header before forwarding to the container (e.g., via the `X-Forwarded-For` middleware), or clients can spoof their IP to bypass rate limits on the YouTube endpoints.
 
 ## Local Docker Smoke Test
 
@@ -70,7 +72,7 @@ docker compose run --service-ports app  # if you need host:3000 mapped
 docker build -t shadowing-learning .
 docker run --rm -p 3000:3000 \
   -e GROQ_API_KEY=your_groq_api_key \
-  -e NEXT_PUBLIC_APP_URL=http://localhost:3000 \
+  -e VITE_APP_URL=http://localhost:3000 \
   shadowing-learning
 ```
 
