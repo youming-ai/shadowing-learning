@@ -91,6 +91,13 @@ export class MonitoringService implements ExtendedErrorMonitor {
   private flushTimer: NodeJS.Timeout | null = null
   private isInitialized = false
 
+  // Stored references for cleanup
+  private clickHandler: ((e: MouseEvent) => void) | null = null
+  private errorHandler: ((event: ErrorEvent) => void) | null = null
+  private rejectionHandler: ((event: PromiseRejectionEvent) => void) | null = null
+  private resourceObserver: PerformanceObserver | null = null
+  private originalConsoleError: typeof console.error | null = null
+
   constructor(config: Partial<MonitoringConfig> = {}) {
     this.config = { ...DEFAULT_MONITORING_CONFIG, ...config }
     this.sessionId = this.generateSessionId()
@@ -122,6 +129,28 @@ export class MonitoringService implements ExtendedErrorMonitor {
   destroy(): void {
     this.stopFlushTimer()
     this.flush()
+
+    if (this.clickHandler && typeof document !== 'undefined') {
+      document.removeEventListener('click', this.clickHandler)
+      this.clickHandler = null
+    }
+    if (this.errorHandler && typeof window !== 'undefined') {
+      window.removeEventListener('error', this.errorHandler)
+      this.errorHandler = null
+    }
+    if (this.rejectionHandler && typeof window !== 'undefined') {
+      window.removeEventListener('unhandledrejection', this.rejectionHandler)
+      this.rejectionHandler = null
+    }
+    if (this.resourceObserver) {
+      this.resourceObserver.disconnect()
+      this.resourceObserver = null
+    }
+    if (this.originalConsoleError) {
+      console.error = this.originalConsoleError
+      this.originalConsoleError = null
+    }
+
     this.isInitialized = false
   }
 
@@ -296,19 +325,20 @@ export class MonitoringService implements ExtendedErrorMonitor {
 
   private setupUserActionTracking(): void {
     if (typeof document === 'undefined') return
-    document.addEventListener('click', (e) => {
+    this.clickHandler = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null
       this.logUserAction({
         type: 'click',
         element: target?.tagName?.toLowerCase(),
       })
-    })
+    }
+    document.addEventListener('click', this.clickHandler)
   }
 
   private setupResourceTracking(): void {
     if (typeof PerformanceObserver === 'undefined') return
     try {
-      const observer = new PerformanceObserver((list) => {
+      this.resourceObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           const resourceEntry = entry as PerformanceResourceTiming
           this.logResource({
@@ -321,7 +351,7 @@ export class MonitoringService implements ExtendedErrorMonitor {
           })
         }
       })
-      observer.observe({ entryTypes: ['resource'] })
+      this.resourceObserver.observe({ entryTypes: ['resource'] })
     } catch {
       // 浏览器不支持时静默失败
     }
@@ -329,23 +359,26 @@ export class MonitoringService implements ExtendedErrorMonitor {
 
   private setupErrorHandling(): void {
     if (typeof window === 'undefined') return
-    window.addEventListener('error', (event) => {
+    this.errorHandler = (event: ErrorEvent) => {
       this.logError(event.error ?? new Error(event.message), { component: 'window.error' })
-    })
-    window.addEventListener('unhandledrejection', (event) => {
+    }
+    this.rejectionHandler = (event: PromiseRejectionEvent) => {
       this.logError(
         event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
         { component: 'unhandledrejection' },
       )
-    })
+    }
+    window.addEventListener('error', this.errorHandler)
+    window.addEventListener('unhandledrejection', this.rejectionHandler)
   }
 
   private setupConsoleCapture(): void {
     if (!this.config.enableConsoleCapture || typeof console === 'undefined') return
-    const originalError = console.error
+    this.originalConsoleError = console.error
+    const captured = this.originalConsoleError
     console.error = (...args: unknown[]) => {
       this.logError(new Error(args.map(String).join(' ')), { component: 'console.error' })
-      originalError.apply(console, args)
+      captured.apply(console, args)
     }
   }
 }
