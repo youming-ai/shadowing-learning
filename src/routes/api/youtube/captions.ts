@@ -9,10 +9,11 @@ import {
   getRateLimitConfig,
   getRateLimitHeaders,
 } from '~/lib/utils/rate-limiter'
-import { fetchTranscriptCues, getVideoMeta, YouTubeSourceError } from '~/lib/youtube/innertube'
+import { getVideoMeta, YouTubeSourceError } from '~/lib/youtube/innertube'
 import { mergeShortCues, msCuesToSeconds } from '~/lib/youtube/normalize'
 import { selectCaptionTrack } from '~/lib/youtube/track-select'
 import { isValidVideoId } from '~/lib/youtube/url'
+import { fetchSubtitleCues, isYtdlpAvailable, YtdlpError } from '~/lib/youtube/ytdlp'
 
 const bodySchema = z.object({
   videoId: z.string(),
@@ -40,18 +41,29 @@ export async function handleCaptionsPost(request: Request): Promise<Response> {
   }
   const { videoId, preferredLanguage } = parsed.data
 
+  if (!(await isYtdlpAvailable())) {
+    return apiError({
+      code: 'EXTRACTOR_UNAVAILABLE',
+      message: '服务器未安装 yt-dlp，无法抓取字幕',
+      statusCode: 501,
+    })
+  }
+
   try {
     const meta = await getVideoMeta(videoId)
     const track = selectCaptionTrack(meta.captionTracks, { preferredLanguage })
     if (!track) {
       return apiError({ code: 'NO_CAPTIONS', message: '该视频没有可用字幕', statusCode: 404 })
     }
-    const cues = await fetchTranscriptCues(videoId, track.displayName)
+    const cues = await fetchSubtitleCues(videoId, track.language, track.kind)
     const segments = mergeShortCues(msCuesToSeconds(cues))
     return apiSuccess({ language: track.language, kind: track.kind, segments })
   } catch (error) {
     if (error instanceof YouTubeSourceError) {
       return apiError({ code: error.code, message: error.message, statusCode: error.statusCode })
+    }
+    if (error instanceof YtdlpError) {
+      return apiError({ code: error.code, message: error.message, statusCode: 502 })
     }
     return apiError({ code: 'EXTRACTOR_FAILED', message: '字幕抓取失败', statusCode: 502 })
   }
