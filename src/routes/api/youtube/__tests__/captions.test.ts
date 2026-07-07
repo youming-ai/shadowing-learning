@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('~/lib/youtube/innertube', async (importOriginal) => {
   const orig = await importOriginal<typeof import('~/lib/youtube/innertube')>()
-  return {
-    ...orig,
-    getVideoMeta: vi.fn(),
-    fetchTranscriptCues: vi.fn(),
-  }
+  return { ...orig, getVideoMeta: vi.fn() }
 })
 
-import { fetchTranscriptCues, getVideoMeta, YouTubeSourceError } from '~/lib/youtube/innertube'
+vi.mock('~/lib/youtube/ytdlp', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('~/lib/youtube/ytdlp')>()
+  return { ...orig, fetchSubtitleCues: vi.fn(), isYtdlpAvailable: vi.fn() }
+})
+
+import { getVideoMeta, YouTubeSourceError } from '~/lib/youtube/innertube'
+import { fetchSubtitleCues, isYtdlpAvailable, YtdlpError } from '~/lib/youtube/ytdlp'
 import { handleCaptionsPost } from '~/routes/api/youtube/captions'
 
 function post(body: unknown) {
@@ -20,7 +22,10 @@ function post(body: unknown) {
   })
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(isYtdlpAvailable).mockResolvedValue(true)
+})
 
 describe('POST /api/youtube/captions', () => {
   it('selects track, fetches transcript, returns merged second-based segments', async () => {
@@ -36,7 +41,7 @@ describe('POST /api/youtube/captions', () => {
         { language: 'en', kind: 'asr', displayName: 'English (auto-generated)' },
       ],
     })
-    vi.mocked(fetchTranscriptCues).mockResolvedValue([
+    vi.mocked(fetchSubtitleCues).mockResolvedValue([
       { startMs: 0, endMs: 800, text: 'I was' },
       { startMs: 800, endMs: 3000, text: 'told to make my bed.' },
     ])
@@ -46,7 +51,7 @@ describe('POST /api/youtube/captions', () => {
     expect(json.data.language).toBe('en')
     expect(json.data.kind).toBe('manual')
     expect(json.data.segments).toEqual([{ start: 0, end: 3, text: 'I was told to make my bed.' }])
-    expect(fetchTranscriptCues).toHaveBeenCalledWith('dQw4w9WgXcQ', 'English')
+    expect(fetchSubtitleCues).toHaveBeenCalledWith('dQw4w9WgXcQ', 'en', 'manual')
   })
 
   it('returns NO_CAPTIONS 404 when no tracks exist', async () => {
@@ -70,9 +75,32 @@ describe('POST /api/youtube/captions', () => {
     expect((await res.json()).error.code).toBe('INVALID_URL')
   })
 
+  it('returns EXTRACTOR_UNAVAILABLE 501 when yt-dlp is missing', async () => {
+    vi.mocked(isYtdlpAvailable).mockResolvedValue(false)
+    const res = await handleCaptionsPost(post({ videoId: 'dQw4w9WgXcQ' }))
+    expect(res.status).toBe(501)
+    expect((await res.json()).error.code).toBe('EXTRACTOR_UNAVAILABLE')
+  })
+
   it('maps YouTubeSourceError through (e.g. YT_BLOCKED)', async () => {
     vi.mocked(getVideoMeta).mockRejectedValue(new YouTubeSourceError('YT_BLOCKED', 'blocked', 502))
     const res = await handleCaptionsPost(post({ videoId: 'dQw4w9WgXcQ' }))
+    expect(res.status).toBe(502)
+    expect((await res.json()).error.code).toBe('YT_BLOCKED')
+  })
+
+  it('maps YtdlpError to 502', async () => {
+    vi.mocked(getVideoMeta).mockResolvedValue({
+      videoId: 'dQw4w9WgXcQ',
+      title: 't',
+      channelName: 'c',
+      thumbnailUrl: '',
+      durationSec: 100,
+      isLive: false,
+      captionTracks: [{ language: 'en', kind: 'manual', displayName: 'English' }],
+    })
+    vi.mocked(fetchSubtitleCues).mockRejectedValue(new YtdlpError('YT_BLOCKED', 'blocked'))
+    const res = await handleCaptionsPost(post({ videoId: 'dQw4w9WgXcQ', preferredLanguage: 'en' }))
     expect(res.status).toBe(502)
     expect((await res.json()).error.code).toBe('YT_BLOCKED')
   })

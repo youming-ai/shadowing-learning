@@ -50,9 +50,15 @@ export const Route = createRootRoute({
       ],
       scripts: [
         {
+          // Microsoft Clarity — rendered via HeadContent (not the component tree)
+          // so the per-request nonce doesn't trip a client hydration mismatch.
+          ...(nonce ? { nonce } : {}),
+          children: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","wmm91mbi3i");`,
+        },
+        {
           type: 'application/ld+json',
           ...(nonce ? { nonce } : {}),
-          text: JSON.stringify([
+          children: JSON.stringify([
             {
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
@@ -79,18 +85,10 @@ export const Route = createRootRoute({
 })
 
 function RootLayout() {
-  const nonce = getCspNonce()
-
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <script
-          {...(nonce ? { nonce } : {})}
-          dangerouslySetInnerHTML={{
-            __html: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","wmm91mbi3i");`,
-          }}
-        />
       </head>
       <body className="min-h-screen font-sans antialiased">
         <ThemeProvider defaultTheme="system">

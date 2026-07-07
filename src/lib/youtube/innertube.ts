@@ -1,6 +1,5 @@
 import { Innertube } from 'youtubei.js'
 import { apiLogger } from '~/lib/utils/logger'
-import type { MsCue } from '~/lib/youtube/normalize'
 import type { CaptionTrackMeta } from '~/lib/youtube/track-select'
 
 export type YouTubeErrorCode =
@@ -109,55 +108,6 @@ export async function getVideoMeta(videoId: string): Promise<VideoMeta> {
     }
   } catch (error) {
     apiLogger.error('getVideoMeta failed:', { videoId, error: String(error) })
-    throw classifyYouTubeError(error)
-  }
-}
-
-/**
- * captions 用：完整 getInfo + transcript 面板（重请求）。
- * 禁止走 caption base_url（timedtext）直拉——服务端已被 POT token 封死。
- * displayName 来自 caption_tracks 决策（两步映射，见 track-select.ts）。
- */
-export async function fetchTranscriptCues(videoId: string, displayName?: string): Promise<MsCue[]> {
-  try {
-    const yt = await getClient()
-    const info = await yt.getInfo(videoId)
-    // Verified v17.0.1: getTranscript() returns Promise<TranscriptInfo>
-    // TranscriptInfo: { transcript: Transcript; languages: string[]; selectedLanguage: string }
-    // selectLanguage(language: string): Promise<TranscriptInfo>
-    let transcriptInfo = await info.getTranscript()
-    if (
-      displayName &&
-      transcriptInfo.languages.includes(displayName) &&
-      transcriptInfo.selectedLanguage !== displayName
-    ) {
-      transcriptInfo = await transcriptInfo.selectLanguage(displayName)
-    }
-    // Verified v17.0.1 chain:
-    //   TranscriptInfo.transcript: Transcript
-    //   Transcript.content: TranscriptSearchPanel | null
-    //   TranscriptSearchPanel.body: TranscriptSegmentList | null
-    //   TranscriptSegmentList.initial_segments: ObservedArray<TranscriptSegment | TranscriptSectionHeader>
-    //   TranscriptSegment: { start_ms: string; end_ms: string; snippet: Text }
-    //   Text.text?: string  — use .text with fallback to toString()
-    const segments = transcriptInfo.transcript?.content?.body?.initial_segments ?? []
-    const cues: MsCue[] = []
-    for (const seg of segments) {
-      // biome-ignore lint/suspicious/noExplicitAny: 运行时形状（TranscriptSectionHeader 无 start_ms）
-      const s = seg as any
-      // start_ms / end_ms are strings in v17.0.1 — Number() coercion is correct
-      // snippet is Text object: prefer .text (string | undefined), fall back to .toString()
-      const text = s.snippet?.text ?? s.snippet?.toString?.() ?? ''
-      if (typeof s.start_ms !== 'undefined' && text.trim().length > 0) {
-        cues.push({ startMs: Number(s.start_ms), endMs: Number(s.end_ms), text: text.trim() })
-      }
-    }
-    if (cues.length === 0) {
-      throw new YouTubeSourceError('NO_CAPTIONS', '该视频没有可用字幕', 404)
-    }
-    return cues
-  } catch (error) {
-    apiLogger.error('fetchTranscriptCues failed:', { videoId, error: String(error) })
     throw classifyYouTubeError(error)
   }
 }
