@@ -11,7 +11,7 @@ vi.mock('~/lib/youtube/ytdlp', async (importOriginal) => {
 })
 
 import { getVideoMeta, YouTubeSourceError } from '~/lib/youtube/innertube'
-import { fetchSubtitleCues, isYtdlpAvailable } from '~/lib/youtube/ytdlp'
+import { fetchSubtitleCues, isYtdlpAvailable, YtdlpError } from '~/lib/youtube/ytdlp'
 import { handleCaptionsPost } from '~/routes/api/youtube/captions'
 
 function post(body: unknown) {
@@ -85,6 +85,22 @@ describe('POST /api/youtube/captions', () => {
   it('maps YouTubeSourceError through (e.g. YT_BLOCKED)', async () => {
     vi.mocked(getVideoMeta).mockRejectedValue(new YouTubeSourceError('YT_BLOCKED', 'blocked', 502))
     const res = await handleCaptionsPost(post({ videoId: 'dQw4w9WgXcQ' }))
+    expect(res.status).toBe(502)
+    expect((await res.json()).error.code).toBe('YT_BLOCKED')
+  })
+
+  it('maps YtdlpError to 502', async () => {
+    vi.mocked(getVideoMeta).mockResolvedValue({
+      videoId: 'dQw4w9WgXcQ',
+      title: 't',
+      channelName: 'c',
+      thumbnailUrl: '',
+      durationSec: 100,
+      isLive: false,
+      captionTracks: [{ language: 'en', kind: 'manual', displayName: 'English' }],
+    })
+    vi.mocked(fetchSubtitleCues).mockRejectedValue(new YtdlpError('YT_BLOCKED', 'blocked'))
+    const res = await handleCaptionsPost(post({ videoId: 'dQw4w9WgXcQ', preferredLanguage: 'en' }))
     expect(res.status).toBe(502)
     expect((await res.json()).error.code).toBe('YT_BLOCKED')
   })

@@ -93,6 +93,21 @@ export function parseJson3Cues(raw: string): MsCue[] {
 }
 
 /**
+ * 从 yt-dlp 产出的文件列表中确定性地选出目标语言的 json3 文件。
+ * yt-dlp 按 `<id>.<lang>.json3` 命名；优先精确语言匹配，否则回退到按字典序排序后的第一个
+ * （跨文件系统稳定，避免 readdir 的 OS 顺序依赖导致选中错误轨道，例如 en vs en-orig）。
+ */
+export function pickSubtitleFile(
+  files: string[],
+  videoId: string,
+  language: string,
+): string | undefined {
+  const json3 = files.filter((f) => f.endsWith('.json3')).sort()
+  if (json3.length === 0) return undefined
+  return json3.find((f) => f === `${videoId}.${language}.json3`) ?? json3[0]
+}
+
+/**
  * 抓取指定语言字幕（json3）并返回 MsCue[]。
  * 用 android_vr 等客户端绕过 timedtext 的 PoToken 封锁（youtubei.js 的 get_transcript 已 400）。
  * videoId 必须先过 isValidVideoId；execFile + '--' 双保险防注入（同 downloadAudio）。
@@ -117,7 +132,7 @@ export async function fetchSubtitleCues(
         '--skip-download',
         writeFlag,
         '--sub-langs',
-        `${base}.*,${base}`,
+        `${language},${base}.*,${base}`,
         '--sub-format',
         'json3',
         '-o',
@@ -127,11 +142,11 @@ export async function fetchSubtitleCues(
       ],
       { timeout: TIMEOUT_MS },
     )
-    const json3 = (await readdir(dir)).filter((f) => f.endsWith('.json3'))
-    if (json3.length === 0) {
+    const chosen = pickSubtitleFile(await readdir(dir), videoId, language)
+    if (!chosen) {
       throw new YouTubeSourceError('NO_CAPTIONS', '该视频没有可用字幕', 404)
     }
-    const cues = parseJson3Cues(await readFile(join(dir, json3[0]), 'utf8'))
+    const cues = parseJson3Cues(await readFile(join(dir, chosen), 'utf8'))
     if (cues.length === 0) {
       throw new YouTubeSourceError('NO_CAPTIONS', '该视频没有可用字幕', 404)
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseJson3Cues } from '~/lib/youtube/ytdlp'
+import { parseJson3Cues, pickSubtitleFile } from '~/lib/youtube/ytdlp'
 
 describe('parseJson3Cues', () => {
   it('maps events to MsCue with endMs = start + duration', () => {
@@ -39,5 +39,27 @@ describe('parseJson3Cues', () => {
   it('treats missing dDurationMs as 0', () => {
     const raw = JSON.stringify({ events: [{ tStartMs: 500, segs: [{ utf8: 'x' }] }] })
     expect(parseJson3Cues(raw)).toEqual([{ startMs: 500, endMs: 500, text: 'x' }])
+  })
+})
+
+describe('pickSubtitleFile', () => {
+  it('prefers the exact-language file over a same-base variant', () => {
+    const files = ['dQw4w9WgXcQ.en-orig.json3', 'dQw4w9WgXcQ.en.json3']
+    expect(pickSubtitleFile(files, 'dQw4w9WgXcQ', 'en')).toBe('dQw4w9WgXcQ.en.json3')
+  })
+
+  it('falls back to the lexicographically-first json3 when no exact match exists', () => {
+    const files = ['dQw4w9WgXcQ.en-orig.json3', 'dQw4w9WgXcQ.en-US.json3']
+    expect(pickSubtitleFile(files, 'dQw4w9WgXcQ', 'en')).toBe('dQw4w9WgXcQ.en-US.json3')
+  })
+
+  it('filters out non-json3 files before choosing', () => {
+    const files = ['dQw4w9WgXcQ.en.vtt', 'dQw4w9WgXcQ.en.srv3', 'dQw4w9WgXcQ.en.json3']
+    expect(pickSubtitleFile(files, 'dQw4w9WgXcQ', 'en')).toBe('dQw4w9WgXcQ.en.json3')
+  })
+
+  it('returns undefined when there are no files or no json3 files', () => {
+    expect(pickSubtitleFile([], 'dQw4w9WgXcQ', 'en')).toBeUndefined()
+    expect(pickSubtitleFile(['dQw4w9WgXcQ.en.vtt'], 'dQw4w9WgXcQ', 'en')).toBeUndefined()
   })
 })
