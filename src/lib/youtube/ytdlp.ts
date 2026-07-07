@@ -1,9 +1,11 @@
 import { execFile } from 'node:child_process'
-import { readFile, rm } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { apiLogger } from '~/lib/utils/logger'
+import { YouTubeSourceError } from '~/lib/youtube/innertube'
+import type { MsCue } from '~/lib/youtube/normalize'
 import { isValidVideoId } from '~/lib/youtube/url'
 
 const execFileAsync = promisify(execFile)
@@ -64,5 +66,87 @@ export async function downloadAudio(videoId: string): Promise<File> {
     throw new YtdlpError('EXTRACTOR_FAILED', `音频下载失败: ${msg.slice(0, 200)}`)
   } finally {
     await rm(tmpPath, { force: true }).catch(() => {})
+  }
+}
+
+interface Json3Event {
+  tStartMs?: number
+  dDurationMs?: number
+  segs?: { utf8?: string }[]
+}
+
+/** Parse yt-dlp's json3 subtitle payload into MsCue[]. Pure — unit-tested. */
+export function parseJson3Cues(raw: string): MsCue[] {
+  const data = JSON.parse(raw) as { events?: Json3Event[] }
+  const cues: MsCue[] = []
+  for (const e of data.events ?? []) {
+    if (!e.segs || typeof e.tStartMs !== 'number') continue
+    const text = e.segs
+      .map((s) => s.utf8 ?? '')
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!text) continue
+    cues.push({ startMs: e.tStartMs, endMs: e.tStartMs + (e.dDurationMs ?? 0), text })
+  }
+  return cues
+}
+
+/**
+ * 抓取指定语言字幕（json3）并返回 MsCue[]。
+ * 用 android_vr 等客户端绕过 timedtext 的 PoToken 封锁（youtubei.js 的 get_transcript 已 400）。
+ * videoId 必须先过 isValidVideoId；execFile + '--' 双保险防注入（同 downloadAudio）。
+ * 无产出 / 空字幕 → NO_CAPTIONS(404)，交给客户端 Whisper 兜底。
+ */
+export async function fetchSubtitleCues(
+  videoId: string,
+  language: string,
+  kind: 'manual' | 'asr',
+): Promise<MsCue[]> {
+  if (!isValidVideoId(videoId)) {
+    throw new YtdlpError('EXTRACTOR_FAILED', `非法 videoId: ${videoId}`)
+  }
+  const base = language.split('-')[0]
+  const writeFlag = kind === 'asr' ? '--write-auto-subs' : '--write-subs'
+  const dir = join(tmpdir(), `yt-sub-${videoId}-${crypto.randomUUID()}`)
+  try {
+    await mkdir(dir, { recursive: true })
+    await execFileAsync(
+      'yt-dlp',
+      [
+        '--skip-download',
+        writeFlag,
+        '--sub-langs',
+        `${base}.*,${base}`,
+        '--sub-format',
+        'json3',
+        '-o',
+        join(dir, '%(id)s.%(ext)s'),
+        '--',
+        videoId,
+      ],
+      { timeout: TIMEOUT_MS },
+    )
+    const json3 = (await readdir(dir)).filter((f) => f.endsWith('.json3'))
+    if (json3.length === 0) {
+      throw new YouTubeSourceError('NO_CAPTIONS', '该视频没有可用字幕', 404)
+    }
+    const cues = parseJson3Cues(await readFile(join(dir, json3[0]), 'utf8'))
+    if (cues.length === 0) {
+      throw new YouTubeSourceError('NO_CAPTIONS', '该视频没有可用字幕', 404)
+    }
+    return cues
+  } catch (error) {
+    if (error instanceof YouTubeSourceError) throw error
+    if (error instanceof YtdlpError) throw error
+    const msg = (error instanceof Error ? error.message : String(error)).toLowerCase()
+    apiLogger.error('fetchSubtitleCues failed:', { videoId, error: msg.slice(0, 300) })
+    if (msg.includes('sign in') || msg.includes('bot') || msg.includes('login')) {
+      throw new YtdlpError('YT_BLOCKED', '服务器被 YouTube 风控拦截')
+    }
+    if (msg.includes('enoent')) throw new YtdlpError('EXTRACTOR_FAILED', 'yt-dlp 不可用')
+    throw new YtdlpError('EXTRACTOR_FAILED', `字幕抓取失败: ${msg.slice(0, 200)}`)
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {})
   }
 }
