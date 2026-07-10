@@ -8,6 +8,7 @@ interface UseWatchKeyboardProps {
   onToggleMute: () => void
   onSetRate: (rate: number) => void
   onToggleShadowing?: () => void
+  onToggleRecord?: () => void
 }
 
 export function useWatchKeyboard({
@@ -18,6 +19,7 @@ export function useWatchKeyboard({
   onToggleMute,
   onSetRate,
   onToggleShadowing,
+  onToggleRecord,
 }: UseWatchKeyboardProps) {
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
@@ -53,6 +55,12 @@ export function useWatchKeyboard({
             onToggleShadowing()
           }
           break
+        case 'r':
+          if (onToggleRecord) {
+            event.preventDefault()
+            onToggleRecord()
+          }
+          break
         case '1':
         case '2':
         case '3':
@@ -64,7 +72,16 @@ export function useWatchKeyboard({
         }
       }
     },
-    [enabled, onPlayPause, onPrev, onNext, onToggleMute, onSetRate, onToggleShadowing],
+    [
+      enabled,
+      onPlayPause,
+      onPrev,
+      onNext,
+      onToggleMute,
+      onSetRate,
+      onToggleShadowing,
+      onToggleRecord,
+    ],
   )
 
   useEffect(() => {

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CurrentSentence } from '~/components/features/watch/CurrentSentence'
 import { MediaViewport } from '~/components/features/watch/MediaViewport'
+import { RecordingBar } from '~/components/features/watch/RecordingBar'
 import { SubtitlePanel } from '~/components/features/watch/SubtitlePanel'
 import { WatchControls } from '~/components/features/watch/WatchControls'
 import { useI18n } from '~/components/layout/contexts/I18nContext'
@@ -11,6 +12,7 @@ import { useSubtitlePipeline } from '~/hooks/media/useSubtitlePipeline'
 import { usePlayerAdapter } from '~/hooks/player/usePlayerAdapter'
 import { useSegmentLoop } from '~/hooks/player/useSegmentLoop'
 import { useSegmentNavigation } from '~/hooks/player/useSegmentNavigation'
+import { useSentenceRecorder } from '~/hooks/player/useSentenceRecorder'
 import { useShadowingPractice } from '~/hooks/player/useShadowingPractice'
 import { useWatchKeyboard } from '~/hooks/player/useWatchKeyboard'
 import { DBUtils } from '~/lib/db/db'
@@ -67,16 +69,34 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     browseRate: playbackRate,
   })
 
+  const recorder = useSentenceRecorder()
+
   // While shadowing is active, the FSM owns the active sentence index.
   const activeIndex =
     shadowing.config.enabled && shadowing.state.phase !== 'idle'
       ? shadowing.state.activeIndex
       : navActiveIndex
 
+  const activeSegment = activeIndex >= 0 ? (pipeline.segments[activeIndex] ?? null) : null
+
+  // Original sentence one-shot playback (for A/B compare with user recording).
+  const originalEndRef = useRef<number | null>(null)
+  useEffect(() => {
+    const end = originalEndRef.current
+    if (end == null) return
+    if (player.currentTime >= end - 0.05) {
+      player.pause()
+      originalEndRef.current = null
+    }
+  }, [player.currentTime, player])
+
   const handleTogglePlay = useCallback(() => {
+    originalEndRef.current = null
+    if (recorder.status === 'recording') recorder.stopRecording()
+    if (recorder.status === 'playing') recorder.stopPlayback()
     if (player.isPlaying) player.pause()
     else player.play()
-  }, [player])
+  }, [player, recorder])
 
   const handleRateChange = useCallback(
     (rate: number) => {
@@ -98,6 +118,9 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
 
   const handleSegmentClick = useCallback(
     (segment: Segment, index: number) => {
+      originalEndRef.current = null
+      if (recorder.status === 'recording') recorder.stopRecording()
+      if (recorder.status === 'playing') recorder.stopPlayback()
       if (shadowing.config.enabled) {
         shadowing.jumpToIndex(index)
         return
@@ -105,10 +128,11 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
       player.seekTo(segment.start)
       if (!player.isPlaying) player.play()
     },
-    [player, shadowing],
+    [player, shadowing, recorder],
   )
 
   const handlePrev = useCallback(() => {
+    originalEndRef.current = null
     if (shadowing.config.enabled) {
       const idx = Math.max(0, activeIndex - 1)
       shadowing.jumpToIndex(idx)
@@ -118,6 +142,7 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
   }, [shadowing, activeIndex, goPrev])
 
   const handleNext = useCallback(() => {
+    originalEndRef.current = null
     if (shadowing.config.enabled) {
       const idx = Math.min(pipeline.segments.length - 1, activeIndex + 1)
       if (idx >= 0) shadowing.jumpToIndex(idx)
@@ -138,6 +163,48 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     void pipeline.regenerate()
   }, [pipeline, t])
 
+  const handleToggleRecord = useCallback(() => {
+    if (!activeSegment || activeIndex < 0) return
+    if (recorder.status === 'recording') {
+      recorder.stopRecording()
+      return
+    }
+    // Pause source while user records to avoid bleed into the mic.
+    if (player.isPlaying) player.pause()
+    if (recorder.status === 'playing') recorder.stopPlayback()
+    originalEndRef.current = null
+    void recorder.startRecording(activeSegment, activeIndex)
+  }, [activeSegment, activeIndex, player, recorder])
+
+  const handlePlayMine = useCallback(() => {
+    if (!activeSegment || activeIndex < 0) return
+    if (player.isPlaying) player.pause()
+    originalEndRef.current = null
+    recorder.playRecording(activeSegment, activeIndex)
+  }, [activeSegment, activeIndex, player, recorder])
+
+  const handlePlayOriginal = useCallback(() => {
+    if (!activeSegment) return
+    if (recorder.status === 'recording') recorder.stopRecording()
+    if (recorder.status === 'playing') recorder.stopPlayback()
+    originalEndRef.current = activeSegment.end
+    player.seekTo(activeSegment.start)
+    player.play()
+  }, [activeSegment, player, recorder])
+
+  // Auto-stop recording when shadowing leaves gap (next listen starts).
+  const recorderStatus = recorder.status
+  const stopRecording = recorder.stopRecording
+  useEffect(() => {
+    if (
+      shadowing.config.enabled &&
+      shadowing.state.phase === 'listening' &&
+      recorderStatus === 'recording'
+    ) {
+      stopRecording()
+    }
+  }, [shadowing.config.enabled, shadowing.state.phase, recorderStatus, stopRecording])
+
   useWatchKeyboard({
     enabled: Boolean(media),
     onPlayPause: handleTogglePlay,
@@ -146,6 +213,7 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     onToggleMute: () => handleVolumeChange(volume === 0 ? 1 : 0),
     onSetRate: handleRateChange,
     onToggleShadowing: shadowing.toggleShadowing,
+    onToggleRecord: handleToggleRecord,
   })
 
   if (!validId || (!mediaQuery.isLoading && !media)) {
@@ -162,8 +230,12 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     return <PageLoadingState />
   }
 
-  const activeSegment = activeIndex >= 0 ? (pipeline.segments[activeIndex] ?? null) : null
   const showOriginalOnly = pipeline.subtitle?.source === 'official'
+  const isGapPhase = shadowing.config.enabled && shadowing.state.phase === 'gap'
+  const hasRecording =
+    activeSegment != null && activeIndex >= 0
+      ? recorder.hasRecording(activeSegment, activeIndex)
+      : false
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 px-4 py-4 lg:h-screen">
@@ -193,7 +265,22 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
             containerRef={player.containerRef}
             embedBlocked={player.embedBlocked}
           />
-          <CurrentSentence segment={activeSegment} showOriginalOnly={Boolean(showOriginalOnly)} />
+          <CurrentSentence
+            segment={activeSegment}
+            showOriginalOnly={Boolean(showOriginalOnly)}
+            currentTime={player.currentTime}
+          />
+          <RecordingBar
+            disabled={!activeSegment}
+            status={recorder.status}
+            error={recorder.error}
+            hasRecording={hasRecording}
+            isGapPhase={isGapPhase}
+            onToggleRecord={handleToggleRecord}
+            onPlayMine={handlePlayMine}
+            onPlayOriginal={handlePlayOriginal}
+            onStopPlayback={recorder.stopPlayback}
+          />
           <WatchControls
             isPlaying={player.isPlaying}
             currentTime={player.currentTime}
