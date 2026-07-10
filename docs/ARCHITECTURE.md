@@ -188,11 +188,11 @@ Database version: 4 (two-phase migration)
 |----------|--------|------------|---------|
 | /api/transcribe | POST | per-IP sliding window | Validate audio (≤25 MB), call Groq Whisper, return `TranscriptionSegment[]` |
 | /api/postprocess | POST | 20 req / 1 min per-IP | Normalize text, translate, add annotations/furigana via Groq chat completions |
-| /api/health | GET | — | Liveness probe (used by Dokploy) |
-| /api/performance | POST | token-gated | Web Vitals ingestion |
 | /api/youtube/resolve | POST | 20 req / 10 min per-IP | Resolve YouTube URL → video metadata via youtubei.js |
 | /api/youtube/captions | POST | 20 req / 10 min per-IP | Fetch + normalize YouTube caption track; returns `NO_CAPTIONS` if unavailable |
 | /api/youtube/transcribe | POST | 4 req / hr per-IP + concurrency 1 + 24/UTC-day global quota | No-caption fallback: yt-dlp downloads audio → Groq Whisper transcription |
+
+> Note: `/api/health` and `/api/performance` were removed; monitoring stays in-memory on the client. Dokploy can probe the HTTP origin or container process instead.
 
 ## Transcription Architecture
 
@@ -262,7 +262,7 @@ Object URLs are cached per Blob and revoked when the Blob changes or the player 
 |----------|----------|---------|
 | GROQ_API_KEY | Yes | `/api/transcribe`, `/api/postprocess`, `/api/youtube/transcribe`, text post-processing utilities |
 | VITE_APP_URL | No | Client-side app URL (must be `VITE_`-prefixed); defaults to `http://localhost:3000` |
-| PERFORMANCE_ADMIN_TOKEN | No | Gates `/api/performance` ingestion |
+| PERFORMANCE_ADMIN_TOKEN | No | Legacy; `/api/performance` removed (client metrics stay in-memory) |
 
 ## Performance Notes
 

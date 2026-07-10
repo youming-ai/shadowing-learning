@@ -89,6 +89,19 @@ export interface TranslationKey {
   'watch.prevSentence': string
   'watch.nextSentence': string
   'watch.loopSentence': string
+  'watch.shadowing.toggle': string
+  'watch.shadowing.settings': string
+  'watch.shadowing.pass': string
+  'watch.shadowing.phase.listening': string
+  'watch.shadowing.phase.gap': string
+  'watch.shadowing.repeat': string
+  'watch.shadowing.gap': string
+  'watch.shadowing.gap.short': string
+  'watch.shadowing.gap.medium': string
+  'watch.shadowing.gap.long': string
+  'watch.shadowing.practiceRate': string
+  'watch.shadowing.autoAdvance': string
+  'watch.shadowing.loopDisabled': string
 
   // Two-line nav + pages
   'nav.online': string
@@ -206,6 +219,19 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '上一句',
     'watch.nextSentence': '下一句',
     'watch.loopSentence': '单句循环',
+    'watch.shadowing.toggle': '影子跟读',
+    'watch.shadowing.settings': '跟读设置',
+    'watch.shadowing.pass': '第 {{current}}/{{total}} 遍',
+    'watch.shadowing.phase.listening': '听',
+    'watch.shadowing.phase.gap': '留白',
+    'watch.shadowing.repeat': '每句重复',
+    'watch.shadowing.gap': '跟读留白',
+    'watch.shadowing.gap.short': '短',
+    'watch.shadowing.gap.medium': '中',
+    'watch.shadowing.gap.long': '长',
+    'watch.shadowing.practiceRate': '练习语速',
+    'watch.shadowing.autoAdvance': '自动下一句',
+    'watch.shadowing.loopDisabled': '影子模式下使用跟读循环',
 
     // Two-line nav + pages
     'nav.online': '在线',
@@ -321,6 +347,19 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '上一句',
     'watch.nextSentence': '下一句',
     'watch.loopSentence': '單句循環',
+    'watch.shadowing.toggle': '影子跟讀',
+    'watch.shadowing.settings': '跟讀設定',
+    'watch.shadowing.pass': '第 {{current}}/{{total}} 遍',
+    'watch.shadowing.phase.listening': '聽',
+    'watch.shadowing.phase.gap': '留白',
+    'watch.shadowing.repeat': '每句重複',
+    'watch.shadowing.gap': '跟讀留白',
+    'watch.shadowing.gap.short': '短',
+    'watch.shadowing.gap.medium': '中',
+    'watch.shadowing.gap.long': '長',
+    'watch.shadowing.practiceRate': '練習語速',
+    'watch.shadowing.autoAdvance': '自動下一句',
+    'watch.shadowing.loopDisabled': '影子模式下使用跟讀循環',
 
     // Two-line nav + pages
     'nav.online': '線上',
@@ -437,6 +476,19 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': 'Previous sentence',
     'watch.nextSentence': 'Next sentence',
     'watch.loopSentence': 'Loop sentence',
+    'watch.shadowing.toggle': 'Shadowing',
+    'watch.shadowing.settings': 'Shadowing settings',
+    'watch.shadowing.pass': 'Pass {{current}}/{{total}}',
+    'watch.shadowing.phase.listening': 'Listen',
+    'watch.shadowing.phase.gap': 'Gap',
+    'watch.shadowing.repeat': 'Repeats per line',
+    'watch.shadowing.gap': 'Practice gap',
+    'watch.shadowing.gap.short': 'Short',
+    'watch.shadowing.gap.medium': 'Med',
+    'watch.shadowing.gap.long': 'Long',
+    'watch.shadowing.practiceRate': 'Practice speed',
+    'watch.shadowing.autoAdvance': 'Auto-advance',
+    'watch.shadowing.loopDisabled': 'Use shadowing loop while practice is on',
 
     // Two-line nav + pages
     'nav.online': 'Online',
@@ -554,6 +606,19 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '前の文',
     'watch.nextSentence': '次の文',
     'watch.loopSentence': '一文リピート',
+    'watch.shadowing.toggle': 'シャドーイング',
+    'watch.shadowing.settings': '練習設定',
+    'watch.shadowing.pass': '{{current}}/{{total}} 回目',
+    'watch.shadowing.phase.listening': '聴く',
+    'watch.shadowing.phase.gap': '間',
+    'watch.shadowing.repeat': '1文の繰り返し',
+    'watch.shadowing.gap': '練習の間',
+    'watch.shadowing.gap.short': '短',
+    'watch.shadowing.gap.medium': '中',
+    'watch.shadowing.gap.long': '長',
+    'watch.shadowing.practiceRate': '練習速度',
+    'watch.shadowing.autoAdvance': '自動で次へ',
+    'watch.shadowing.loopDisabled': 'シャドーイング中は練習ループを使用',
 
     // Two-line nav + pages
     'nav.online': 'オンライン',

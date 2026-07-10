@@ -104,7 +104,7 @@ bun run dev
 | --------------------------- | ---- | --------------------------------------------- |
 | `GROQ_API_KEY`              | ✓    | Groq Whisper + LLM 调用（服务端）             |
 | `VITE_APP_URL`              |      | 站点公开 URL；客户端读取需 `VITE_` 前缀，默认 `http://localhost:3000` |
-| `PERFORMANCE_ADMIN_TOKEN`   |      | 保护 `/api/performance` 上报端点              |
+
 
 切勿将 `.env*` 提交到仓库。
 

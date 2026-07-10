@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { CurrentSentence } from '~/components/features/watch/CurrentSentence'
 import { MediaViewport } from '~/components/features/watch/MediaViewport'
 import { SubtitlePanel } from '~/components/features/watch/SubtitlePanel'
@@ -11,6 +11,7 @@ import { useSubtitlePipeline } from '~/hooks/media/useSubtitlePipeline'
 import { usePlayerAdapter } from '~/hooks/player/usePlayerAdapter'
 import { useSegmentLoop } from '~/hooks/player/useSegmentLoop'
 import { useSegmentNavigation } from '~/hooks/player/useSegmentNavigation'
+import { useShadowingPractice } from '~/hooks/player/useShadowingPractice'
 import { useWatchKeyboard } from '~/hooks/player/useWatchKeyboard'
 import { DBUtils } from '~/lib/db/db'
 import type { Segment } from '~/types/db/database'
@@ -35,11 +36,11 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
 
   const pipeline = useSubtitlePipeline(media)
   const player = usePlayerAdapter(media)
-  const { activeIndex, goPrev, goNext } = useSegmentNavigation(
-    pipeline.segments,
-    player.currentTime,
-    player.seekTo,
-  )
+  const {
+    activeIndex: navActiveIndex,
+    goPrev,
+    goNext,
+  } = useSegmentNavigation(pipeline.segments, player.currentTime, player.seekTo)
   const { isLooping, toggleLoop } = useSegmentLoop(
     pipeline.segments,
     player.currentTime,
@@ -49,6 +50,29 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
   const [playbackRate, setPlaybackRateState] = useState(1)
   const [volume, setVolumeState] = useState(1)
 
+  const playerControls = useMemo(
+    () => ({
+      play: player.play,
+      pause: player.pause,
+      seekTo: player.seekTo,
+      setRate: player.setRate,
+    }),
+    [player.play, player.pause, player.seekTo, player.setRate],
+  )
+
+  const shadowing = useShadowingPractice({
+    segments: pipeline.segments,
+    currentTime: player.currentTime,
+    player: playerControls,
+    browseRate: playbackRate,
+  })
+
+  // While shadowing is active, the FSM owns the active sentence index.
+  const activeIndex =
+    shadowing.config.enabled && shadowing.state.phase !== 'idle'
+      ? shadowing.state.activeIndex
+      : navActiveIndex
+
   const handleTogglePlay = useCallback(() => {
     if (player.isPlaying) player.pause()
     else player.play()
@@ -57,9 +81,11 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
   const handleRateChange = useCallback(
     (rate: number) => {
       setPlaybackRateState(rate)
-      player.setRate(rate)
+      if (!shadowing.config.enabled) {
+        player.setRate(rate)
+      }
     },
-    [player],
+    [player, shadowing.config.enabled],
   )
 
   const handleVolumeChange = useCallback(
@@ -71,12 +97,39 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
   )
 
   const handleSegmentClick = useCallback(
-    (segment: Segment) => {
+    (segment: Segment, index: number) => {
+      if (shadowing.config.enabled) {
+        shadowing.jumpToIndex(index)
+        return
+      }
       player.seekTo(segment.start)
       if (!player.isPlaying) player.play()
     },
-    [player],
+    [player, shadowing],
   )
+
+  const handlePrev = useCallback(() => {
+    if (shadowing.config.enabled) {
+      const idx = Math.max(0, activeIndex - 1)
+      shadowing.jumpToIndex(idx)
+      return
+    }
+    goPrev()
+  }, [shadowing, activeIndex, goPrev])
+
+  const handleNext = useCallback(() => {
+    if (shadowing.config.enabled) {
+      const idx = Math.min(pipeline.segments.length - 1, activeIndex + 1)
+      if (idx >= 0) shadowing.jumpToIndex(idx)
+      return
+    }
+    goNext()
+  }, [shadowing, activeIndex, pipeline.segments.length, goNext])
+
+  const handleToggleLoop = useCallback(() => {
+    if (shadowing.config.enabled) return
+    toggleLoop()
+  }, [shadowing.config.enabled, toggleLoop])
 
   const handleRegenerate = useCallback(() => {
     if (pipeline.subtitle?.source === 'whisper') {
@@ -88,10 +141,11 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
   useWatchKeyboard({
     enabled: Boolean(media),
     onPlayPause: handleTogglePlay,
-    onPrev: goPrev,
-    onNext: goNext,
+    onPrev: handlePrev,
+    onNext: handleNext,
     onToggleMute: () => handleVolumeChange(volume === 0 ? 1 : 0),
     onSetRate: handleRateChange,
+    onToggleShadowing: shadowing.toggleShadowing,
   })
 
   if (!validId || (!mediaQuery.isLoading && !media)) {
@@ -150,11 +204,16 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
             isLooping={isLooping}
             onTogglePlay={handleTogglePlay}
             onSeek={player.seekTo}
-            onPrev={goPrev}
-            onNext={goNext}
-            onToggleLoop={toggleLoop}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onToggleLoop={handleToggleLoop}
             onRateChange={handleRateChange}
             onVolumeChange={handleVolumeChange}
+            shadowingEnabled={shadowing.config.enabled}
+            shadowingState={shadowing.state}
+            shadowingConfig={shadowing.config}
+            onToggleShadowing={shadowing.toggleShadowing}
+            onShadowingConfigChange={shadowing.setShadowingConfig}
           />
         </div>
         <div className="min-h-[40vh] lg:min-h-0">

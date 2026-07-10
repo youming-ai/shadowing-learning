@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useI18n } from '~/components/layout/contexts/I18nContext'
+import type { ShadowingConfig, ShadowingState } from '~/lib/player/shadowing-machine'
 import { cn } from '~/lib/utils/utils'
 
 interface WatchControlsProps {
@@ -16,6 +18,12 @@ interface WatchControlsProps {
   onToggleLoop: () => void
   onRateChange: (rate: number) => void
   onVolumeChange: (volume: number) => void
+  /** Shadowing practice */
+  shadowingEnabled: boolean
+  shadowingState: ShadowingState
+  shadowingConfig: ShadowingConfig
+  onToggleShadowing: () => void
+  onShadowingConfigChange: (patch: Partial<ShadowingConfig>) => void
 }
 
 function formatTime(value: number): string {
@@ -28,6 +36,14 @@ function formatTime(value: number): string {
     .padStart(2, '0')
   return `${minutes}:${seconds}`
 }
+
+const GAP_PRESETS = [
+  { key: 'short' as const, ratio: 0.6 },
+  { key: 'medium' as const, ratio: 1.0 },
+  { key: 'long' as const, ratio: 1.6 },
+]
+
+const PRACTICE_RATES = [0.5, 0.75, 1]
 
 export function WatchControls({
   isPlaying,
@@ -44,9 +60,29 @@ export function WatchControls({
   onToggleLoop,
   onRateChange,
   onVolumeChange,
+  shadowingEnabled,
+  shadowingState,
+  shadowingConfig,
+  onToggleShadowing,
+  onShadowingConfigChange,
 }: WatchControlsProps) {
   const { t } = useI18n()
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const progress = duration ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
+
+  const phaseLabel =
+    !shadowingEnabled || shadowingState.phase === 'idle'
+      ? null
+      : shadowingState.phase === 'gap'
+        ? t('watch.shadowing.phase.gap')
+        : t('watch.shadowing.phase.listening')
+
+  const passLabel = shadowingEnabled
+    ? t('watch.shadowing.pass', {
+        current: Math.min(shadowingState.playsDone + 1, shadowingConfig.repeatCount),
+        total: shadowingConfig.repeatCount,
+      })
+    : null
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-card)] px-4 py-3">
@@ -79,7 +115,7 @@ export function WatchControls({
       </div>
 
       {/* 控制键 */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -110,21 +146,56 @@ export function WatchControls({
           <button
             type="button"
             onClick={onToggleLoop}
+            disabled={shadowingEnabled}
             className={cn(
               'btn-secondary !h-10 !w-10 !rounded-full !p-0',
               isLooping && '!border-[var(--color-primary)] !text-[var(--color-primary)]',
+              shadowingEnabled && 'opacity-40',
             )}
             aria-label={t('watch.loopSentence')}
+            title={shadowingEnabled ? t('watch.shadowing.loopDisabled') : t('watch.loopSentence')}
           >
             <span className="material-symbols-outlined text-xl">repeat_one</span>
           </button>
+          <button
+            type="button"
+            onClick={onToggleShadowing}
+            className={cn(
+              'btn-secondary !h-10 !rounded-full !px-3 text-xs font-medium',
+              shadowingEnabled &&
+                '!border-[var(--color-primary)] !bg-[var(--color-primary)]/10 !text-[var(--color-primary)]',
+            )}
+            aria-label={t('watch.shadowing.toggle')}
+            aria-pressed={shadowingEnabled}
+          >
+            <span className="material-symbols-outlined mr-1 text-base align-middle">mic</span>
+            {t('watch.shadowing.toggle')}
+          </button>
+          {shadowingEnabled && (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              className="btn-secondary !h-10 !w-10 !rounded-full !p-0"
+              aria-label={t('watch.shadowing.settings')}
+              aria-expanded={settingsOpen}
+            >
+              <span className="material-symbols-outlined text-xl">tune</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
+          {passLabel && (
+            <span className="hidden text-xs text-[var(--text-secondary)] sm:inline">
+              {passLabel}
+              {phaseLabel ? ` · ${phaseLabel}` : ''}
+            </span>
+          )}
           <select
             value={playbackRate}
             onChange={(e) => onRateChange(parseFloat(e.target.value))}
-            className="h-8 rounded-md border border-[var(--border-primary)] bg-[var(--surface-card)] px-2 text-xs text-[var(--text-primary)]"
+            disabled={shadowingEnabled && shadowingState.phase === 'listening'}
+            className="h-8 rounded-md border border-[var(--border-primary)] bg-[var(--surface-card)] px-2 text-xs text-[var(--text-primary)] disabled:opacity-50"
             aria-label="播放速度"
           >
             {availableRates.map((rate) => (
@@ -163,6 +234,115 @@ export function WatchControls({
           </div>
         </div>
       </div>
+
+      {/* 影子跟读设置 */}
+      {shadowingEnabled && settingsOpen && (
+        <div className="grid gap-3 rounded-lg border border-[var(--border-primary)] bg-[var(--surface-muted)]/40 p-3 sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">
+              {t('watch.shadowing.repeat')}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="btn-secondary !h-7 !w-7 !rounded-full !p-0 text-sm"
+                onClick={() =>
+                  onShadowingConfigChange({
+                    repeatCount: Math.max(1, shadowingConfig.repeatCount - 1),
+                  })
+                }
+                aria-label="-"
+              >
+                −
+              </button>
+              <span className="min-w-[1.5rem] text-center text-sm font-medium tabular-nums">
+                {shadowingConfig.repeatCount}
+              </span>
+              <button
+                type="button"
+                className="btn-secondary !h-7 !w-7 !rounded-full !p-0 text-sm"
+                onClick={() =>
+                  onShadowingConfigChange({
+                    repeatCount: Math.min(5, shadowingConfig.repeatCount + 1),
+                  })
+                }
+                aria-label="+"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">{t('watch.shadowing.gap')}</span>
+            <div className="flex gap-1">
+              {GAP_PRESETS.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => onShadowingConfigChange({ gapRatio: preset.ratio })}
+                  className={cn(
+                    'rounded-md px-2 py-1 text-xs',
+                    Math.abs(shadowingConfig.gapRatio - preset.ratio) < 0.01
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'bg-[var(--surface-card)] text-[var(--text-secondary)]',
+                  )}
+                >
+                  {t(`watch.shadowing.gap.${preset.key}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">
+              {t('watch.shadowing.practiceRate')}
+            </span>
+            <div className="flex gap-1">
+              {PRACTICE_RATES.map((rate) => (
+                <button
+                  key={rate}
+                  type="button"
+                  onClick={() => onShadowingConfigChange({ practiceRate: rate })}
+                  className={cn(
+                    'rounded-md px-2 py-1 text-xs tabular-nums',
+                    shadowingConfig.practiceRate === rate
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'bg-[var(--surface-card)] text-[var(--text-secondary)]',
+                  )}
+                >
+                  {rate}×
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">
+              {t('watch.shadowing.autoAdvance')}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={shadowingConfig.autoAdvance}
+              onClick={() => onShadowingConfigChange({ autoAdvance: !shadowingConfig.autoAdvance })}
+              className={cn(
+                'relative h-6 w-11 rounded-full transition-colors',
+                shadowingConfig.autoAdvance
+                  ? 'bg-[var(--color-primary)]'
+                  : 'bg-[var(--surface-muted)]',
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform',
+                  shadowingConfig.autoAdvance && 'translate-x-5',
+                )}
+              />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
