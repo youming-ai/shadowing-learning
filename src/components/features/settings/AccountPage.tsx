@@ -30,7 +30,7 @@ export function AccountPage() {
     return () => window.removeEventListener('hashchange', scrollToHash)
   }, [])
 
-  // TODO: 扩展账户页面以包含订阅管理与使用情况统计。
+  // Auth / subscription / usage stats land with Phase 3 (server accounts).
 
   return (
     <SettingsLayout>

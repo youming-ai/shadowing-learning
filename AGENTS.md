@@ -47,7 +47,7 @@ bun run clean
 ## Architecture
 
 - **Routes**: `src/routes/index.tsx` (home), `src/routes/player.$fileId.tsx` (player), `src/routes/settings.tsx`, `src/routes/account.tsx`.
-- **API Routes**: `src/routes/api/transcribe.ts` (Groq Whisper), `src/routes/api/postprocess.ts` (text normalization), `src/routes/api/health.ts`, `src/routes/api/performance.ts`.
+- **API Routes**: `src/routes/api/transcribe.ts` (Groq Whisper), `src/routes/api/postprocess.ts` (text normalization), `src/routes/api/youtube/*` (resolve / captions / transcribe).
 - **Database**: Dexie IndexedDB client-side (`src/lib/db/db.ts`). Version 3 schema with migrations for `files`, `transcripts`, `segments`.
 - **State**: TanStack Query for server state; React hooks for component state.
 - **AI**: Direct Groq SDK (`groq-sdk`), not via AI SDK.

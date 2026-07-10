@@ -10,7 +10,7 @@ interface SubtitlePanelProps {
   activeIndex: number
   stage: PipelineStage
   translateProgress: { done: number; total: number } | null
-  onSegmentClick: (segment: Segment) => void
+  onSegmentClick: (segment: Segment, index: number) => void
   onRegenerate: () => void
   onRetry: () => void
 }
@@ -103,7 +103,7 @@ export function SubtitlePanel({
                 key={segment.id ?? index}
                 ref={isActive ? activeRowRef : undefined}
                 type="button"
-                onClick={() => onSegmentClick(segment)}
+                onClick={() => onSegmentClick(segment, index)}
                 className={`block w-full rounded-lg px-3 py-2 text-left transition-colors ${
                   isActive
                     ? 'bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]'
@@ -123,6 +123,11 @@ export function SubtitlePanel({
                 {segment.translation && (
                   <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                     {segment.translation}
+                  </p>
+                )}
+                {segment.annotations && segment.annotations.length > 0 && (
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--text-tertiary)]">
+                    {segment.annotations[0]}
                   </p>
                 )}
               </button>

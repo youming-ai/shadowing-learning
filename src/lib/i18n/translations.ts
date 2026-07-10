@@ -89,6 +89,29 @@ export interface TranslationKey {
   'watch.prevSentence': string
   'watch.nextSentence': string
   'watch.loopSentence': string
+  'watch.shadowing.toggle': string
+  'watch.shadowing.settings': string
+  'watch.shadowing.pass': string
+  'watch.shadowing.phase.listening': string
+  'watch.shadowing.phase.gap': string
+  'watch.shadowing.repeat': string
+  'watch.shadowing.gap': string
+  'watch.shadowing.gap.short': string
+  'watch.shadowing.gap.medium': string
+  'watch.shadowing.gap.long': string
+  'watch.shadowing.practiceRate': string
+  'watch.shadowing.autoAdvance': string
+  'watch.shadowing.loopDisabled': string
+  'watch.record.start': string
+  'watch.record.stop': string
+  'watch.record.playMine': string
+  'watch.record.playOriginal': string
+  'watch.record.recording': string
+  'watch.record.gapHint': string
+  'watch.record.hint': string
+  'watch.record.error.denied': string
+  'watch.record.error.failed': string
+  'watch.record.error.unsupported': string
 
   // Two-line nav + pages
   'nav.online': string
@@ -206,6 +229,29 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '上一句',
     'watch.nextSentence': '下一句',
     'watch.loopSentence': '单句循环',
+    'watch.shadowing.toggle': '影子跟读',
+    'watch.shadowing.settings': '跟读设置',
+    'watch.shadowing.pass': '第 {{current}}/{{total}} 遍',
+    'watch.shadowing.phase.listening': '听',
+    'watch.shadowing.phase.gap': '留白',
+    'watch.shadowing.repeat': '每句重复',
+    'watch.shadowing.gap': '跟读留白',
+    'watch.shadowing.gap.short': '短',
+    'watch.shadowing.gap.medium': '中',
+    'watch.shadowing.gap.long': '长',
+    'watch.shadowing.practiceRate': '练习语速',
+    'watch.shadowing.autoAdvance': '自动下一句',
+    'watch.shadowing.loopDisabled': '影子模式下使用跟读循环',
+    'watch.record.start': '录音',
+    'watch.record.stop': '停止',
+    'watch.record.playMine': '我的',
+    'watch.record.playOriginal': '原音',
+    'watch.record.recording': '录音中…',
+    'watch.record.gapHint': '现在可以跟读并录音',
+    'watch.record.hint': '录下你的跟读，再和原音对比回放',
+    'watch.record.error.denied': '麦克风权限被拒绝，请在浏览器设置中允许',
+    'watch.record.error.failed': '无法启动录音，请重试',
+    'watch.record.error.unsupported': '当前浏览器不支持录音',
 
     // Two-line nav + pages
     'nav.online': '在线',
@@ -321,6 +367,29 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '上一句',
     'watch.nextSentence': '下一句',
     'watch.loopSentence': '單句循環',
+    'watch.shadowing.toggle': '影子跟讀',
+    'watch.shadowing.settings': '跟讀設定',
+    'watch.shadowing.pass': '第 {{current}}/{{total}} 遍',
+    'watch.shadowing.phase.listening': '聽',
+    'watch.shadowing.phase.gap': '留白',
+    'watch.shadowing.repeat': '每句重複',
+    'watch.shadowing.gap': '跟讀留白',
+    'watch.shadowing.gap.short': '短',
+    'watch.shadowing.gap.medium': '中',
+    'watch.shadowing.gap.long': '長',
+    'watch.shadowing.practiceRate': '練習語速',
+    'watch.shadowing.autoAdvance': '自動下一句',
+    'watch.shadowing.loopDisabled': '影子模式下使用跟讀循環',
+    'watch.record.start': '錄音',
+    'watch.record.stop': '停止',
+    'watch.record.playMine': '我的',
+    'watch.record.playOriginal': '原音',
+    'watch.record.recording': '錄音中…',
+    'watch.record.gapHint': '現在可以跟讀並錄音',
+    'watch.record.hint': '錄下你的跟讀，再和原音對比回放',
+    'watch.record.error.denied': '麥克風權限被拒絕，請在瀏覽器設定中允許',
+    'watch.record.error.failed': '無法啟動錄音，請重試',
+    'watch.record.error.unsupported': '目前瀏覽器不支援錄音',
 
     // Two-line nav + pages
     'nav.online': '線上',
@@ -437,6 +506,29 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': 'Previous sentence',
     'watch.nextSentence': 'Next sentence',
     'watch.loopSentence': 'Loop sentence',
+    'watch.shadowing.toggle': 'Shadowing',
+    'watch.shadowing.settings': 'Shadowing settings',
+    'watch.shadowing.pass': 'Pass {{current}}/{{total}}',
+    'watch.shadowing.phase.listening': 'Listen',
+    'watch.shadowing.phase.gap': 'Gap',
+    'watch.shadowing.repeat': 'Repeats per line',
+    'watch.shadowing.gap': 'Practice gap',
+    'watch.shadowing.gap.short': 'Short',
+    'watch.shadowing.gap.medium': 'Med',
+    'watch.shadowing.gap.long': 'Long',
+    'watch.shadowing.practiceRate': 'Practice speed',
+    'watch.shadowing.autoAdvance': 'Auto-advance',
+    'watch.shadowing.loopDisabled': 'Use shadowing loop while practice is on',
+    'watch.record.start': 'Record',
+    'watch.record.stop': 'Stop',
+    'watch.record.playMine': 'Mine',
+    'watch.record.playOriginal': 'Original',
+    'watch.record.recording': 'Recording…',
+    'watch.record.gapHint': 'Shadow now — you can record',
+    'watch.record.hint': 'Record your shadowing, then compare with the original',
+    'watch.record.error.denied': 'Microphone permission denied — enable it in browser settings',
+    'watch.record.error.failed': 'Could not start recording — try again',
+    'watch.record.error.unsupported': 'Recording is not supported in this browser',
 
     // Two-line nav + pages
     'nav.online': 'Online',
@@ -554,6 +646,29 @@ export const translations: Record<string, TranslationKey> = {
     'watch.prevSentence': '前の文',
     'watch.nextSentence': '次の文',
     'watch.loopSentence': '一文リピート',
+    'watch.shadowing.toggle': 'シャドーイング',
+    'watch.shadowing.settings': '練習設定',
+    'watch.shadowing.pass': '{{current}}/{{total}} 回目',
+    'watch.shadowing.phase.listening': '聴く',
+    'watch.shadowing.phase.gap': '間',
+    'watch.shadowing.repeat': '1文の繰り返し',
+    'watch.shadowing.gap': '練習の間',
+    'watch.shadowing.gap.short': '短',
+    'watch.shadowing.gap.medium': '中',
+    'watch.shadowing.gap.long': '長',
+    'watch.shadowing.practiceRate': '練習速度',
+    'watch.shadowing.autoAdvance': '自動で次へ',
+    'watch.shadowing.loopDisabled': 'シャドーイング中は練習ループを使用',
+    'watch.record.start': '録音',
+    'watch.record.stop': '停止',
+    'watch.record.playMine': '自分',
+    'watch.record.playOriginal': '原音',
+    'watch.record.recording': '録音中…',
+    'watch.record.gapHint': '今すぐシャドーイングして録音できます',
+    'watch.record.hint': '自分の声を録音して原音と比較',
+    'watch.record.error.denied': 'マイクの権限が拒否されました。ブラウザ設定で許可してください',
+    'watch.record.error.failed': '録音を開始できませんでした。再試行してください',
+    'watch.record.error.unsupported': 'このブラウザは録音に対応していません',
 
     // Two-line nav + pages
     'nav.online': 'オンライン',

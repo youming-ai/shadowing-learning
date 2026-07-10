@@ -89,8 +89,6 @@ export const Route = createFileRoute('/api/transcribe')({
 
 - `transcribe` — Groq `whisper-large-v3-turbo`. Zod-validated, per-IP sliding-window rate limit, 25 MB cap, returns `TranscriptionSegment[]`.
 - `postprocess` — Groq chat model (`openai/gpt-oss-120b`) for normalized text, translation, annotations, furigana.
-- `health` — liveness probe (used by Dokploy).
-- `performance` — Web Vitals ingestion, gated by `PERFORMANCE_ADMIN_TOKEN`.
 - `youtube/resolve` — Resolves a YouTube URL to video metadata via youtubei.js. Per-IP rate limit: 20 requests / 10 min.
 - `youtube/captions` — Fetches and normalizes YouTube captions for a videoId. Per-IP rate limit: 20 requests / 10 min. Returns `NO_CAPTIONS` (404) when no track is available.
 - `youtube/transcribe` — No-caption fallback: downloads low-bitrate audio via yt-dlp, then transcribes with Groq Whisper. Per-IP rate limit: 4 requests / hr; process-level concurrency semaphore of 1 (only one yt-dlp+Whisper job at a time); daily global quota of 24 per UTC day.
@@ -184,7 +182,6 @@ Local container smoke test: `docker compose up --build`.
 ```env
 GROQ_API_KEY=                  # Required — Groq Whisper + LLM (server-side)
 VITE_APP_URL=                  # Client-side app URL; must be VITE_-prefixed to reach the browser. Defaults to http://localhost:3000
-PERFORMANCE_ADMIN_TOKEN=       # Optional — gates /api/performance ingestion
 ```
 
 Set these in Dokploy in production; never commit `.env*`. See [.env.example](.env.example).

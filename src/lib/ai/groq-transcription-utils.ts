@@ -140,9 +140,20 @@ export function extractSegmentsFromGroq(
   transcription: GroqTranscriptionResponse,
 ): TranscriptionSegment[] {
   if (Array.isArray(transcription.segments) && transcription.segments.length > 0) {
-    return transcription.segments.map((segment, index) =>
+    let segments = transcription.segments.map((segment, index) =>
       mapGroqSegmentToTranscriptionSegment(segment, index + 1),
     )
+    // Whisper often puts word timings only on the top-level `words` array.
+    if (Array.isArray(transcription.words) && transcription.words.length > 0) {
+      const topLevelWords = transcription.words.map((word) => ({
+        word: word.word ?? '',
+        start: typeof word.start === 'number' ? word.start : 0,
+        end:
+          typeof word.end === 'number' ? word.end : typeof word.start === 'number' ? word.start : 0,
+      }))
+      segments = distributeWordsIntoSegments(segments, topLevelWords)
+    }
+    return segments
   }
 
   if (Array.isArray(transcription.words) && transcription.words.length > 0) {
