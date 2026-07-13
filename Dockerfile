@@ -24,7 +24,10 @@ RUN apk add --no-cache python3 nodejs \
   && chmod +x /usr/local/bin/yt-dlp \
   && yt-dlp --version
 
+# server bundle externalizes its deps (react, @tanstack, h3-v2…), so runtime
+# needs node_modules present. Prod-only install keeps out vite/vitest/biome.
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./
 EXPOSE 3000
 CMD ["bun", "run", "dist/server/server.js"]
