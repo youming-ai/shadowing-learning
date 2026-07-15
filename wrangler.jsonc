@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "shadowing-learning",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-07-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+    },
+  },
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "c239b08869ed4cb6ad6bf46ad131f6eb",
+    },
+  ],
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+  },
+  "vars": {
+    "VITE_APP_URL": "http://localhost:3000",
+  },
+}
