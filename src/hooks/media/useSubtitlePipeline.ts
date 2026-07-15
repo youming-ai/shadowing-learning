@@ -171,48 +171,18 @@ export function useSubtitlePipeline(media: MediaRow | null) {
       }
 
       if (json?.error?.code === 'NO_CAPTIONS') {
-        setStage('transcribing')
-        const tRes = await fetch('/api/youtube/transcribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: media.externalId }),
-        })
-        const tJson = await tRes.json().catch(() => null)
-        if (!tRes.ok || !tJson?.success) {
-          const code = tJson?.error?.code ?? 'EXTRACTOR_FAILED'
-          await DBUtils.addSubtitle({
-            mediaId,
-            source: 'whisper',
-            status: 'failed',
-            sourceLanguage: 'auto',
-            targetLanguage: null,
-            error: code,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          })
-          invalidate()
-          setStage('failed')
-          return
-        }
-        const { language, segments, text } = tJson.data as {
-          language: string
-          text: string
-          segments: Array<{ start: number; end: number; text: string }>
-        }
-        const subtitleId = await DBUtils.addSubtitle({
+        await DBUtils.addSubtitle({
           mediaId,
-          source: 'whisper',
-          status: 'completed',
-          sourceLanguage: language,
+          source: 'official',
+          status: 'failed',
+          sourceLanguage: 'auto',
           targetLanguage: null,
-          postProcessStatus: 'pending',
-          rawText: text,
+          error: 'NO_CAPTIONS',
           createdAt: new Date(),
           updatedAt: new Date(),
         })
-        await writeSegments(subtitleId, segments)
         invalidate()
-        await runTranslate(subtitleId, 'whisper', language)
+        setStage('failed')
         return
       }
 

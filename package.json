@@ -5,17 +5,17 @@
   "type": "module",
   "private": false,
   "scripts": {
-    "dev": "bun run --bun vite dev",
+    "dev": "wrangler dev",
+    "dev:client": "bun run --bun vite dev",
     "build": "bun run --bun vite build",
-    "start": "bun run dist/server/server.js",
-    "preview": "bun run --bun vite preview",
+    "deploy": "bun run build && wrangler deploy",
     "lint": "biome check .",
     "format": "biome format . --write",
     "type-check": "bun run --bun tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "clean": "rm -rf .output dist node_modules/.cache *.tsbuildinfo"
+    "clean": "rm -rf .output dist dist-worker node_modules/.cache *.tsbuildinfo .wrangler"
   },
   "keywords": [
     "language-learning",
@@ -51,11 +51,11 @@
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-query-devtools": "^5.101.2",
     "@tanstack/react-router": "^1.170.17",
-    "@tanstack/react-start": "^1.168.27",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dexie": "^4.4.4",
     "groq-sdk": "^0.37.0",
+    "hono": "^4.10.2",
     "lucide-react": "^0.556.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
+    "@cloudflare/workers-types": "^4.20250707.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -80,6 +81,7 @@
     "happy-dom": "^20.10.6",
     "typescript": "^5.9.3",
     "vite": "^8.1.4",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.20.0"
   }
 }
