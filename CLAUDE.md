@@ -6,17 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Shadowing Learning is a language-shadowing practice app. It transcribes audio with Groq Whisper, post-processes the text (normalization, translation, annotations, furigana), stores everything client-side in IndexedDB, and plays it back with time-synced subtitles.
 
-The architecture is **client-heavy**: the only server work is two Groq API calls. There is no application database — files, transcripts, and segments all live in the browser via Dexie.
+The architecture is **client-heavy**: almost all server work is a handful of Groq/YouTube API calls behind a thin Cloudflare Worker. There is no application database — files, transcripts, and segments all live in the browser via Dexie.
 
 ## Toolchain
 
-This project runs on **Bun + Vite + TanStack Start** (it was migrated off Next.js + pnpm — `components.json` still contains stale shadcn/Next.js defaults; ignore it).
+This project runs on **Bun + Vite + TanStack Router, deployed to Cloudflare Workers** (it was migrated off Next.js + pnpm, and later off a TanStack Start server onto Workers — `components.json` still contains stale shadcn/Next.js defaults; ignore it).
 
-- **Runtime / package manager: Bun ≥1.2.0.** Do **not** use `npm`/`pnpm`/`yarn`/`node`. The lockfile is `bun.lock`.
-- **Build/dev: Vite 8** with the `@tanstack/react-start` plugin ([vite.config.ts](vite.config.ts)). Dev server port is **3000**.
-- **Routing: TanStack Router** (file-based) + **TanStack Start** for server route handlers. There is no Next.js App Router.
+- **Runtime / package manager: Bun ≥1.2.0** for local dev/build/test. Do **not** use `npm`/`pnpm`/`yarn`/`node`. The lockfile is `bun.lock`. Production runs on the Cloudflare Workers runtime, not Bun.
+- **Build: Vite 8** ([vite.config.ts](vite.config.ts)) builds the client SPA into `dist/`. There is no server-rendering plugin — the app is a static bundle served as Worker Assets.
+- **API: Hono**, mounted directly in the Worker entry ([worker/index.ts](worker/index.ts)) — see [wrangler.jsonc](wrangler.jsonc) (`main: worker/index.ts`).
+- **Routing: TanStack Router**, file-based, client-only (no server route handlers on this side — those live in `worker/`, see below).
 - **View: React 19, Tailwind CSS v4** (CSS-only config via `@tailwindcss/vite`), Radix UI, lucide-react.
-- **Path alias: `~/*` → `./src/*`** (configured in both [vite.config.ts](vite.config.ts) and [tsconfig.json](tsconfig.json)). Note: `components.json` still lists shadcn's `@/` aliases — that file is stale; the real alias is `~`.
+- **Path alias: `~/*` → `./src/*`** (configured in both [vite.config.ts](vite.config.ts) and [tsconfig.json](tsconfig.json)). Note: `components.json` still lists shadcn's `@/` aliases — that file is stale; the real alias is `~`. `worker/` is excluded from the root `tsconfig.json` (has its own [tsconfig.worker.json](tsconfig.worker.json), not wired into any script) and its files use relative imports (`../lib/...`), not `~/`.
 
 ## Commands
 
@@ -24,11 +25,11 @@ This project runs on **Bun + Vite + TanStack Start** (it was migrated off Next.j
 bun install            # Install deps (uses bun.lock)
 
 # Development
-bun run dev            # Vite dev server at http://localhost:3000
-bun run build          # Production build → dist/ (incl. dist/server/server.js)
-bun run start          # Run the built server: bun run dist/server/server.js
-bun run preview        # Preview the production build
-bun run clean          # rm -rf .output dist node_modules/.cache
+bun run dev            # wrangler dev — runs the full Worker (API + assets) locally
+bun run dev:client     # Vite dev server at http://localhost:3000, proxies /api to :8787 (wrangler dev)
+bun run build          # vite build → dist/ (client assets only; wrangler bundles worker/ separately)
+bun run deploy         # bun run build && wrangler deploy — ships assets + Worker to Cloudflare
+bun run clean          # rm -rf .output dist dist-worker node_modules/.cache *.tsbuildinfo .wrangler
 
 # Quality
 bun run lint           # biome check .
@@ -52,48 +53,47 @@ bun test -t "test name"        # Single test by name pattern
 **Audio file upload path:**
 ```
 Audio file → POST /api/transcribe (Groq Whisper) → segments
-          → POST /api/postprocess (Groq LLM)     → normalized text / translation / furigana
           → IndexedDB (Dexie)                    → TanStack Query cache
+          → client-side chunked post-process:
+              POST /api/postprocess (Groq LLM) in ≤100-segment / ≤10k-char chunks
+              → normalized text / translation / furigana, written back incrementally
           → watch/$mediaId subtitle sync         → user
 ```
 
 **YouTube import path:**
 ```
-YouTube URL → POST /api/youtube/resolve (youtubei.js) → video metadata
+YouTube URL → POST /api/youtube/resolve (youtubei.js) → video metadata (incl. signed caption base_urls)
            → client writes `media` row to IndexedDB
            → watch page self-drives:
-               POST /api/youtube/captions       → captions (if available)
-               POST /api/youtube/transcribe      → yt-dlp + Groq Whisper (NO_CAPTIONS fallback)
+               POST /api/youtube/captions       → captions, if a track exists (else NO_CAPTIONS; no server-side ASR fallback for YouTube)
            → client-side chunked translation:
                POST /api/postprocess in ≤100-segment / ≤10k-char chunks
                → each chunk written back to IndexedDB incrementally
            → watch/$mediaId subtitle sync        → user
 ```
 
-The audio flow is driven by `usePlayerDataQuery` ([src/hooks/player/usePlayerDataQuery.ts](src/hooks/player/usePlayerDataQuery.ts)); the YouTube watch page uses `useSubtitlePipeline` which self-drives captions/transcribe/translate with resume & regenerate support. Don't add a separate "transcribe" button flow — the auto-trigger is the contract.
+Both paths now share the same chunked post-process orchestrator, `runChunkedPostProcess` ([src/lib/subtitles/chunk-postprocess.ts](src/lib/subtitles/chunk-postprocess.ts)) — the 100-segment/10k-char chunking exists because `/api/postprocess` 400s (`TOO_MANY_SEGMENTS`) above 100 segments in one call. The audio flow is driven by `useTranscription` ([src/hooks/api/useTranscription.ts](src/hooks/api/useTranscription.ts)); the YouTube watch page uses `useSubtitlePipeline` ([src/hooks/media/useSubtitlePipeline.ts](src/hooks/media/useSubtitlePipeline.ts)) which self-drives captions/translate with resume & regenerate support. Don't add a separate "transcribe" button flow — the auto-trigger is the contract.
 
-### Routing & API (TanStack Start)
+### Routing (client) & API (Cloudflare Worker)
 
-File-based routes live in [src/routes/](src/routes/); the route tree is **generated** into [src/routeTree.gen.ts](src/routeTree.gen.ts) by the Vite plugin — don't hand-edit it. The router is created in [src/router.tsx](src/router.tsx) (`getRouter()`).
+File-based routes live in [src/routes/](src/routes/); the route tree is committed at [src/routeTree.gen.ts](src/routeTree.gen.ts). There is no bundler plugin in this repo that regenerates it (the Workers migration dropped `@tanstack/router-plugin`), so treat it as a static, hand-synced artifact — don't casually hand-edit it, but also don't assume it auto-updates when you add/remove a route file. The router is created in [src/router.tsx](src/router.tsx) (`getRouter()`).
 
-- Page routes: `index.tsx`, `player.$fileId.tsx`, `settings.tsx`, `account.tsx`.
-- Root: [src/routes/__root.tsx](src/routes/__root.tsx) — owns `<html>`, document head (`HeadContent`/`Scripts`, SEO/JSON-LD/PWA meta), the CSS import (`../styles/app.css?url`), and the provider stack: `ThemeProvider → TranscriptionLanguageProvider → I18nProvider → QueryProvider`.
+- Page routes: `index.tsx`, `watch.$mediaId.tsx`, `settings.tsx`, `account.tsx`, `me.tsx`.
+- Root: [src/routes/__root.tsx](src/routes/__root.tsx) — a plain layout component (provider stack `ThemeProvider → TranscriptionLanguageProvider → I18nProvider → QueryProvider` + error boundary/toaster/PWA register). It does **not** own `<html>`/document head — this is a client SPA now, so `<html>`, meta/SEO/PWA tags live in the static [index.html](index.html), and `src/main.tsx` mounts `RouterProvider` into `#root`.
 
-**API routes are TanStack Start server handlers**, not Next.js route handlers. They live in [src/routes/api/](src/routes/api/) and use:
+**API routes are Hono handlers in `worker/`**, bundled directly into the Cloudflare Worker (not part of the Vite/TanStack Router build). Entry point: [worker/index.ts](worker/index.ts); routes live in `worker/routes/`, shared helpers in `worker/lib/`, middleware in `worker/middleware/`:
 
 ```ts
-export const Route = createFileRoute('/api/transcribe')({
-  server: { handlers: { POST: async ({ request }) => { /* ... */ } } },
-})
+export const transcribeRoute = new Hono<{ Bindings: Env }>()
+transcribeRoute.post("/", async (c) => { /* ... */ })
 ```
 
-- `transcribe` — Groq `whisper-large-v3-turbo`. Zod-validated, per-IP sliding-window rate limit, 25 MB cap, returns `TranscriptionSegment[]`.
-- `postprocess` — Groq chat model (`openai/gpt-oss-120b`) for normalized text, translation, annotations, furigana.
-- `youtube/resolve` — Resolves a YouTube URL to video metadata via youtubei.js. Per-IP rate limit: 20 requests / 10 min.
-- `youtube/captions` — Fetches and normalizes YouTube captions for a videoId. Per-IP rate limit: 20 requests / 10 min. Returns `NO_CAPTIONS` (404) when no track is available.
-- `youtube/transcribe` — No-caption fallback: downloads low-bitrate audio via yt-dlp, then transcribes with Groq Whisper. Per-IP rate limit: 4 requests / hr; process-level concurrency semaphore of 1 (only one yt-dlp+Whisper job at a time); daily global quota of 24 per UTC day.
+- `transcribe` — Groq `whisper-large-v3`. 25 MB cap, returns transcription segments. Rate-limited (10 req/min).
+- `postprocess` — Groq chat model (`openai/gpt-oss-120b`) for normalized text, translation, annotations, furigana; hard caps at 100 segments / request (`TOO_MANY_SEGMENTS` 400 above that — see the chunked orchestrator above). Rate-limited (20 req/min).
+- `youtube/resolve` — Resolves a YouTube URL to video metadata via youtubei.js, including each caption track's signed Innertube `base_url`. Rate-limited (20 req/10 min).
+- `youtube/captions` — Fetches a caption track by following its signed `base_url` (from `/resolve`) and normalizes it into segments. Returns `NO_CAPTIONS` (404) when no track is available. Rate-limited (20 req/10 min). There is no yt-dlp/ASR fallback in the Worker for videos without captions.
 
-Use `apiSuccess` / `apiError` from [src/lib/utils/api-response.ts](src/lib/utils/api-response.ts) for consistent envelopes, and `checkRateLimit` from [src/lib/utils/rate-limiter.ts](src/lib/utils/rate-limiter.ts) on any new public endpoint. The rate limiter is **in-memory only** — fine for the single-container Dokploy deployment, but it does not survive a restart and would break under multi-replica scaling.
+Use `apiSuccess` / `apiError` from [worker/lib/api-response.ts](worker/lib/api-response.ts) for consistent envelopes, and the `rateLimit` middleware from [worker/middleware/rate-limit.ts](worker/middleware/rate-limit.ts) on any new public route (mount it in [worker/index.ts](worker/index.ts)). The rate limiter is **KV-backed** (`RATE_LIMIT_KV`, bound in [wrangler.jsonc](wrangler.jsonc)) — a sliding-window count keyed by `cf-connecting-ip` (falling back to `x-forwarded-for`, then Cloudflare's `colo` datacenter code, then a UA/Accept-Language fingerprint) so it survives across Worker invocations/isolates. Always identify clients by IP first — keying primarily on `colo` buckets every user in a datacenter together.
 
 ### State layering
 
@@ -166,25 +166,20 @@ bun run test:coverage          # Coverage report
 
 Four themes (dark, light, system, high-contrast) implemented via CSS custom properties in [src/styles/app.css](src/styles/app.css) and switched by `ThemeContext` (`data-theme`). Tailwind v4 is **CSS-only**: theme tokens live in the `@theme {}` block — do **not** add `tailwind.config.*` or `postcss.config.*`, and don't introduce arbitrary Tailwind values that duplicate existing tokens. A debugger overlay is bound to **Ctrl/Cmd+Shift+T** ([src/components/ui/ThemeDebugger.tsx](src/components/ui/ThemeDebugger.tsx)) — use it when verifying token coverage on new components.
 
-## Deployment (Docker + Dokploy)
+## Deployment (Cloudflare Workers)
 
-Not on Vercel. Deployed as a Docker container on a VPS via Dokploy. See [docs/DOKPLOY.md](docs/DOKPLOY.md).
+Deployed as a Cloudflare Worker, not a container. `bun run deploy` (`vite build && wrangler deploy`) builds the client SPA into `dist/` and ships it as Worker Assets alongside the Hono API bundled from [worker/index.ts](worker/index.ts). Config lives in [wrangler.jsonc](wrangler.jsonc): the `RATE_LIMIT_KV` KV namespace binding, the `ASSETS` binding (`directory: dist`, SPA fallback via `not_found_handling: single-page-application`), and observability/logs/traces. Secrets (`GROQ_API_KEY`) are set via `wrangler secret put`, not committed or put in `vars`.
 
-- [Dockerfile](Dockerfile) — multi-stage build on `oven/bun:1-alpine`: `bun install --frozen-lockfile`, `bun run build`, ships `dist/`, runs `bun run dist/server/server.js`. Exposes 3000. The runtime stage also installs **yt-dlp** (official release binary, pinned by `YTDLP_VERSION`), `python3`, and `nodejs` (required by yt-dlp's JS extractor).
-- [docker-compose.yml](docker-compose.yml) — uses `expose: 3000` (not `ports:`) so Dokploy's Traefik reaches it via the Docker network.
-- **Local dev prerequisite for the YouTube no-caption path**: `brew install yt-dlp` (the `/api/youtube/transcribe` route calls yt-dlp; without it the route returns 501).
-- **Traefik prerequisite**: The in-memory per-IP rate limiter trusts the first element of the `x-forwarded-for` header. Traefik **must** sanitize this header (set `middlewares: X-Forwarded-For: Replace`) before forwarding to the container, or clients can spoof their IP and bypass rate limits.
-
-Local container smoke test: `docker compose up --build`.
+**The `Dockerfile`, `docker-compose.yml`, and [docs/DOKPLOY.md](docs/DOKPLOY.md) are historical** — they describe a prior Docker/Dokploy deployment (with a bundled yt-dlp fallback for caption-less YouTube videos) that this repo no longer runs. There is no `dist/server/server.js`, no in-container yt-dlp, and no Traefik in front of the app; do not treat those files as current deployment docs.
 
 ## Environment Variables
 
 ```env
-GROQ_API_KEY=                  # Required — Groq Whisper + LLM (server-side)
-VITE_APP_URL=                  # Client-side app URL; must be VITE_-prefixed to reach the browser. Defaults to http://localhost:3000
+GROQ_API_KEY=                  # Required — Groq Whisper + LLM. Set as a Worker secret (wrangler secret put GROQ_API_KEY), not a var.
+VITE_APP_URL=                  # Client-side app URL; must be VITE_-prefixed to reach the browser. Set via wrangler.jsonc `vars` (defaults to http://localhost:3000).
 ```
 
-Set these in Dokploy in production; never commit `.env*`. See [.env.example](.env.example).
+Never commit `.env*`. See [.env.example](.env.example).
 
 ## Code style
 

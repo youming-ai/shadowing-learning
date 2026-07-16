@@ -20,11 +20,11 @@ function getConfig(pathname: string) {
 }
 
 function getClientId(request: Request): string {
-  const cf = (request as Request & { cf?: { colo?: string } }).cf
-  if (cf?.colo) return `cf:${cf.colo}`
   const ip = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
   if (ip) return ip
+  const cf = (request as Request & { cf?: { colo?: string } }).cf
+  if (cf?.colo) return `cf:${cf.colo}`
   const ua = request.headers.get("user-agent") ?? ""
   const al = request.headers.get("accept-language") ?? ""
   let hash = 0
