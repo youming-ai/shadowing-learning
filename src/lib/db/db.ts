@@ -475,10 +475,11 @@ export const DBUtils = {
 
   async getDatabaseStats(): Promise<DatabaseStats> {
     try {
-      const [media, subtitles, segments] = await Promise.all([
+      // segments 只需要总数，用 count() 避免把每条 segment 都拉进内存
+      const [media, subtitles, segmentsCount] = await Promise.all([
         db.media.toArray(),
         db.subtitles.toArray(),
-        db.segments.toArray(),
+        db.segments.count(),
       ])
 
       const totalStorageSize = media.reduce((sum, m) => sum + (m.fileSize ?? 0), 0)
@@ -489,13 +490,12 @@ export const DBUtils = {
         },
         {} as Record<string, number>,
       )
-      const averageSegmentsPerSubtitle =
-        subtitles.length > 0 ? segments.length / subtitles.length : 0
+      const averageSegmentsPerSubtitle = subtitles.length > 0 ? segmentsCount / subtitles.length : 0
 
       return {
         totalMedia: media.length,
         totalSubtitles: subtitles.length,
-        totalSegments: segments.length,
+        totalSegments: segmentsCount,
         totalStorageSize,
         averageSegmentsPerSubtitle: Math.round(averageSegmentsPerSubtitle * 100) / 100,
         subtitlesByStatus,

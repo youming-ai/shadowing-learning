@@ -62,54 +62,48 @@ export function useFileStatusManager(fileId: number) {
   const startTranscription = useCallback(
     async (language?: TranscriptionLanguageCode) => {
       const queue = getTranscriptionQueue()
-
-      if (queue.isInQueue(fileId)) {
-        return
-      }
-
       const effectiveLanguage = (language ?? 'auto') as TranscriptionLanguageCode
       const nativeLang = learningLanguage.nativeLanguage
 
-      return new Promise<void>((resolve, reject) => {
-        queue.setTaskCallback(async (task) => {
-          setIsTranscribing(true)
-          abortControllerRef.current = task.abortController
+      // 回调按 fileId 绑定在队列内部（见 transcription-queue.ts）：若 fileId 已在排队/处理中，
+      // add() 会直接把已有任务的 promise 返回给这次调用，而不是丢弃这次注册、返回 undefined
+      // （旧实现在"已排队"时提前 return，调用方会误把 undefined 当成功）。
+      const { promise } = queue.add(fileId, effectiveLanguage, async (task) => {
+        setIsTranscribing(true)
+        abortControllerRef.current = task.abortController
 
-          try {
-            await updateTranscriptionStatus('processing')
+        try {
+          await updateTranscriptionStatus('processing')
 
-            await transcription.mutateAsync({
-              fileId: task.fileId,
-              language: task.language,
-              nativeLanguage: nativeLang,
-              signal: task.abortController.signal,
-            })
+          await transcription.mutateAsync({
+            fileId: task.fileId,
+            language: task.language,
+            nativeLanguage: nativeLang,
+            signal: task.abortController.signal,
+          })
 
-            await updateTranscriptionStatus('completed')
-            resolve()
-          } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') {
-              await updateTranscriptionStatus('pending')
-              resolve()
-              return
-            }
-
-            const errorMessage = error instanceof Error ? error.message : '转录失败'
-            handleTranscriptionError(error, {
-              fileId: task.fileId,
-              operation: 'transcribe',
-              language: task.language,
-            })
-            await updateTranscriptionStatus('failed', errorMessage)
-            reject(error)
-          } finally {
-            setIsTranscribing(false)
-            abortControllerRef.current = null
+          await updateTranscriptionStatus('completed')
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            await updateTranscriptionStatus('pending')
+            return
           }
-        })
 
-        queue.add(fileId, effectiveLanguage)
+          const errorMessage = error instanceof Error ? error.message : '转录失败'
+          handleTranscriptionError(error, {
+            fileId: task.fileId,
+            operation: 'transcribe',
+            language: task.language,
+          })
+          await updateTranscriptionStatus('failed', errorMessage)
+          throw error
+        } finally {
+          setIsTranscribing(false)
+          abortControllerRef.current = null
+        }
       })
+
+      return promise
     },
     [fileId, transcription, updateTranscriptionStatus, learningLanguage],
   )

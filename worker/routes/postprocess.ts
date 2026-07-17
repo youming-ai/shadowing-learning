@@ -170,13 +170,14 @@ async function batchProcessShortTexts(
   const sourceLangName = getLanguageName(sourceLanguage)
   const targetLangName = options.targetLanguage ? getLanguageName(options.targetLanguage) : null
   const wantFurigana = options.enableFurigana && sourceLanguage === "ja"
+  const wantAnnotations = options.enableAnnotations ?? false
 
   try {
     const combinedText = shortTextSegments
       .map((seg, i) => `[SEGMENT_${i}] ${seg.text}`)
       .join("\n")
 
-    const prompt = `You are processing ${shortTextSegments.length} independent ${sourceLangName} text segments for language learning. Each [SEGMENT_N] line is a SEPARATE sentence.\n\nSource: ${sourceLangName}\n${targetLangName ? `Target: ${targetLangName}` : ""}\n\nSegments:\n${combinedText}\n\nReturn JSON shape:\n{\n  "segments": [\n    {\n      "id": 0,\n      "normalizedText": "...",${targetLangName ? '\n      "translation": "..."' : ""}${wantFurigana ? ',\n      "furigana": "..."' : ""}\n    }\n  ]\n}`
+    const prompt = `You are processing ${shortTextSegments.length} independent ${sourceLangName} text segments for language learning. Each [SEGMENT_N] line is a SEPARATE sentence.\n\nSource: ${sourceLangName}\n${targetLangName ? `Target: ${targetLangName}` : ""}\n\nSegments:\n${combinedText}\n\nReturn JSON shape:\n{\n  "segments": [\n    {\n      "id": 0,\n      "normalizedText": "...",${targetLangName ? '\n      "translation": "..."' : ""}${wantAnnotations ? ',\n      "annotations": ["grammatical/cultural notes, if any"]' : ""}${wantFurigana ? ',\n      "furigana": "..."' : ""}\n    }\n  ]\n}`
 
     const response = await groq.chat.completions.create({
       model: GROQ_CHAT_MODEL,

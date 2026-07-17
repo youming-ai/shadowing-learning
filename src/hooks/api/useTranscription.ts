@@ -3,11 +3,11 @@ import { subtitleKeys } from '~/hooks/media/subtitle-keys'
 import { DBUtils, db } from '~/lib/db/db'
 import { runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
 import { transcriptionLogger } from '~/lib/utils/logger'
+import { withRetry } from '~/lib/utils/retry-utils'
 import {
   handleTranscriptionError,
   handleTranscriptionSuccess,
 } from '~/lib/utils/transcription-error-handler'
-import { smartRetry } from '~/lib/utils/transcription-recovery'
 import { TranscriptionError } from '~/types/transcription'
 
 interface TranscriptionResponse {
@@ -317,29 +317,44 @@ export function useTranscription() {
         throw new Error('File not found or file data is corrupted')
       }
 
-      const data = await smartRetry(() => callTranscribeAPI(fileId, language, file, signal), {
-        fileId,
-        operation: 'transcribe',
-        fileName: file.title,
-        language,
-        attempt: 0,
+      // withRetry 不区分错误类型分别限流重试次数（transcription-recovery.ts 那套已删，无其他调用方），
+      // 用 shouldRetry 保留最关键的两条：取消不重试、鉴权/客户端错误不重试。
+      const retryResult = await withRetry(() => callTranscribeAPI(fileId, language, file, signal), {
         maxAttempts: 3,
+        baseDelay: 1000,
+        maxDelay: 30000,
+        backoffFactor: 2,
+        shouldRetry: (error) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return false
+          const statusCode = (error as TranscriptionError).statusCode
+          if (statusCode === 401 || statusCode === 403) return false
+          if (statusCode && statusCode >= 400 && statusCode < 500 && statusCode !== 429)
+            return false
+          return true
+        },
       })
+
+      if (!retryResult.success || retryResult.data === undefined) {
+        throw retryResult.error ?? new Error('转录请求失败')
+      }
+      const data = retryResult.data
 
       const transcriptId = await saveTranscriptionResults(fileId, data)
 
       const detectedLanguage = data.language || language
 
-      postProcessTranscription(
+      // await（而非 fire-and-forget）：让 mutateAsync 覆盖"转录+后处理"整个流程，
+      // 这样 useSubtitlePipeline 的 runningRef 才能在后处理结束前保持占用，
+      // 避免与"恢复卡在 pending 的字幕"分支在同一会话内重复触发 runTranslate。
+      // postProcessTranscription 内部已把后处理失败落库为 failed 且不会重新抛出，故这里不会让 mutation reject。
+      await postProcessTranscription(
         transcriptId,
         fileId,
         data.segments,
         detectedLanguage,
         nativeLanguage,
         queryClient,
-      ).catch((err) => {
-        transcriptionLogger.error('后处理失败:', err)
-      })
+      )
 
       return data
     },

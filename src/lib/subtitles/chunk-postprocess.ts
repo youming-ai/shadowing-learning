@@ -54,8 +54,6 @@ export interface RunChunkedOptions {
     chunkIndex: number,
     totalChunks: number,
   ) => Promise<void> | void
-  /** 断点续传：跳过前 N 片（已完成片数） */
-  startAtChunk?: number
   fetchImpl?: (url: string, init?: RequestInit) => Promise<Response>
 }
 
@@ -70,7 +68,7 @@ export async function runChunkedPostProcess(opts: RunChunkedOptions): Promise<Ru
   const { segments, language, targetLanguage, enableFurigana, onChunkDone } = opts
   const fetchImpl = opts.fetchImpl ?? fetch
   const chunks = chunkSegmentsForPostProcess(segments)
-  let completed = opts.startAtChunk ?? 0
+  let completed = 0
 
   for (let i = completed; i < chunks.length; i++) {
     try {

@@ -4,7 +4,6 @@ import { ThemeProvider } from '~/components/layout/contexts/ThemeContext'
 import { TranscriptionLanguageProvider } from '~/components/layout/contexts/TranscriptionLanguageContext'
 import { QueryProvider } from '~/components/layout/providers/QueryProvider'
 import { PageErrorBoundary } from '~/components/ui/ErrorBoundary'
-import { MonitoringInitializer } from '~/components/ui/MonitoringInitializer'
 import PwaRegister from '~/components/ui/PwaRegister'
 import { Toaster } from '~/components/ui/sonner'
 
@@ -17,7 +16,6 @@ function RootLayout() {
     <ThemeProvider defaultTheme="system">
       <TranscriptionLanguageProvider>
         <I18nProvider>
-          <MonitoringInitializer />
           <QueryProvider>
             <PageErrorBoundary>
               <div className="relative min-h-screen">
