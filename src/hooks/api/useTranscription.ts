@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { subtitleKeys } from '~/hooks/media/subtitle-keys'
 import { DBUtils, db } from '~/lib/db/db'
+import { runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
 import { transcriptionLogger } from '~/lib/utils/logger'
 import {
   handleTranscriptionError,
@@ -123,10 +124,6 @@ async function saveTranscriptionResults(
         for (let i = 0; i < segments.length; i += BATCH_SIZE) {
           const batch = segments.slice(i, i + BATCH_SIZE)
           await tx.table('segments').bulkAdd(batch)
-
-          if (i > 0 && i % (BATCH_SIZE * 5) === 0) {
-            await new Promise((resolve) => setTimeout(resolve, 10))
-          }
         }
       }
 
@@ -207,75 +204,43 @@ async function postProcessTranscription(
   await updatePostProcessStatus(transcriptId, fileId, 'pending', queryClient)
 
   try {
-    const response = await fetch('/api/postprocess', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        segments: segments.map((s, index) => ({
-          text: s.text,
-          start: s.start,
-          end: s.end,
-          segmentIndex: s.segmentIndex ?? index,
-        })),
-        language: sourceLanguage,
-        targetLanguage: targetLanguage,
-        enableAnnotations: true,
-        enableFurigana: sourceLanguage === 'ja',
-      }),
+    let updatedCount = 0
+
+    const result = await runChunkedPostProcess({
+      segments: segments.map((s, index) => ({
+        segmentIndex: s.segmentIndex ?? index,
+        start: s.start,
+        end: s.end,
+        text: s.text,
+      })),
+      language: sourceLanguage,
+      targetLanguage,
+      enableFurigana: sourceLanguage === 'ja',
+      onChunkDone: async (processed) => {
+        for (const processedSegment of processed) {
+          const count = await db.segments
+            .where('transcriptId')
+            .equals(transcriptId)
+            .and((segment) => segment.segmentIndex === processedSegment.segmentIndex)
+            .modify({
+              normalizedText: processedSegment.normalizedText,
+              translation: processedSegment.translation,
+              annotations: processedSegment.annotations,
+              furigana: processedSegment.furigana,
+            })
+          updatedCount += count
+        }
+        if (queryClient) {
+          queryClient.invalidateQueries({ queryKey: subtitleKeys.forMedia(fileId) })
+        }
+      },
     })
 
-    if (!response.ok) {
-      const errorMessage = `后处理 API 失败: ${response.status} ${response.statusText}`
+    if (result.failed) {
+      const errorMessage = result.error ?? '后处理失败'
       transcriptionLogger.error(errorMessage)
       await updatePostProcessStatus(transcriptId, fileId, 'failed', queryClient, errorMessage)
       return
-    }
-
-    const result = await response.json()
-    transcriptionLogger.debug('后处理 API 响应:', {
-      success: result.success,
-      segmentCount: result.data?.segments?.length,
-    })
-
-    if (!result.success || !result.data?.segments) {
-      const errorMessage = '后处理响应无效'
-      transcriptionLogger.error(errorMessage, result)
-      await updatePostProcessStatus(transcriptId, fileId, 'failed', queryClient, errorMessage)
-      return
-    }
-
-    let updatedCount = 0
-    for (const processedSegment of result.data.segments) {
-      const segIndex = processedSegment.segmentIndex
-      let count: number
-
-      if (typeof segIndex === 'number') {
-        count = await db.segments
-          .where('transcriptId')
-          .equals(transcriptId)
-          .and((segment) => segment.segmentIndex === segIndex)
-          .modify({
-            normalizedText: processedSegment.normalizedText,
-            translation: processedSegment.translation,
-            annotations: processedSegment.annotations,
-            furigana: processedSegment.furigana,
-          })
-      } else {
-        count = await db.segments
-          .where('transcriptId')
-          .equals(transcriptId)
-          .and(
-            (segment) =>
-              segment.start === processedSegment.start && segment.end === processedSegment.end,
-          )
-          .modify({
-            normalizedText: processedSegment.normalizedText,
-            translation: processedSegment.translation,
-            annotations: processedSegment.annotations,
-            furigana: processedSegment.furigana,
-          })
-      }
-      updatedCount += count
     }
 
     transcriptionLogger.info(`后处理完成，更新了 ${updatedCount} 个 segments`)

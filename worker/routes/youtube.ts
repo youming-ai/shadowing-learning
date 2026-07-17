@@ -20,6 +20,7 @@ interface CaptionTrackMeta {
   language: string
   kind: "asr" | "manual"
   displayName: string
+  baseUrl: string
 }
 
 interface VideoMeta {
@@ -55,11 +56,23 @@ function getVideoMeta(videoId: string): Promise<VideoMeta> {
       throw Object.assign(new Error("视频不存在"), { code: "VIDEO_NOT_FOUND", statusCode: 404 })
     }
     const captionTracks: CaptionTrackMeta[] = (
-      (info as unknown as { captions?: { caption_tracks?: Array<{ language_code: string; kind?: string; name?: { text?: string } }> } }).captions?.caption_tracks ?? []
+      (
+        info as unknown as {
+          captions?: {
+            caption_tracks?: Array<{
+              language_code: string
+              kind?: string
+              name?: { text?: string }
+              base_url: string
+            }>
+          }
+        }
+      ).captions?.caption_tracks ?? []
     ).map((t) => ({
       language: String(t.language_code ?? ""),
       kind: t.kind === "asr" ? ("asr" as const) : ("manual" as const),
       displayName: String(t.name?.text ?? ""),
+      baseUrl: t.base_url,
     }))
 
     return {
@@ -139,7 +152,7 @@ youtubeRoute.post("/captions", async (c) => {
       return apiError({ code: "NO_CAPTIONS", message: "该视频没有可用字幕", statusCode: 404 })
     }
 
-    const cues = await fetchTimedtextSubtitles(videoId, track.language)
+    const cues = await fetchTimedtextSubtitles(track.baseUrl)
     const segments = mergeShortCues(msCuesToSeconds(cues))
 
     return apiSuccess({ language: track.language, kind: track.kind, segments })
