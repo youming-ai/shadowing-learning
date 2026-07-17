@@ -23,17 +23,23 @@ function decodeEntities(text: string): string {
 }
 
 // srv3 format (requested via &fmt=srv3): <p t="1200" d="3200" ...>text</p>, times in ms.
+// Attributes are parsed independently — `t` and `d` order/adjacency varies between tracks.
 function parseSrv3TimedtextXml(xml: string): MsCue[] {
   const cues: MsCue[] = []
-  const grab = /<p\s(?:[^>]*?\s)?t="(\d+)"(?:\s[^>]*?\sd="(\d+)")?[^>]*>([\s\S]*?)<\/p>/g
+  const grab = /<p\s([^>]*)>([\s\S]*?)<\/p>/g
   let match: RegExpExecArray | null
 
   while ((match = grab.exec(xml)) !== null) {
-    const startMs = Number.parseInt(match[1], 10)
-    const durationMs = match[2] ? Number.parseInt(match[2], 10) : 0
+    const attrs = match[1]
+    const t = attrs.match(/\bt="(\d+)"/)
+    if (!t) continue
+    const startMs = Number.parseInt(t[1], 10)
     if (Number.isNaN(startMs)) continue
 
-    const text = decodeEntities(match[3])
+    const d = attrs.match(/\bd="(\d+)"/)
+    const durationMs = d ? Number.parseInt(d[1], 10) : 0
+
+    const text = decodeEntities(match[2])
     if (text) {
       cues.push({ startMs, endMs: startMs + (durationMs || 1000), text })
     }

@@ -227,16 +227,22 @@ export function useSubtitlePipeline(media: MediaRow | null) {
     if (!media?.id || query.isLoading || runningRef.current) return
     const { subtitle } = query.data ?? { subtitle: null }
 
+    // 跨会话恢复：不分 kind，字幕行已存在但翻译卡在 pending（页面被关闭/导航打断）就续跑翻译。
+    // 音频侧 postProcessTranscription 现在被 await（见 useTranscription.ts），
+    // 同一会话内 runningRef 会一直占用到后处理结束，不会与这里重复触发。
+    if (subtitle?.status === 'completed' && subtitle.postProcessStatus === 'pending') {
+      runningRef.current = true
+      void runTranslate(subtitle.id as number, subtitle.source, subtitle.sourceLanguage).finally(
+        () => {
+          runningRef.current = false
+        },
+      )
+      return
+    }
+
     if (media.kind === 'youtube') {
       if (!subtitle) {
         void runYouTubePipeline()
-      } else if (subtitle.status === 'completed' && subtitle.postProcessStatus === 'pending') {
-        runningRef.current = true
-        void runTranslate(subtitle.id as number, subtitle.source, subtitle.sourceLanguage).finally(
-          () => {
-            runningRef.current = false
-          },
-        )
       }
     } else if (media.kind === 'audio' && !subtitle) {
       // 音频走现有转写链路（useTranscription 内部完成时会失效 subtitleKeys）；

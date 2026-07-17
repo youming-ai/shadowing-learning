@@ -20,9 +20,10 @@ function getConfig(pathname: string) {
 }
 
 function getClientId(request: Request): string {
-  const ip = request.headers.get("cf-connecting-ip")
-    ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-  if (ip) return ip
+  const cfIp = request.headers.get("cf-connecting-ip")?.trim()
+  if (cfIp) return cfIp
+  const xff = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  if (xff) return xff
   const cf = (request as Request & { cf?: { colo?: string } }).cf
   if (cf?.colo) return `cf:${cf.colo}`
   const ua = request.headers.get("user-agent") ?? ""

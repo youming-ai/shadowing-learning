@@ -19,7 +19,7 @@ export class YouTubeAdapter extends AdapterEmitter implements MediaSourceAdapter
     }
     const YT = await loadYouTubeIframeApi()
     if (this.destroyed) return
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       // 真实 YouTube IFrame API 要求 `new YT.Player(...)`（构造函数用法）。
       // 测试侧的 mock 用真正的 class 构造器（见 YouTubeAdapter.test.ts），所以这里保持 `new`。
       this.player = new YT.Player(container, {
@@ -44,11 +44,14 @@ export class YouTubeAdapter extends AdapterEmitter implements MediaSourceAdapter
             }
           },
           onError: (e: { data: number }) => {
+            // onReady 之后到达的 error（如播放中失败）不该让已经 settle 过的 mount() 再变化 ——
+            // reject 在 promise 已 resolve 后是安全的 no-op。mount() 本身只需在"从未 ready"时兜底 settle。
             if (e.data === 101 || e.data === 150) {
               this.emit('error', { code: 'EMBED_BLOCKED' })
             } else {
               this.emit('error', { code: 'PLAYBACK_ERROR', raw: e.data })
             }
+            reject(new Error(`YouTube player error: ${e.data}`))
           },
         },
       })

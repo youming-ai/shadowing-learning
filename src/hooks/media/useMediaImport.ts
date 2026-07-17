@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { filesKeys } from '~/hooks/db/useFiles'
 import { DBUtils } from '~/lib/db/db'
+import { isAppError } from '~/lib/utils/error-handler'
 
 export type ImportStage = 'idle' | 'resolving' | 'saving'
 
@@ -70,11 +71,14 @@ export function useMediaImport() {
           return id
         } catch (error) {
           // &externalId 唯一索引兜底并发导入：撞约束 → 取已有行
-          if (error instanceof Error && error.name === 'ConstraintError') {
-            const winner = await DBUtils.findMediaByExternalId(data.videoId)
-            if (winner?.id) return winner.id
-          }
-          if (error instanceof Error && error.message.includes('Constraint')) {
+          // DBUtils.add 把底层 Dexie ConstraintError 包成不继承 Error 的 AppError 普通对象再抛出
+          // （见 handleError），.name 不再可用，只能从 message 文案里识别撞了唯一索引。
+          const message = isAppError(error)
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : ''
+          if (/constraint/i.test(message)) {
             const winner = await DBUtils.findMediaByExternalId(data.videoId)
             if (winner?.id) return winner.id
           }

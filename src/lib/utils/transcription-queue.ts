@@ -22,21 +22,25 @@ type StatusChangeCallback = (
   error?: string,
 ) => void
 
+interface TaskResolvers {
+  resolve: () => void
+  reject: (error: unknown) => void
+}
+
 /** * Transcription队列管理器 * 控制并发数量，支持取消operations*/
 export class TranscriptionQueue {
   private queue: TranscriptionTask[] = []
   private processing: Map<number, TranscriptionTask> = new Map()
   private config: TranscriptionQueueConfig
-  private taskCallback: TaskCallback | null = null
   private statusChangeCallback: StatusChangeCallback | null = null
+  // 按 fileId 存回调/完成 promise ——之前用单一共享槽位（setTaskCallback）在两个文件同时排队时
+  // 会被后注册的覆盖，先注册那个的 promise 永远不 settle。这里改成每个任务各自独立。
+  private callbacks: Map<number, TaskCallback> = new Map()
+  private promises: Map<number, Promise<void>> = new Map()
+  private resolvers: Map<number, TaskResolvers> = new Map()
 
   constructor(config: TranscriptionQueueConfig = { maxConcurrent: 1 }) {
     this.config = config
-  }
-
-  /** * Set任务执行回调*/
-  setTaskCallback(callback: TaskCallback): void {
-    this.taskCallback = callback
   }
 
   /** * Setstate变更回调*/
@@ -44,12 +48,23 @@ export class TranscriptionQueue {
     this.statusChangeCallback = callback
   }
 
-  /** * Add任务To队列*/
-  add(fileId: number, language: TranscriptionLanguageCode): AbortController {
-    // If已经在队列或Processin，返回现有 controller
+  /**
+   * Add任务To队列，绑定该任务专属的回调。
+   * 若 fileId 已在队列/Processin中，返回已有任务的 controller + promise（调用方等同"加入已有任务"），
+   * 不会用新 callback 覆盖已注册的那个。
+   */
+  add(
+    fileId: number,
+    language: TranscriptionLanguageCode,
+    callback: TaskCallback,
+  ): { abortController: AbortController; promise: Promise<void> } {
+    // If已经在队列或Processin，返回现有 controller + promise
     const existing = this.queue.find((t) => t.fileId === fileId) || this.processing.get(fileId)
     if (existing) {
-      return existing.abortController
+      return {
+        abortController: existing.abortController,
+        promise: this.promises.get(fileId) ?? Promise.resolve(),
+      }
     }
 
     const abortController = new AbortController()
@@ -61,13 +76,23 @@ export class TranscriptionQueue {
       createdAt: new Date(),
     }
 
+    let resolve!: () => void
+    let reject!: (error: unknown) => void
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    this.callbacks.set(fileId, callback)
+    this.promises.set(fileId, promise)
+    this.resolvers.set(fileId, { resolve, reject })
+
     this.queue.push(task)
     this.notifyStatusChange(fileId, 'pending')
 
     // 尝试Process队列
     this.processNext()
 
-    return abortController
+    return { abortController, promise }
   }
 
   /** * 取消特定任务*/
@@ -80,6 +105,9 @@ export class TranscriptionQueue {
       task.status = 'cancelled'
       this.queue.splice(queueIndex, 1)
       this.notifyStatusChange(fileId, 'cancelled')
+      // 任务还没跑到 processNext，回调不会被调用——这里手动 settle，否则 add() 返回的 promise 永远挂着
+      this.resolvers.get(fileId)?.resolve()
+      this.cleanupTask(fileId)
       return true
     }
 
@@ -90,6 +118,7 @@ export class TranscriptionQueue {
       processingTask.status = 'cancelled'
       this.processing.delete(fileId)
       this.notifyStatusChange(fileId, 'cancelled')
+      // 正在跑的 processNext() 调用会在其 finally 里自行 settle + 清理，这里不重复处理
       // 继续Process下一个任务
       this.processNext()
       return true
@@ -105,6 +134,8 @@ export class TranscriptionQueue {
       task.abortController.abort()
       task.status = 'cancelled'
       this.notifyStatusChange(task.fileId, 'cancelled')
+      this.resolvers.get(task.fileId)?.resolve()
+      this.cleanupTask(task.fileId)
     }
     this.queue = []
 
@@ -166,9 +197,12 @@ export class TranscriptionQueue {
     this.processing.set(task.fileId, task)
     this.notifyStatusChange(task.fileId, 'processing')
 
+    const callback = this.callbacks.get(task.fileId)
+    const resolvers = this.resolvers.get(task.fileId)
+
     try {
-      if (this.taskCallback) {
-        await this.taskCallback(task)
+      if (callback) {
+        await callback(task)
       }
 
       // 只有在未被取消情况下才标记完成
@@ -176,21 +210,31 @@ export class TranscriptionQueue {
         task.status = 'completed'
         this.notifyStatusChange(task.fileId, 'completed')
       }
+      resolvers?.resolve()
     } catch (error) {
       // Checkis否i取消Error
       if (error instanceof DOMException && error.name === 'AbortError') {
         task.status = 'cancelled'
         this.notifyStatusChange(task.fileId, 'cancelled')
+        resolvers?.resolve()
       } else {
         task.status = 'failed'
         task.error = error instanceof Error ? error.message : '转录失败'
         this.notifyStatusChange(task.fileId, 'failed', task.error)
+        resolvers?.reject(error)
       }
     } finally {
       this.processing.delete(task.fileId)
+      this.cleanupTask(task.fileId)
       // 继续Process下一个任务
       this.processNext()
     }
+  }
+
+  private cleanupTask(fileId: number): void {
+    this.callbacks.delete(fileId)
+    this.promises.delete(fileId)
+    this.resolvers.delete(fileId)
   }
 
   /** * 通知state变更*/
