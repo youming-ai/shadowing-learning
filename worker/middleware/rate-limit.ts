@@ -9,7 +9,6 @@ const ROUTE_CONFIGS: Record<string, { windowMs: number; maxRequests: number }> =
   "/api/postprocess": { windowMs: 60_000, maxRequests: 20 },
   "/api/youtube/resolve": { windowMs: 600_000, maxRequests: 20 },
   "/api/youtube/captions": { windowMs: 600_000, maxRequests: 20 },
-  "/api/youtube/transcribe": { windowMs: 3_600_000, maxRequests: 4 },
 }
 
 function getConfig(pathname: string) {

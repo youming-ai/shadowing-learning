@@ -36,15 +36,13 @@ bun run lint           # biome check .
 bun run format         # biome format . --write
 bun run type-check     # tsc --noEmit
 
-# Tests (Bun's built-in test runner)
-bun test                       # Single run (NOT watch — add --watch for watch mode)
-bun test --watch               # Watch mode
-bun test --coverage            # Coverage
-bun test path/to/file.test.ts  # Single file
-bun test -t "test name"        # Single test by name pattern
+# Tests (Vitest — see the Testing section; do NOT use `bun test`)
+bun run test                          # Watch mode (vitest)
+bun run test:run                      # Single run
+bun run test:coverage                 # Coverage
+bun run test:run path/to/file.test.ts # Single file
+bun run test:run -t "test name"       # Single test by name pattern
 ```
-
-`bun run test` and `bun run test:run` are both aliases for `bun test`.
 
 ## Architecture
 
@@ -175,11 +173,14 @@ Deployed as a Cloudflare Worker, not a container. `bun run deploy` (`vite build 
 ## Environment Variables
 
 ```env
-GROQ_API_KEY=                  # Required — Groq Whisper + LLM. Set as a Worker secret (wrangler secret put GROQ_API_KEY), not a var.
-VITE_APP_URL=                  # Client-side app URL; must be VITE_-prefixed to reach the browser. Set via wrangler.jsonc `vars` (defaults to http://localhost:3000).
+GROQ_API_KEY=                  # Required — Groq Whisper + LLM. Set as a Worker secret (wrangler secret put GROQ_API_KEY); locally put it in .dev.vars, NOT .env.
 ```
 
-Never commit `.env*`. See [.env.example](.env.example).
+`RATE_LIMIT_KV` is a KV namespace binding declared in [wrangler.jsonc](wrangler.jsonc), and `ASSETS` is the `dist/` assets binding.
+
+`VITE_APP_URL` (in `wrangler.jsonc` `vars`) and `PERFORMANCE_ADMIN_TOKEN` (in [.env.example](.env.example)) are **dead** — no code in `src/`, `worker/`, `index.html`, or `vite.config.ts` reads either. `.env.example` still describes the pre-Worker server-route setup.
+
+Never commit `.dev.vars` or `.env*`.
 
 ## Code style
 

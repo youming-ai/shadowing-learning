@@ -1,6 +1,10 @@
-# Dokploy Deployment
+# Dokploy Deployment (HISTORICAL — no longer the deployment path)
 
-This project is ready to deploy on an Oracle VPS through Dokploy using the included `Dockerfile`.
+> **This document describes a deployment that no longer exists.** The app now ships to **Cloudflare Workers** via `bun run deploy` (= `vite build` → `wrangler deploy`); see [ARCHITECTURE.md](./ARCHITECTURE.md) and [DEVELOPMENT.md](./DEVELOPMENT.md).
+>
+> The steps below assume a Docker image that starts `dist/server/server.js` — a TanStack Start server bundle the current build **does not produce** — and an in-container `yt-dlp` used by a caption-less-video fallback that no longer exists (Workers cannot execute binaries). Kept only as a record of the previous VPS/Dokploy setup.
+
+This project was deployed on an Oracle VPS through Dokploy using the included `Dockerfile`.
 
 ## Runtime
 

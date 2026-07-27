@@ -6,13 +6,14 @@
 
 [![Bun](https://img.shields.io/badge/Bun-1.2-000000.svg?logo=bun)](https://bun.sh/)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff.svg?logo=vite)](https://vite.dev/)
-[![TanStack Start](https://img.shields.io/badge/TanStack%20Start-1.x-ef4444.svg)](https://tanstack.com/start)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-F38020.svg?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Hono](https://img.shields.io/badge/Hono-4-e36002.svg?logo=hono&logoColor=white)](https://hono.dev/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![Biome](https://img.shields.io/badge/Biome-2-60a5fa.svg?logo=biome)](https://biomejs.dev/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[架构](./docs/ARCHITECTURE.md) · [开发](./docs/DEVELOPMENT.md) · [数据流](./docs/DATA-FLOW.md) · [部署](./docs/DOKPLOY.md) · [Git 流程](./docs/GIT-WORKFLOW.md)
+[架构](./docs/ARCHITECTURE.md) · [开发](./docs/DEVELOPMENT.md) · [数据流](./docs/DATA-FLOW.md) · [Git 流程](./docs/GIT-WORKFLOW.md)
 
 </div>
 
@@ -22,53 +23,59 @@
 
 [影子跟读（Shadowing）](https://en.wikipedia.org/wiki/Shadowing_(psycholinguistics)) 是一种通过紧跟原音模仿来训练听说能力的语言学习方法。本项目是一个 Web 应用：
 
-1. **上传**一段音频（MP3 / WAV / M4A / FLAC）
-2. **自动转录**为时间戳字幕（Groq Whisper-large-v3-turbo）
-3. **后处理**生成规范化文本、翻译和标注（Groq LLM）
-4. **同步播放**：字幕随音频高亮，支持逐句循环、可调速度，专注跟读练习
+1. **导入**一段音频（MP3 / WAV / M4A / FLAC）或粘贴一个 YouTube 链接
+2. **获取字幕**：音频走 Groq Whisper-large-v3-turbo 转录；YouTube 优先抓取官方字幕轨
+3. **后处理**生成规范化文本、翻译和标注（Groq LLM，分块增量写入）
+4. **同步播放**：字幕随媒体高亮，支持逐句循环、可调速度、逐句录音对比，专注跟读练习
 
 支持中文（简/繁）、英语、日语、韩语，UI 与转录语言可独立切换。
 
 ## 特性
 
-- **客户端优先**：除两次 Groq API 调用外，所有数据（音频 Blob、转录、片段）都存放在浏览器的 IndexedDB（Dexie），无后端数据库
-- **多语言**：UI 与翻译目标支持 5 种语言，使用 BCP-47 hreflang 声明
+- **客户端优先**：除少量服务端 API 调用（Groq 转录 / 后处理、YouTube 字幕抓取）外，所有数据（音频 Blob、字幕、片段）都存放在浏览器的 IndexedDB（Dexie），无后端数据库
+- **多语言**：UI 与翻译目标支持 5 种语言，可独立切换
 - **PWA**：可安装、支持离线降级（Service Worker 注册）
 - **主题系统**：浅色 / 深色 / 跟随系统 / 高对比度，CSS 变量驱动
-- **性能监控**：内置 Web Vitals 上报（可选 token 保护）
 - **类型安全**：严格 TypeScript + Zod 校验 API 边界
-- **测试**：bun test（内置）+ happy-dom + fake-indexeddb
+- **测试**：Vitest + happy-dom + fake-indexeddb
 
 ## 技术栈
 
 | 类别       | 选型                                           |
 | ---------- | ---------------------------------------------- |
 | 运行时     | Bun ≥1.2（运行时 + 包管理器，lockfile `bun.lock`） |
-| 框架       | Vite 8 + TanStack Start / TanStack Router（文件路由 + SSR） |
+| 框架       | Vite 8 SPA + TanStack Router（文件路由，无 SSR） |
 | 视图       | React 19, Tailwind CSS v4, Radix UI, lucide-react |
 | 状态       | TanStack Query（服务态） + React Context（UI 态） |
-| 持久化     | Dexie / IndexedDB（v3 schema）                  |
+| 持久化     | Dexie / IndexedDB（v4 schema：media / subtitles / segments） |
 | AI         | Groq SDK（Whisper-large-v3-turbo + LLM 后处理） |
 | 校验       | Zod                                            |
 | 通知       | sonner                                         |
-| 工具链     | Biome 2（lint + format）, bun test             |
-| 部署       | Docker (multi-stage) + Dokploy（VPS, Traefik） |
+| 工具链     | Biome 2（lint + format）, Vitest               |
+| 服务端     | Cloudflare Workers + Hono 4（API + 静态资源）  |
+| 限流       | Cloudflare KV（`RATE_LIMIT_KV`，按 IP 滑动窗口） |
+| 部署       | `wrangler deploy`（Cloudflare Workers）        |
 
 ## 架构
 
 ```
-┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│ 浏览器：上传  │ ──▶ │ /api/transcribe  │ ──▶ │ Groq Whisper     │
-└──────┬───────┘     │ (rate-limited)   │     └──────────────────┘
-       │             └─────────────────┘
-       │             ┌─────────────────┐     ┌──────────────────┐
-       │         ──▶ │ /api/postprocess │ ──▶ │ Groq LLM         │
-       │             └─────────────────┘     └──────────────────┘
+                 ┌──────────────────────────── Cloudflare Worker (Hono) ───┐
+┌──────────────┐ │ ┌──────────────────┐     ┌──────────────────┐          │
+│ 浏览器 SPA    │─┼▶│ /api/transcribe   │ ──▶ │ Groq Whisper     │          │
+│ (React 19 +  │ │ ├──────────────────┤     ├──────────────────┤          │
+│  TanStack    │─┼▶│ /api/postprocess  │ ──▶ │ Groq LLM         │          │
+│  Router)     │ │ ├──────────────────┤     ├──────────────────┤          │
+│              │─┼▶│ /api/youtube/*    │ ──▶ │ youtubei.js      │          │
+│              │ │ ├──────────────────┤     └──────────────────┘          │
+│              │◀┼─│ ASSETS (dist/)    │  ← 其余路径 SPA 回退               │
+└──────┬───────┘ │ └──────────────────┘     ┌──────────────────┐          │
+       │         │   rateLimit 中间件 ─────▶ │ RATE_LIMIT_KV    │          │
+       │         └──────────────────────────┴──────────────────┴──────────┘
        ▼
 ┌──────────────────────────────────────────┐
-│ IndexedDB (Dexie)                         │
-│   files / transcripts / segments          │
-└──────────────────────────────────────────┘
+│ IndexedDB (Dexie v4)                      │
+│   media / subtitles / segments            │
+└──────┬───────────────────────────────────┘
        ▼
 ┌──────────────────────────────────────────┐
 │ TanStack Query 缓存 + 字幕同步播放器        │
@@ -83,7 +90,7 @@
 
 - [Bun](https://bun.sh/) ≥ 1.2.0（同时作为运行时与包管理器；**不要用 npm/pnpm/yarn/node**）
 - 一个 [Groq API key](https://console.groq.com/keys)（免费层即可）
-- （可选）[yt-dlp](https://github.com/yt-dlp/yt-dlp)：`brew install yt-dlp` — 仅在转写无内置字幕的 YouTube 视频时需要（生产镜像已内置）
+- 一个 Cloudflare 账号（`wrangler` 已作为 devDependency 安装）
 
 ### 安装
 
@@ -91,118 +98,128 @@
 git clone https://github.com/youming-ai/shadowing-learning.git
 cd shadowing-learning
 bun install
-cp .env.example .env.local
-# 在 .env.local 中填入 GROQ_API_KEY
+echo "GROQ_API_KEY=your_key" > .dev.vars
+
+# 终端 A：Worker（API + dist 资源）→ :8787
+bun run build        # 首次必需：dist/ 未入版本库，wrangler 的 ASSETS 绑定指向它
 bun run dev
+
+# 终端 B：前端 HMR → :3000，/api 代理到 :8787
+bun run dev:client
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。
+日常开发用 **两个终端**，浏览器打开 [http://localhost:3000](http://localhost:3000)：Vite 提供 HMR，API 交给 Worker。
+
+只想跑 Worker（不改前端）时，打开 [http://localhost:8787](http://localhost:8787) 即可 —— 但 `wrangler dev` **不会**重新构建前端，改动 `src/` 后需重新 `bun run build`。
 
 ### 环境变量
 
-| 变量名                      | 必填 | 说明                                          |
-| --------------------------- | ---- | --------------------------------------------- |
-| `GROQ_API_KEY`              | ✓    | Groq Whisper + LLM 调用（服务端）             |
-| `VITE_APP_URL`              |      | 站点公开 URL；客户端读取需 `VITE_` 前缀，默认 `http://localhost:3000` |
+| 变量名                      | 位置 | 必填 | 说明                                     |
+| --------------------------- | ---- | ---- | ---------------------------------------- |
+| `GROQ_API_KEY`              | 本地 `.dev.vars`；线上 `wrangler secret put` | ✓ | Groq Whisper + LLM 调用（Worker 内） |
+| `RATE_LIMIT_KV`             | `wrangler.jsonc` 绑定 | ✓ | 限流计数用的 KV namespace |
 
 
-切勿将 `.env*` 提交到仓库。
+切勿将 `.dev.vars` 或 `.env*` 提交到仓库。
 
 ## 脚本
 
 ```bash
 # 开发
-bun run dev            # 开发服务器（http://localhost:3000）
-bun run build          # 生产构建 → dist/（含 dist/server/server.js）
-bun run start          # 启动构建产物（bun run dist/server/server.js）
-bun run preview        # 预览生产构建
-bun run clean          # 清理 .output / dist / 缓存
+bun run dev            # wrangler dev：完整 Worker（API + dist 资源）→ :8787
+bun run dev:client     # 仅前端 Vite → :3000，/api 代理到 :8787
+bun run build          # vite build → dist/（纯客户端资源）
+bun run deploy         # build + wrangler deploy
+bun run clean          # 清理 dist / 缓存 / .wrangler
 
 # 质量
 bun run lint           # Biome check
 bun run format         # Biome format --write
 bun run type-check     # tsc --noEmit
 
-# 测试（Bun 内置 runner）
-bun test               # 单次执行（监视模式加 --watch）
-bun test --coverage    # 覆盖率
-bun test path/to/file.test.ts   # 单文件
-bun test -t "test name pattern" # 按名称匹配单用例
+# 测试（Vitest；不要用 bun test）
+bun run test           # 监视模式
+bun run test:run       # 单次执行
+bun run test:coverage  # 覆盖率
 ```
 
 ## 项目结构
 
 ```
+worker/                        # Cloudflare Worker（API + 资源分发）
+├── index.ts                   # Hono app：cors → rateLimit → 路由 → ASSETS 回退
+├── routes/                    # transcribe / postprocess / youtube
+├── lib/                       # groq-whisper / groq-client / youtube-captions / api-response
+└── middleware/                # cors / rate-limit（KV 支撑）
+
 src/
 ├── routes/                    # TanStack Router 文件路由
-│   ├── __root.tsx             # 根布局 + head（meta / JSON-LD / PWA）+ Provider 栈
+│   ├── __root.tsx             # 根布局 + Provider 栈
 │   ├── index.tsx              # 首页
-│   ├── player.$fileId.tsx     # 播放器页面
+│   ├── watch.$mediaId.tsx     # 观看 / 播放器页面
+│   ├── me.tsx                 # 我的音频库
 │   ├── settings.tsx           # 设置
-│   ├── account.tsx            # 账户
-│   └── api/                   # TanStack Start 服务端 handler
-│       └── transcribe / postprocess / health / performance
-├── router.tsx                 # createRouter（getRouter）
+│   └── account.tsx            # 账户
+├── main.tsx                   # SPA 入口
+├── router.tsx                 # createRouter
 ├── routeTree.gen.ts           # 自动生成的路由树（勿手改）
 ├── components/
 │   ├── ui/                    # 基础组件（Radix 包装 + sonner）
-│   ├── features/              # file / player / settings 业务模块
-│   ├── layout/                # 布局 + Context（Theme / I18n / TranscriptionLanguage）+ Providers
-│   └── transcription/
+│   ├── features/              # watch / player / library / file / settings 业务模块
+│   └── layout/                # Context（Theme / I18n / TranscriptionLanguage）+ Providers
 ├── hooks/
-│   ├── api/                   # 服务态（含 transcriptionKeys 工厂）
-│   ├── db/                    # IndexedDB 读写
-│   ├── player/                # 播放器状态
-│   └── ui/
+│   ├── api/                   # useTranscription
+│   ├── media/                 # useSubtitlePipeline / useMediaImport
+│   ├── player/                # 播放器与跟读状态
+│   └── db/                    # IndexedDB 读写
 ├── lib/
-│   ├── ai/                    # Groq 封装与转录工具
 │   ├── db/                    # Dexie schema 与 DBUtils
+│   ├── player/                # shadowing-machine / active-segment / active-word
+│   ├── subtitles/             # 分块后处理
+│   ├── youtube/               # error-messages
+│   ├── config/                # 路由常量
 │   ├── i18n/                  # 多语种翻译字典
-│   ├── utils/                 # api-response / rate-limiter / error-handler 等
-│   └── config/
+│   └── utils/                 # error-handler / retry-utils / transcription-queue 等
 ├── styles/app.css             # Tailwind v4 + CSS 变量主题（@theme 块）
 ├── types/                     # api / db / ui 类型
-└── __tests__/setup.ts         # 测试全局 setup（happy-dom / fake-indexeddb，经 bunfig.toml 预加载）
+└── __tests__/setup.ts         # 测试全局 setup（happy-dom / fake-indexeddb）
 ```
 
 ## 部署
 
-项目部署在 VPS 的 Docker 容器中，由 [Dokploy](https://dokploy.com/) 通过 Traefik 反向代理（**不在 Vercel 上**）。
+部署目标是 **Cloudflare Workers**：同一个 Worker 既处理 `/api/*`，也通过 `ASSETS` 绑定分发 `dist/` 里的 SPA。
 
 ```bash
-# 本地容器冒烟测试
-docker compose up --build
+wrangler secret put GROQ_API_KEY   # 首次配置密钥
+bun run deploy                     # build + wrangler deploy
 ```
 
-- [Dockerfile](./Dockerfile) 多阶段构建于 `oven/bun:1-alpine`，产物为 `dist/`，以 `bun run dist/server/server.js` 启动
-- [docker-compose.yml](./docker-compose.yml) 用 `expose: 3000` 而非 `ports:`，由 Dokploy 接入 Traefik 网络
-- 完整流程见 [docs/DOKPLOY.md](./docs/DOKPLOY.md)
+> `Dockerfile`、`docker-compose.yml` 与 `docs/DOKPLOY.md` 是**历史遗留**：它们以 `bun run dist/server/server.js` 启动 TanStack Start 服务端产物，而当前构建不再生成该文件。请勿当作现行部署方式。
 
-> 速率限制器是进程内内存实现，单实例可用，多副本扩容前需替换为 Redis 等共享存储。
+> 限流基于 Cloudflare KV，跨 colo 最终一致，属于成本护栏而非强一致配额。
 
 ## 测试
 
-- 运行器：Bun 内置 `bun test`（测试代码用 Vitest 风格的 `vi.*`，由 `bun:test` 提供该 API）
+- 运行器：**Vitest**（[vitest.config.ts](./vitest.config.ts)）。**不要用 `bun test`** —— 它会忽略 vitest 配置并因缺少 DOM 而失败，且仓库中没有 `bunfig.toml`。
 - 环境：happy-dom + `fake-indexeddb`
 - 测试与源代码就近（`__tests__/` 子目录）
-- 全局 setup：[`src/__tests__/setup.ts`](./src/__tests__/setup.ts)，经 `bunfig.toml` 的 `[test] preload` 预加载（含 happy-dom 全局、jest-dom 匹配器、router/sonner mock）
+- 全局 setup：[`src/__tests__/setup.ts`](./src/__tests__/setup.ts)，由 `vitest.config.ts` 的 `setupFiles` 加载（含 jest-dom 匹配器、router/sonner mock）
 
 ```bash
-bun test                 # 全量
-bun test --coverage      # 覆盖率
+bun run test:run         # 全量
+bun run test:coverage    # 覆盖率
 ```
 
 ## SEO
 
-- 文档 head 由 TanStack Start 在 [`src/routes/__root.tsx`](./src/routes/__root.tsx) 的 `head()` 集中管理：title / description / OG / Twitter 卡片
-- `SoftwareApplication` + `WebSite` JSON-LD
+- 文档 head 集中在 [`index.html`](./index.html)（SPA shell）：title / description / OG / Twitter 卡片
 - `robots.txt` 与 `sitemap.xml` 为 [`public/`](./public/) 下的静态文件
 - PWA：`manifest.json` + Service Worker 注册
 
 ## 贡献
 
 1. Fork & 新建分支：`git checkout -b feat/your-feature`
-2. 修改后跑通：`bun run lint && bun run type-check && bun test`
+2. 修改后跑通：`bun run lint && bun run type-check && bun run test:run`
 3. 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 提交信息
 4. 推送并开 PR（参考 [docs/GIT-WORKFLOW.md](./docs/GIT-WORKFLOW.md)）
 
@@ -214,7 +231,7 @@ bun test --coverage      # 覆盖率
 
 ## 致谢
 
-[Bun](https://bun.sh/) · [Vite](https://vite.dev/) · [TanStack Start](https://tanstack.com/start) · [React](https://react.dev/) · [Radix UI](https://www.radix-ui.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Dexie](https://dexie.org/) · [TanStack Query](https://tanstack.com/query) · [Groq](https://groq.com/) · [Biome](https://biomejs.dev/)
+[Bun](https://bun.sh/) · [Vite](https://vite.dev/) · [Cloudflare Workers](https://workers.cloudflare.com/) · [Hono](https://hono.dev/) · [React](https://react.dev/) · [TanStack Router](https://tanstack.com/router) · [Radix UI](https://www.radix-ui.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Dexie](https://dexie.org/) · [TanStack Query](https://tanstack.com/query) · [Groq](https://groq.com/) · [Biome](https://biomejs.dev/)
 
 ---
 

@@ -10,8 +10,11 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
 
 # Build
+.wrangler/
 dist/
 *.tsbuildinfo
 

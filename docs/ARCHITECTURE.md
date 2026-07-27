@@ -31,6 +31,8 @@ graph TB
 
 Deploy with `wrangler deploy` (runs `vite build` → `dist/`, then uploads the Worker + assets). There is no separate origin server.
 
+Locally the same split applies but nothing builds implicitly: `dist/` is gitignored and `wrangler dev` only *serves* it. Run `bun run build` once, then `bun run dev` (Worker on :8787) alongside `bun run dev:client` (Vite HMR on :3000, proxying `/api` to :8787) and develop against :3000.
+
 ## Tech Stack
 
 | Layer | Technology | Purpose |
@@ -87,13 +89,11 @@ src/                        # Vite SPA (client)
     db/                     # useFiles
     useFileStatus.ts
   lib/
-    ai/                     # groq-whisper, groq-transcription-utils, groq-request-wrapper (client-side helpers)
     db/db.ts                # Dexie schema (v4) + DBUtils
     player/                 # shadowing-machine, active-segment, active-word
     subtitles/              # chunk-postprocess (chunked translation loop)
-    youtube/                # innertube, normalize, track-select, url, error-messages (ytdlp.ts is legacy — see below)
-    utils/                  # error-handler, monitoring-service, retry-utils, file-status-manager, global-limits (legacy), rate-limiter (legacy client copy), web-vitals
-    security/               # csp-nonce
+    youtube/                # error-messages
+    utils/                  # error-handler, transcription-error-handler, retry-utils, transcription-queue, file-validation, logger, utils
     config/                 # routes
     i18n/translations.ts
   types/                    # db, api, ui, transcription types
@@ -209,25 +209,35 @@ All API routes run in the Worker under Hono: `cors` on `*`, then `rateLimit` on 
 | /api/youtube/captions | POST | 20 req / 10 min | Fetch + normalize a caption track; returns `NO_CAPTIONS` (404) if unavailable |
 | /api/health | GET | default (60 / 1 min) | `{ status: "ok" }` |
 
-Client identity for rate limiting: `cf.colo` if present, else `cf-connecting-ip` / `x-forwarded-for`, else a hash of `user-agent` + `accept-language`. Responses carry `X-RateLimit-Limit/Remaining/Reset` and, when limited, `Retry-After` with a `429 RATE_LIMITED` body.
+Client identity for rate limiting, in precedence order: the `cf-connecting-ip` header, else the first `x-forwarded-for` entry, else `request.cf.colo`, else a hash of `user-agent` + `accept-language`. Responses carry `X-RateLimit-Limit/Remaining/Reset` and, when limited, `Retry-After` with a `429 RATE_LIMITED` body.
 
-> **No `/api/youtube/transcribe` in the Worker.** Cloudflare Workers cannot execute the `yt-dlp` binary, so the no-caption audio-download fallback was dropped in the Worker migration. `rate-limit.ts` in the Worker does **not** list it; a stale entry survives in the legacy client `src/lib/utils/rate-limiter.ts`.
+Two verified behavioral warts worth knowing:
+
+- **Unmatched `/api/*` paths return the SPA, not a JSON 404.** The final `app.get("*")` assets fallback catches them, so `GET /api/nope` answers `200 text/html`. API clients cannot rely on a 404 to detect a wrong path.
+- **A malformed body yields `500`, not `400`.** `POST /api/transcribe` with no body throws inside `c.req.formData()`, which the outer `catch` maps to `INTERNAL_ERROR`; the route's own `VALIDATION_ERROR` 400 only fires when the form parses but lacks an `audio`/`file` field.
+
+> **No `/api/youtube/transcribe` route exists.** Cloudflare Workers cannot execute the `yt-dlp` binary, so the no-caption audio-download fallback was dropped in the Worker migration; the client records `error: 'NO_CAPTIONS'` on the subtitle row instead.
 
 ## Transcription Architecture
 
 ```mermaid
 sequenceDiagram
     participant UI
+    participant Status as useFileStatusManager
+    participant Queue as transcription queue
     participant Mut as useTranscription
-    participant Retry as smartRetry
+    participant Retry as withRetry
     participant API as /api/transcribe (Worker)
     participant Groq as Groq SDK
     participant DB as IndexedDB
     participant Post as /api/postprocess (Worker)
     participant Query as Query Cache
 
-    UI->>Mut: startTranscription()
-    Mut->>DB: subtitle status = processing
+    UI->>Status: startTranscription(language)
+    Status->>Queue: queue.add(fileId, language, callback)
+    Queue-->>Status: run callback (dedupes by fileId)
+    Status->>DB: subtitle status = processing
+    Status->>Mut: mutateAsync()
     Mut->>Retry: callTranscribeAPI()
     Retry->>API: POST audio FormData
     API->>Groq: Whisper (verbose_json)
@@ -238,7 +248,8 @@ sequenceDiagram
     Post->>Groq: chat completion
     Post-->>Mut: enhanced segments
     Mut->>DB: update enhanced fields
-    Mut->>Query: invalidate transcription/player queries
+    Mut->>Query: invalidate subtitle/transcription queries
+    Status->>DB: subtitle status = completed
 ```
 
 ## YouTube Import Pipeline
@@ -269,7 +280,7 @@ YouTube URL → POST /api/youtube/resolve  → video metadata (youtubei.js)
 ## Error Handling
 
 - API routes return normalized success/error envelopes via `apiSuccess` / `apiError`.
-- `smartRetry` retries retryable transcription errors with exponential backoff + jitter; abort errors are not retried; 4xx are not retried at the Query layer.
+- `withRetry` (`src/lib/utils/retry-utils.ts`) wraps the transcribe call: max 3 attempts, 1 s base delay, ×2 backoff capped at 30 s. Its `shouldRetry` skips `AbortError` and 401/403; TanStack Query separately never retries 4xx.
 - `handleTranscriptionError` maps technical failures to user-facing toast messages.
 - Player and app-level error boundaries prevent cascading render failures.
 
@@ -280,7 +291,7 @@ YouTube URL → POST /api/youtube/resolve  → video metadata (youtubei.js)
 | GROQ_API_KEY | Worker secret | Yes | `/api/transcribe`, `/api/postprocess` |
 | RATE_LIMIT_KV | KV namespace binding | Yes | `rate-limit` middleware |
 | ASSETS | Assets binding (`dist/`) | Yes | SPA fallback in `worker/index.ts` |
-| VITE_APP_URL | Worker var + client env | No | Client app URL (`VITE_`-prefixed); defaults to `http://localhost:3000` |
+| VITE_APP_URL | Worker var (`wrangler.jsonc`) | No | **Currently unread.** No consumer in `src/`, `worker/`, `index.html`, or `vite.config.ts`; legacy from the pre-Worker setup, along with `PERFORMANCE_ADMIN_TOKEN` in `.env.example`. |
 
 Set the secret with `wrangler secret put GROQ_API_KEY`; the KV namespace id is in `wrangler.jsonc`.
 
@@ -296,5 +307,3 @@ Set the secret with `wrangler secret put GROQ_API_KEY`; the KV namespace id is i
 The Worker migration left some pre-migration code and infra in the tree that no longer runs in production. Remove when convenient:
 
 - `Dockerfile`, `docker-compose.yml`, `docs/DOKPLOY.md` — target a self-hosted TanStack Start server (`dist/server/server.js`) and bundle `yt-dlp`. The current build produces a Vite SPA served by the Worker; the Docker `CMD` no longer exists.
-- `src/lib/youtube/ytdlp.ts` and `src/lib/utils/global-limits.ts` — server-side yt-dlp + concurrency/quota guards for the removed audio fallback; not imported by the Worker.
-- `src/lib/utils/rate-limiter.ts` — a client-side copy of the old rate-limit table, still listing `/api/youtube/transcribe`; the authoritative limiter is `worker/middleware/rate-limit.ts`.
