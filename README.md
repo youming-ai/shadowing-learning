@@ -117,7 +117,7 @@ bun run dev:client
 | 变量名                      | 位置 | 必填 | 说明                                     |
 | --------------------------- | ---- | ---- | ---------------------------------------- |
 | `GROQ_API_KEY`              | 本地 `.dev.vars`；线上 `wrangler secret put` | ✓ | Groq Whisper + LLM 调用（Worker 内） |
-| `RATE_LIMIT_KV`             | `wrangler.jsonc` 绑定 | ✓ | 限流计数用的 KV namespace |
+| `RATE_LIMIT_KV`             | `wrangler.jsonc` 绑定 | ✗ | 限流计数用的 KV namespace（可选；未绑定时限流自动关闭，Worker 仍可正常部署/运行） |
 
 
 切勿将 `.dev.vars` 或 `.env*` 提交到仓库。
@@ -196,7 +196,15 @@ bun run deploy                     # build + wrangler deploy
 
 > `Dockerfile`、`docker-compose.yml` 与 `docs/DOKPLOY.md` 是**历史遗留**：它们以 `bun run dist/server/server.js` 启动 TanStack Start 服务端产物，而当前构建不再生成该文件。请勿当作现行部署方式。
 
-> 限流基于 Cloudflare KV，跨 colo 最终一致，属于成本护栏而非强一致配额。
+> 限流基于 Cloudflare KV，跨 colo 最终一致，属于成本护栏而非强一致配额。`RATE_LIMIT_KV` 是**可选**绑定：`wrangler.jsonc` 默认不声明 KV namespace，限流中间件在未绑定时自动放行（关闭限流），因此开箱即可 `bun run deploy`。需要启用限流时，在 `wrangler.jsonc` 中添加：
+>
+> ```bash
+> bunx wrangler kv namespace create RATE_LIMIT_KV   # 拿到返回的 namespace id
+> ```
+>
+> ```jsonc
+> "kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "<返回的 id>" }]
+> ```
 
 ## 测试
 
