@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build artifacts (Vite / TanStack Start)
+.output/
+.tanstack/
+.next/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.dev.vars
+.dev.vars.*
+
+# Build
+.wrangler/
+dist/
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Temp
+.cache/
+
+# Other package managers (project uses Bun — bun.lock IS tracked)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# superpowers brainstorm artifacts
+.superpowers/
