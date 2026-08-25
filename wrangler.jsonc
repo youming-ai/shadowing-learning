@@ -17,12 +17,11 @@
       "head_sampling_rate": 1,
     },
   },
-  "kv_namespaces": [
-    {
-      "binding": "RATE_LIMIT_KV",
-      "id": "c239b08869ed4cb6ad6bf46ad131f6eb",
-    },
-  ],
+  // Rate limiting is OPTIONAL. The Worker runs fine without a KV namespace
+  // (rate-limit middleware no-ops when RATE_LIMIT_KV is unbound). To enable
+  // rate limiting, create a namespace and re-add the binding below:
+  //   bunx wrangler kv namespace create RATE_LIMIT_KV
+  //   "kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "<returned id>" }]
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",
