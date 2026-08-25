@@ -20,7 +20,7 @@
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
-      "id": "REPLACE_WITH_YOUR_KV_ID",
+      "id": "c239b08869ed4cb6ad6bf46ad131f6eb",
     },
   ],
   "assets": {

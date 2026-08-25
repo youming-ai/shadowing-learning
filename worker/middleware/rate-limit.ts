@@ -37,6 +37,11 @@ function getClientId(request: Request): string {
 }
 
 export async function rateLimit(c: Context<{ Bindings: Env }>, next: Next) {
+  // ponytail: optional KV — fork/open-source deploy without KV still works, rate-limit disabled
+  if (!c.env.RATE_LIMIT_KV) {
+    await next()
+    return
+  }
   const url = new URL(c.req.url)
   const config = getConfig(url.pathname)
   const clientId = getClientId(c.req.raw)
