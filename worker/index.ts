@@ -6,7 +6,7 @@ import { postprocessRoute } from "./routes/postprocess"
 import { youtubeRoute } from "./routes/youtube"
 
 interface Env {
-  RATE_LIMIT_KV: KVNamespace
+  RATE_LIMIT_KV?: KVNamespace
   GROQ_API_KEY: string
   ASSETS: Fetcher
 }
