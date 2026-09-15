@@ -1,26 +1,8 @@
 import Dexie from 'dexie'
-import {
-  type AppError,
-  type ErrorCode,
-  ErrorCodes,
-  type ErrorContext,
-  type ErrorMonitor,
-  getDefaultErrorMessage,
-  LogLevel,
-} from '~/types/api/errors'
+import { type AppError, type ErrorCode, ErrorCodes, LogLevel } from '~/types/api/errors'
+import { errorLogger } from './logger'
 
 export { LogLevel }
-
-// 全局错误监控（可选接入）
-let globalErrorMonitor: ErrorMonitor | null = null
-
-export function setErrorMonitor(monitor: ErrorMonitor): void {
-  globalErrorMonitor = monitor
-}
-
-export function getErrorMonitor(): ErrorMonitor | null {
-  return globalErrorMonitor
-}
 
 export function createError(
   code: ErrorCode,
@@ -50,13 +32,9 @@ function getErrorStack(error: unknown): string | undefined {
   return undefined
 }
 
+/** 记录一次错误。走统一 logger（生产环境静默），不再依赖已移除的全局 monitor 钩子。*/
 export function logError(error: AppError, context?: string): void {
-  const errorContext: ErrorContext = {
-    timestamp: Date.now(),
-    component: context,
-    additional: { ...(error.details || {}), stack: getErrorStack(error) },
-  }
-  if (globalErrorMonitor) globalErrorMonitor.logError(error, errorContext)
+  errorLogger.error(context ? `[${context}]` : '', error, getErrorStack(error) ?? '')
 }
 
 export function isAppError(error: unknown): error is AppError {
@@ -94,18 +72,6 @@ export function handleError(error: unknown, context?: string): AppError {
   return appError
 }
 
-export function handleSilently(error: unknown): AppError {
-  if (isAppError(error)) return error
-  if (error instanceof Error)
-    return createError('internalServerError', error.message, { stack: error.stack }, 500)
-  return createError(
-    'internalServerError',
-    '未知错误',
-    typeof error === 'object' && error !== null ? { error } : undefined,
-    500,
-  )
-}
-
 function isApiKeyError(error: unknown): boolean {
   if (error instanceof Error) {
     const m = error.message.toLowerCase()
@@ -120,7 +86,7 @@ function isApiKeyError(error: unknown): boolean {
 }
 
 export function getFriendlyErrorMessage(error: unknown): string {
-  if (isApiKeyError(error)) return '请配置 GROQ_API_KEY 环境变量以使用转录功能'
+  if (isApiKeyError(error)) return '请配置 GROQ_API_KEY 环境变量以使用翻译功能'
   if (
     error instanceof Dexie.VersionError ||
     error instanceof Dexie.DatabaseClosedError ||
@@ -134,23 +100,7 @@ export function getFriendlyErrorMessage(error: unknown): string {
     if (m.includes('network') || m.includes('fetch')) return '网络连接失败，请检查网络连接后重试'
     if (m.includes('timeout')) return '请求超时，请稍后重试'
     if (m.includes('rate limit')) return '请求过于频繁，请稍后重试'
-    if (m.includes('file size') || m.includes('文件大小')) return '文件太大，请上传较小的音频文件'
     return error.message
   }
   return '未知错误，请重试'
-}
-
-// 向后兼容：保留 handleAndShowError / showErrorToast 的最小桩，避免外部旧调用崩溃
-// ponytail: 仅为兼容存根，真正 toast 由调用方直接 toast.error(getFriendlyErrorMessage(e))
-import { toast } from 'sonner'
-
-export function showErrorToast(error: AppError | unknown): void {
-  const appError = isAppError(error) ? error : handleError(error)
-  toast.error(getDefaultErrorMessage(appError.code) || appError.message)
-}
-
-export function handleAndShowError(error: unknown, context?: string, customMessage?: string): AppError {
-  const appError = handleError(error, context)
-  showErrorToast(customMessage ? { ...appError, message: customMessage } : appError)
-  return appError
 }

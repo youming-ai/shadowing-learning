@@ -59,14 +59,6 @@
   --color-surface-muted: var(--surface-muted);
   --color-surface-inverse: var(--surface-inverse);
 
-  --color-player-accent: var(--player-accent-color);
-  --color-player-highlight: var(--player-highlight-bg);
-  --color-player-track: var(--player-track-color);
-  --color-player-thumb-fill: var(--player-thumb-fill);
-  --color-player-thumb-border: var(--player-thumb-border);
-  --color-player-hover: var(--player-hover-indicator);
-  --color-player-tooltip: var(--player-tooltip-text);
-
   --spacing-card-sm: var(--space-card-padding-sm);
   --spacing-card-lg: var(--space-card-padding-lg);
   --spacing-section: var(--space-section-gap);
@@ -79,6 +71,50 @@
   --shadow-theme-md: var(--shadow-md);
   --shadow-theme-lg: var(--shadow-lg);
   --shadow-theme-xl: var(--shadow-xl);
+
+  /* ============================================================
+     语义别名 —— components/ui 下的 shadcn/Radix 原语使用的名字。
+
+     这些值早就在各主题块里存在（--foreground / --card / --ring …），
+     但因为没有 --color- 前缀，Tailwind v4 不会据此生成工具类，
+     于是 bg-card / text-muted-foreground / ring-ring 等 23 个类名
+     全部静默失效（构建产物里 0 条规则）。这里补上映射即可。
+     ============================================================ */
+  --color-foreground: var(--foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ============================================================
+     字体
+     --font-sans 覆盖 Tailwind 默认系统字体栈；
+     --font-heading 是显示字体位（当前与正文同族，靠字重/字距区分），
+     留成独立 token 是为了以后换显示字体时不必改组件。
+     ============================================================ */
+  --font-sans: var(--font-family-sans);
+  --font-heading: var(--font-family-sans);
+
+  /* ============================================================
+     「节拍」设计语言 —— 本项目的自有身份层。
+     练习闭环是「听 → 跟读 → 录 → 对比」，所以视觉主语是两样东西：
+     当前句（beat，随播放呼吸）和用户自己的声音（voice，录音与回放）。
+     ============================================================ */
+  --color-rhythm-beat: var(--rhythm-beat);
+  --color-rhythm-beat-soft: var(--rhythm-beat-soft);
+  --color-rhythm-voice: var(--rhythm-voice);
+  --color-rhythm-voice-soft: var(--rhythm-voice-soft);
 }
 
 /* Material Icons基础样式 */
@@ -173,8 +209,8 @@
     --state-error-strong: #f87171;
 
     --state-info-text: var(--color-info);
-    --state-info-surface: rgba(132, 204, 22, 0.24);
-    --state-info-border: rgba(132, 204, 22, 0.55);
+    --state-info-surface: rgba(34, 197, 94, 0.24);
+    --state-info-border: rgba(34, 197, 94, 0.55);
     --state-info-strong: var(--brand-500);
 
     /* 状态色阶 */
@@ -261,16 +297,17 @@
 
     /* 组件间距令牌 */
     --space-2xl: 3rem; /* 48px */
-    --space-player-content: var(--space-lg);
-    --space-player-controls: var(--space-md);
-    --space-subtitle-gap: var(--space-sm);
-    --space-status-gap: var(--space-md);
-    --space-mobile-padding: var(--space-sm);
     --space-desktop-padding: var(--space-lg);
 
     /* 字体令牌 */
     --font-size-base: 1rem;
-    --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Inter 提供拉丁字形；CJK 由系统字体承接（Inter 不含汉字/假名/谚文），
+       因此中英混排时两者字面高度接近，不会出现"半句跳字体"的割裂感。 */
+    --font-family-sans:
+      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+      "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", sans-serif;
 
     /* 边框系统 */
     --border-default: #334155;
@@ -288,6 +325,13 @@
     --shadow-md: 0 6px 12px -2px rgb(0 0 0 / 0.35);
     --shadow-lg: 0 20px 40px -24px rgb(0 0 0 / 0.45);
     --shadow-xl: 0 32px 80px -40px rgb(0 0 0 / 0.5);
+
+    /* 「节拍」交互原语：厚底可按压。
+       深度与位移是几何量、不随主题变化，因此只在 :root 定义一次，三个主题共享。 */
+    --press-depth: 4px;
+    --press-depth-active: 1px;
+    --press-lift-hover: -1px;
+    --press-lift-active: 3px;
 
     /* 按钮令牌 */
     --button-fill: var(--color-primary);
@@ -318,18 +362,22 @@
     --border: var(--border-default);
     --input: var(--border-default);
     --ring: var(--color-primary);
+    --secondary: var(--surface-muted);
+    --secondary-foreground: var(--text-primary);
+    --border-color: var(--border-default);
+
+    /* 交互表面（LanguageToggle 等组件直接以 var() 引用，此前未定义 → 悬停/选中态无样式） */
+    --surface-hover: rgba(148, 163, 184, 0.12);
+    --surface-selected: rgba(34, 197, 94, 0.16);
+    --accent-color: var(--brand-400);
+
+    /* 「节拍」：beat = 当前句，voice = 我的声音 */
+    --rhythm-beat: var(--brand-400);
+    --rhythm-beat-soft: rgba(74, 222, 128, 0.16);
+    --rhythm-voice: #fb7185;
+    --rhythm-voice-soft: rgba(251, 113, 133, 0.18);
 
     /* 播放器 */
-    --player-accent-color: var(--color-primary);
-    --player-highlight-bg: rgba(132, 204, 22, 0.18);
-    --player-card-bg: var(--surface-card);
-    --player-card-border: rgba(255, 255, 255, 0.12);
-    --player-card-shadow: rgba(0, 0, 0, 0.35);
-    --player-track-color: rgba(132, 204, 22, 0.25);
-    --player-thumb-fill: var(--surface-base);
-    --player-thumb-border: rgba(132, 204, 22, 0.6);
-    --player-hover-indicator: rgba(132, 204, 22, 0.35);
-    --player-tooltip-text: var(--text-primary);
 
     /* 设置面板 */
     --settings-shadow-color: rgba(15, 23, 42, 0.55);
@@ -338,18 +386,9 @@
     --settings-border-color: rgba(148, 163, 184, 0.35);
 
     /* 滚动条样式变量 */
-    --scrollbar-width: 6px;
-    --scrollbar-track-color: transparent;
-    --scrollbar-thumb-color: rgba(148, 163, 184, 0.5);
-    --scrollbar-thumb-hover-color: rgba(148, 163, 184, 0.7);
-    --scrollbar-border-radius: 9999px;
 
     /* 其他辅助变量 */
-    --upload-bg-color: transparent;
     --inactive-icon-color: var(--text-muted);
-    --stats-text-color: #d1d5db;
-    --secondary-text-color: var(--text-secondary);
-    --highlight-bg: rgba(132, 204, 22, 0.18);
     --nav-container-background: rgba(30, 41, 59, 0.8);
 
     --background-light: var(--surface-base);
@@ -466,16 +505,17 @@
 
     /* 组件间距令牌 */
     --space-2xl: 3rem; /* 48px */
-    --space-player-content: var(--space-lg);
-    --space-player-controls: var(--space-md);
-    --space-subtitle-gap: var(--space-sm);
-    --space-status-gap: var(--space-md);
-    --space-mobile-padding: var(--space-sm);
     --space-desktop-padding: var(--space-lg);
 
     /* 字体令牌 */
     --font-size-base: 1rem;
-    --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Inter 提供拉丁字形；CJK 由系统字体承接（Inter 不含汉字/假名/谚文），
+       因此中英混排时两者字面高度接近，不会出现"半句跳字体"的割裂感。 */
+    --font-family-sans:
+      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+      "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", sans-serif;
 
     /* 边框系统 - 浅色主题 */
     --border-default: var(--neutral-200);
@@ -519,18 +559,22 @@
     --border: var(--border-default);
     --input: var(--border-default);
     --ring: var(--color-primary);
+    --secondary: var(--surface-muted);
+    --secondary-foreground: var(--text-primary);
+    --border-color: var(--border-default);
+
+    /* 交互表面（此前未定义 → 悬停/选中态无样式） */
+    --surface-hover: rgba(15, 23, 42, 0.06);
+    --surface-selected: rgba(34, 197, 94, 0.14);
+    --accent-color: var(--brand-600);
+
+    /* 「节拍」：beat = 当前句，voice = 我的声音 */
+    --rhythm-beat: var(--brand-600);
+    --rhythm-beat-soft: rgba(34, 197, 94, 0.16);
+    --rhythm-voice: #e11d48;
+    --rhythm-voice-soft: rgba(225, 29, 72, 0.14);
 
     /* 播放器 - 浅色主题 */
-    --player-accent-color: var(--color-primary);
-    --player-highlight-bg: rgba(34, 197, 94, 0.1);
-    --player-card-bg: var(--surface-card);
-    --player-card-border: var(--border-default);
-    --player-card-shadow: rgba(0, 0, 0, 0.1);
-    --player-track-color: rgba(34, 197, 94, 0.2);
-    --player-thumb-fill: var(--surface-card);
-    --player-thumb-border: rgba(34, 197, 94, 0.6);
-    --player-hover-indicator: rgba(34, 197, 94, 0.3);
-    --player-tooltip-text: var(--text-primary);
 
     /* 设置面板 - 浅色主题 */
     --settings-shadow-color: rgba(0, 0, 0, 0.1);
@@ -539,18 +583,9 @@
     --settings-border-color: var(--border-default);
 
     /* 滚动条样式变量 - 浅色主题 */
-    --scrollbar-width: 6px;
-    --scrollbar-track-color: transparent;
-    --scrollbar-thumb-color: rgba(0, 0, 0, 0.2);
-    --scrollbar-thumb-hover-color: rgba(0, 0, 0, 0.3);
-    --scrollbar-border-radius: 9999px;
 
     /* 其他辅助变量 - 浅色主题 */
-    --upload-bg-color: rgba(34, 197, 94, 0.05);
     --inactive-icon-color: var(--text-muted);
-    --stats-text-color: var(--text-primary);
-    --secondary-text-color: var(--text-secondary);
-    --highlight-bg: rgba(34, 197, 94, 0.1);
     --nav-container-background: rgba(255, 255, 255, 0.9);
 
     --background-light: var(--surface-base);
@@ -605,11 +640,6 @@
 
     /* 组件间距令牌 */
     --space-2xl: 3rem; /* 48px */
-    --space-player-content: var(--space-lg);
-    --space-player-controls: var(--space-md);
-    --space-subtitle-gap: var(--space-sm);
-    --space-status-gap: var(--space-md);
-    --space-mobile-padding: var(--space-sm);
     --space-desktop-padding: var(--space-lg);
 
     /* 兼容性别名 */
@@ -619,7 +649,13 @@
 
     /* 字体令牌 */
     --font-size-base: 1rem;
-    --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Inter 提供拉丁字形；CJK 由系统字体承接（Inter 不含汉字/假名/谚文），
+       因此中英混排时两者字面高度接近，不会出现"半句跳字体"的割裂感。 */
+    --font-family-sans:
+      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+      "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", sans-serif;
 
     /* 其他变量继承 */
     --bg-primary: var(--surface-base);
@@ -627,11 +663,9 @@
     --bg-tertiary: var(--surface-muted);
     --bg-surface: var(--surface-card);
     --color-primary: var(--brand-500);
-    --player-accent-color: var(--brand-500);
 
     /* 强制覆盖从暗色块继承、在高对比黑底上不成立的 token */
     --nav-container-background: rgba(0, 0, 0, 0.92);
-    --player-card-border: var(--border-default);
     --settings-shadow-color: rgba(255, 255, 255, 0.2);
     --settings-divider-color: var(--border-default);
     --settings-muted-color: var(--text-muted);
@@ -641,60 +675,41 @@
     --shadow-lg: 0 20px 40px -24px rgb(0 0 0 / 0.45);
     --shadow-xl: 0 32px 80px -40px rgb(0 0 0 / 0.5);
 
+    /* Radix / shadcn 兼容变量
+       —— 此前高对比度块完全没有这组变量，而 :root 只提供暗色值，
+       于是 bg-card / text-muted-foreground / ring-ring 在本主题下取不到颜色。 */
+    --primary: var(--color-primary);
+    --primary-foreground: var(--text-inverse);
+    --secondary: var(--surface-card);
+    --secondary-foreground: var(--text-primary);
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --card: var(--surface-card);
+    --card-foreground: var(--text-primary);
+    --popover: var(--surface-card);
+    --popover-foreground: var(--text-primary);
+    --muted: var(--surface-muted);
+    --muted-foreground: var(--text-secondary);
+    --accent: var(--surface-muted);
+    --accent-foreground: var(--text-primary);
+    --destructive: var(--state-error-strong);
+    --destructive-foreground: #000000;
+    --border: var(--border-default);
+    --input: var(--border-default);
+    --ring: var(--brand-500);
+    --border-color: var(--border-default);
+
+    --surface-hover: rgba(255, 255, 255, 0.16);
+    --surface-selected: rgba(0, 255, 0, 0.22);
+    --accent-color: var(--brand-500);
+
+    /* 「节拍」：高对比度下提高不透明度以满足可辨识度 */
+    --rhythm-beat: var(--brand-500);
+    --rhythm-beat-soft: rgba(0, 255, 0, 0.2);
+    --rhythm-voice: #ff6392;
+    --rhythm-voice-soft: rgba(255, 99, 146, 0.24);
+
     /* 强制应用高对比度主题关键变量 */
-  }
-
-  /* 状态色工具类 */
-  .text-success {
-    color: var(--state-success-text);
-  }
-  .text-warning {
-    color: var(--state-warning-text);
-  }
-  .text-error {
-    color: var(--state-error-text);
-  }
-  .text-info {
-    color: var(--state-info-text);
-  }
-
-  .bg-success {
-    background-color: var(--state-success-text);
-  }
-  .bg-warning {
-    background-color: var(--state-warning-text);
-  }
-  .bg-error {
-    background-color: var(--state-error-text);
-  }
-  .bg-info {
-    background-color: var(--state-info-text);
-  }
-
-  .bg-success\/10 {
-    background-color: var(--state-success-surface);
-  }
-  .bg-warning\/10 {
-    background-color: var(--state-warning-surface);
-  }
-  .bg-error\/10 {
-    background-color: var(--state-error-surface);
-  }
-  .bg-info\/10 {
-    background-color: var(--state-info-surface);
-  }
-
-  .border-success {
-    border-color: var(--state-success-border);
-  }
-  .border-warning {
-    border-color: var(--state-warning-border);
-  }
-  .border-error {
-    border-color: var(--state-error-border);
-  }
-  .border-info {
-    border-color: var(--state-info-border);
   }
 
   body {
@@ -737,44 +752,6 @@
   }
 
   /* 响应式字体大小 */
-  @media (max-width: 640px) {
-    :root {
-      --font-size-responsive-sm: 0.875rem;
-      --font-size-responsive-base: 1rem;
-      --font-size-responsive-lg: 1.125rem;
-      --font-size-responsive-xl: 1.25rem;
-      --font-size-responsive-2xl: 1.5rem;
-      --font-size-responsive-3xl: 1.875rem;
-
-      /* 移动端间距调整 */
-      --space-mobile-padding: var(--space-xs);
-      --space-player-content: var(--space-sm);
-      --space-player-controls: var(--space-sm);
-      --space-subtitle-gap: var(--space-xs);
-      --space-status-gap: var(--space-sm);
-    }
-  }
-
-  /* 平板设备响应式间距 */
-  @media (min-width: 641px) and (max-width: 1024px) {
-    :root {
-      --space-player-content: var(--space-md);
-      --space-player-controls: var(--space-lg);
-      --space-subtitle-gap: var(--space-sm);
-      --space-status-gap: var(--space-md);
-    }
-  }
-
-  /* 大屏幕响应式间距 */
-  @media (min-width: 1025px) {
-    :root {
-      --space-player-content: var(--space-lg);
-      --space-player-controls: var(--space-xl);
-      --space-subtitle-gap: var(--space-md);
-      --space-status-gap: var(--space-lg);
-    }
-  }
-
   /* 触摸设备优化 */
   @media (hover: none) and (pointer: coarse) {
     /* 增大触摸目标 */
@@ -787,1010 +764,535 @@
       min-width: 44px;
     }
 
-    /* 改进滚动体验 */
-    .scrollable {
-      -webkit-overflow-scrolling: touch;
-      scroll-behavior: smooth;
+    /* 键盘导航优化 */
+    @media (prefers-reduced-motion: no-preference) {
+      *:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+      }
+
+      *:focus:not(:focus-visible) {
+        outline: none;
+      }
+
+      *:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+      }
+    }
+
+    /* 减少动画偏好 */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms;
+        animation-iteration-count: 1;
+        transition-duration: 0.01ms;
+        scroll-behavior: auto;
+      }
+    }
+
+    /* 屏幕阅读器优化 */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .sr-only:focus {
+      position: static;
+      width: auto;
+      height: auto;
+      padding: inherit;
+      margin: inherit;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+    }
+
+    /* 高对比度模式支持 */
+    @media (prefers-contrast: high) {
+      :root {
+        --border-default: #ffffff;
+        --border-strong: #ffffff;
+        --text-primary: #ffffff;
+        --text-secondary: #e0e0e0;
+      }
+
+      button,
+      a,
+      input,
+      select,
+      textarea {
+        border-width: 2px;
+        font-weight: 600;
+      }
     }
   }
 
-  /* 键盘导航优化 */
-  @media (prefers-reduced-motion: no-preference) {
-    *:focus {
-      outline: 2px solid var(--color-primary);
-      outline-offset: 2px;
-    }
-
-    *:focus:not(:focus-visible) {
-      outline: none;
-    }
-
-    *:focus-visible {
-      outline: 2px solid var(--color-primary);
-      outline-offset: 2px;
-      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
-    }
-  }
-
-  /* 减少动画偏好 */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms;
-      animation-iteration-count: 1;
-      transition-duration: 0.01ms;
-      scroll-behavior: auto;
-    }
-  }
-
-  /* 屏幕阅读器优化 */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .sr-only:focus {
-    position: static;
-    width: auto;
-    height: auto;
-    padding: inherit;
-    margin: inherit;
-    overflow: visible;
-    clip: auto;
-    white-space: normal;
-  }
-
-  /* 高对比度模式支持 */
-  @media (prefers-contrast: high) {
-    :root {
-      --border-default: #ffffff;
-      --border-strong: #ffffff;
-      --text-primary: #ffffff;
-      --text-secondary: #e0e0e0;
-    }
-
-    button,
-    a,
-    input,
-    select,
-    textarea {
-      border-width: 2px;
-      font-weight: 600;
-    }
-  }
-}
-
-/* ===================================
+  /* ===================================
    组件样式层 (@layer components)
    =================================== */
 
-/* Base card styles with consistent sizing.
-   Declared as a Tailwind v4 @utility (not inside @layer components) so that
-   `@apply card-base` resolves — Tailwind v4 cannot @apply a class defined in
-   the same @layer components block. */
-@utility card-base {
-  background-color: var(--surface-card);
-  border: 2px solid var(--border-primary);
-  border-radius: var(--radius-card);
-  padding: var(--space-card-padding-lg);
-  transition: all 0.2s ease;
-}
-
-/* 自定义样式类 */
-@layer components {
-  /* ===================================
+  /* 自定义样式类 */
+  @layer components {
+    /* ===================================
    卡片组件样式
    =================================== */
 
-  /* Card variant: Default */
-  .card-default {
-    @apply card-base;
-    border-bottom-width: 4px;
-    box-shadow: var(--shadow-md);
-  }
-
-  .card-default:hover {
-    transform: translateY(-0.25rem);
-    box-shadow: var(--shadow-lg);
-  }
-
-  /* Card variant: Elevated */
-  .card-elevated {
-    @apply card-base;
-    border-bottom-width: 6px;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .card-elevated:hover {
-    transform: translateY(-0.5rem);
-    box-shadow: var(--shadow-xl);
-  }
-
-  /* Card variant: Bordered */
-  .card-bordered {
-    @apply card-base;
-    border-bottom-width: 6px;
-    border-color: var(--border-strong);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .card-bordered:hover {
-    border-color: var(--border-focus);
-    transform: translateY(-0.125rem);
-    box-shadow: var(--shadow-md);
-  }
-
-  /* Card variant: Interactive */
-  .card-interactive {
-    @apply card-base;
-    border-bottom-width: 4px;
-    box-shadow: var(--shadow-md);
-    cursor: pointer;
-  }
-
-  .card-interactive:hover {
-    transform: translateY(-0.375rem);
-    box-shadow: var(--shadow-xl);
-    border-color: var(--border-focus);
-  }
-
-  .card-interactive:active {
-    transform: translateY(-0.125rem);
-    box-shadow: var(--shadow-md);
-  }
-
-  /* Legacy card compatibility - updated with new system */
-  .stats-card {
-    @apply card-base;
-    border-radius: var(--radius-card-large);
-    border-bottom-width: 6px;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .file-card {
-    @apply card-base;
-    padding: var(--space-card-padding-sm);
-    border-bottom-width: 4px;
-    box-shadow: var(--shadow-md);
-    cursor: pointer;
-  }
-
-  /* Dark theme card optimizations are now integrated into base card styles */
-
-  .file-card-actions {
-    @apply flex items-center gap-2;
-  }
-
-  .file-card-action {
-    @apply flex h-12 w-12 items-center justify-center rounded-full text-white shadow-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-card)];
-    background-color: var(--state-info-text);
-  }
-
-  .file-card-action .material-symbols-outlined {
-    @apply text-2xl;
-  }
-
-  .file-card-action--play:hover,
-  .file-card-action--play.is-active {
-    background-color: var(--state-info-strong);
-  }
-
-  .file-card-action--retry {
-    background-color: var(--state-warning-text);
-  }
-
-  .file-card-action--retry:hover {
-    background-color: var(--state-warning-strong);
-  }
-
-  .file-card-action--delete {
-    background-color: transparent;
-    box-shadow: none;
-    color: var(--text-muted);
-    opacity: 0;
-    pointer-events: none;
-    transition:
-      opacity 150ms ease,
-      background-color 150ms ease,
-      color 150ms ease;
-  }
-
-  .file-card-actions:hover .file-card-action--delete,
-  .file-card-action--delete:focus-visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .file-card-action--delete:hover {
-    background-color: var(--state-error-surface);
-    color: var(--state-error-strong);
-  }
-
-  /* 上传区域样式 */
-  .upload-area {
-    @apply flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-6 py-16 text-center;
-    border-color: var(--state-success-border);
-    background-color: var(--upload-bg-color);
-    border-radius: var(--radius-card);
-  }
-
-  .upload-area.disabled {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-
-  /* ===================================
-   按钮组件样式
-   =================================== */
-
-  /* Base button styles with consistent sizing */
-  .btn-base {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-  }
-
-  /* Button variant: Primary */
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-    background-color: var(--button-fill);
-    color: var(--button-text-color);
-    border-bottom-color: var(--button-shadow-color);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background-color: var(--button-fill-hover);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .btn-primary:active:not(:disabled) {
-    background-color: var(--button-fill-active);
-    transform: translateY(3px);
-    border-bottom-width: 1px;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .btn-primary:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-
-  /* Button variant: Secondary */
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-    background-color: var(--surface-muted);
-    color: var(--text-primary);
-    border-color: var(--border-secondary);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background-color: var(--surface-card);
-    border-color: var(--border-default);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn-secondary:active:not(:disabled) {
-    background-color: var(--surface-muted);
-    transform: translateY(3px);
-    border-bottom-width: 1px;
-    box-shadow: none;
-  }
-
-  .btn-secondary:focus-visible {
-    outline: 2px solid var(--border-focus);
-    outline-offset: 2px;
-  }
-
-  /* Button variant: Outline */
-  .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-    background-color: transparent;
-    color: var(--color-primary);
-    border-color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
-    box-shadow: none;
-  }
-
-  .btn-outline:hover:not(:disabled) {
-    background-color: var(--color-primary);
-    color: var(--button-text-color);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn-outline:active:not(:disabled) {
-    transform: translateY(3px);
-    border-bottom-width: 1px;
-  }
-
-  .btn-outline:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-
-  /* Button variant: Ghost */
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-    background-color: transparent;
-    color: var(--text-secondary);
-    border-color: transparent;
-    box-shadow: none;
-  }
-
-  .btn-ghost:hover:not(:disabled) {
-    background-color: var(--surface-muted);
-    color: var(--text-primary);
-    transform: translateY(-1px);
-  }
-
-  .btn-ghost:active:not(:disabled) {
-    background-color: var(--surface-muted);
-    transform: translateY(1px);
-  }
-
-  .btn-ghost:focus-visible {
-    outline: 2px solid var(--border-focus);
-    outline-offset: 2px;
-  }
-
-  /* Button variant: Danger */
-  .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 3.5rem;
-    padding: 0 1.75rem;
-    border-radius: var(--radius-control);
-    border-bottom: 4px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-    background-color: var(--color-error);
-    color: var(--button-text-color);
-    border-bottom-color: var(--state-error-strong);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background-color: var(--state-error-strong);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .btn-danger:active:not(:disabled) {
-    background-color: var(--state-error-strong);
-    transform: translateY(3px);
-    border-bottom-width: 1px;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .btn-danger:focus-visible {
-    outline: 2px solid var(--color-error);
-    outline-offset: 2px;
-  }
-
-  /* Icon button variant */
-  .btn-icon {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    width: 3.5rem;
-    height: 3.5rem;
-    padding: 0;
-    border-radius: var(--radius-pill);
-  }
-
-  .btn-icon.btn-icon-sm {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
-  .btn-icon.btn-icon-lg {
-    width: 4rem;
-    height: 4rem;
-  }
-
-  /* Dark theme button optimizations are now integrated into base button styles */
-
-  .btn-play {
-    @apply flex items-center justify-center rounded-full h-12 w-12 text-white transition-all;
-    background-color: var(--color-success);
-    box-shadow: 0 4px 0 0 var(--state-success-strong);
-    border-radius: var(--radius-pill);
-  }
-
-  .btn-play:active {
-    box-shadow: none;
-    transform: translateY(4px);
-  }
-
-  .btn-retry {
-    @apply flex items-center justify-center rounded-xl h-12 px-6 text-white text-sm font-bold uppercase tracking-wider transition-all;
-    background-color: var(--color-warning);
-    box-shadow: 0 4px 0 0 var(--state-warning-strong);
-    border-radius: var(--radius-control);
-  }
-
-  .btn-retry:active {
-    box-shadow: none;
-    transform: translateY(4px);
-  }
-
-  .btn-delete {
-    @apply flex items-center justify-center p-3 rounded-full transition-all;
-    border-radius: var(--radius-pill);
-    color: var(--text-muted);
-    background-color: transparent;
-  }
-
-  .btn-delete:hover {
-    background-color: var(--state-error-surface);
-    color: var(--state-error-text);
-  }
-
-  /* 导航按钮样式 */
-  .nav-button {
-    @apply flex items-center justify-center rounded-full h-12 w-12 transition-colors;
-    color: var(--inactive-icon-color);
-  }
-
-  .nav-button:hover {
-    background-color: var(--surface-muted);
-  }
-
-  .nav-button.active {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-  }
-
-  /* 导航容器样式 */
-  .nav-container {
-    @apply flex items-center justify-center gap-2 rounded-full p-2 shadow-lg border-2 backdrop-blur-sm;
-    background-color: var(--nav-container-background);
-    border-color: var(--border-primary);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-md);
-  }
-
-  /* ===================================
-   播放器组件样式
-   =================================== */
-
-  .player-subtitle-container {
-    @apply space-y-3 text-left;
-  }
-
-  .subtitle-line {
-    padding: 1rem;
-    transition: background-color 0.3s ease;
-    margin-bottom: 1rem;
-    text-align: left;
-  }
-
-  .subtitle-line.highlight {
-    background-color: var(--highlight-bg);
-  }
-
-  .player-subtitle-line {
-    @apply flex flex-col gap-2 sm:gap-3 p-3 sm:p-4 transition-colors duration-300;
-  }
-
-  .player-subtitle-line.highlight {
-    background-color: var(--player-highlight-bg);
-  }
-
-  @media (max-width: 640px) {
-    .player-subtitle-line {
-      padding: 0.75rem;
-      gap: 0.5rem;
-    }
-  }
-
-  .player-word-group {
-    @apply inline-flex flex-col items-start text-left;
-    margin-right: 0.25em;
-  }
-
-  .player-word-group ruby {
-    @apply flex flex-col-reverse items-start leading-tight;
-  }
-
-  .player-word-group rt {
-    @apply text-xs uppercase tracking-wide;
-    color: var(--text-muted);
-    user-select: none;
-    opacity: 0.9;
-  }
-
-  .player-word-group rb {
-    font-size: clamp(1.25rem, 4vw, 1.75rem);
-    font-weight: 600;
-    line-height: 1.5;
-    color: var(--text-primary);
-  }
-
-  .player-word-group .romaji-word {
-    font-size: clamp(0.7rem, 2vw, 0.8rem);
-    color: var(--text-tertiary);
-    letter-spacing: 0.05em;
-    line-height: 1;
-    margin-top: 0.1em;
-    white-space: nowrap;
-    user-select: none;
-  }
-
-  @media (max-width: 640px) {
-    .player-word-group rb {
-      font-size: 1.25rem;
-      line-height: 1.4;
+    /* ============================================================
+     按钮体系
+     几何只写一次（.btn-base 与各变体共享同一条规则），变体只负责颜色。
+     按压反馈 = 底部实心描边 + active 时下沉，即「节拍」的厚底可按压感。
+     ============================================================ */
+    .btn-base,
+    .btn-primary,
+    .btn-secondary,
+    .btn-outline,
+    .btn-ghost,
+    .btn-danger {
+      @apply inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+      height: 3.5rem;
+      padding: 0 1.75rem;
+      border-radius: var(--radius-control);
+      border-bottom: var(--press-depth) solid transparent;
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
     }
 
-    .player-word-group .romaji-word {
-      font-size: 0.7rem;
-      margin-top: 0.05em;
-    }
-  }
-
-  .player-subtitle-words {
-    @apply flex flex-wrap items-end justify-start gap-x-2 sm:gap-x-3 gap-y-3 sm:gap-y-4;
-  }
-
-  @media (max-width: 640px) {
-    .player-subtitle-words {
-      column-gap: 0.5rem;
-      row-gap: 0.75rem;
-    }
-  }
-
-  .player-word-surface {
-    @apply text-2xl font-semibold leading-tight;
-    color: var(--text-primary);
-  }
-
-  .player-romaji-word {
-    @apply mt-1 text-xs uppercase tracking-widest;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-  }
-
-  .player-word-group.active .player-word-surface {
-    color: var(--player-accent-color);
-  }
-
-  .player-word-group.active {
-    @apply rounded-lg px-2 py-1;
-    background-color: var(--player-highlight-bg);
-  }
-
-  .player-translation {
-    @apply text-sm;
-    color: var(--text-secondary);
-  }
-
-  .player-subtitle-plain {
-    @apply text-left text-xl font-semibold leading-relaxed;
-    color: var(--text-primary);
-  }
-
-  /* 原文字幕样式 - 字体大 */
-  .player-subtitle-original {
-    @apply text-left text-2xl font-semibold leading-relaxed;
-    color: var(--text-primary);
-  }
-
-  /* 翻译字幕样式 - 字体小、灰色 */
-  .player-subtitle-translation {
-    @apply text-left text-base leading-relaxed mt-2;
-    color: var(--text-muted);
-  }
-
-  @media (max-width: 640px) {
-    .player-subtitle-original {
-      font-size: 1.25rem; /* 20px on mobile */
+    /* Button variant: Primary */
+    .btn-primary {
+      background-color: var(--button-fill);
+      color: var(--button-text-color);
+      border-bottom-color: var(--button-shadow-color);
+      box-shadow: var(--shadow-md);
     }
 
-    .player-subtitle-translation {
-      font-size: 0.875rem; /* 14px on mobile */
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--button-fill-hover);
+      transform: translateY(var(--press-lift-hover));
+      box-shadow: var(--shadow-lg);
     }
-  }
 
-  .player-seek {
-    @apply relative h-2 w-full cursor-pointer rounded-full transition-colors duration-200;
-    background-color: var(--player-track-color);
-  }
+    .btn-primary:active:not(:disabled) {
+      background-color: var(--button-fill-active);
+      transform: translateY(var(--press-lift-active));
+      border-bottom-width: var(--press-depth-active);
+      box-shadow: var(--shadow-sm);
+    }
 
-  .player-seek:hover {
-    background-color: var(--player-hover-indicator);
-  }
+    .btn-primary:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
 
-  .player-seek-progress {
-    @apply absolute left-0 top-0 h-full rounded-full transition-all duration-150;
-    background-color: var(--player-accent-color);
-  }
+    /* Button variant: Secondary */
+    .btn-secondary {
+      background-color: var(--surface-muted);
+      color: var(--text-primary);
+      border-color: var(--border-secondary);
+      box-shadow: var(--shadow-sm);
+    }
 
-  .player-seek-thumb {
-    @apply absolute top-1/2 h-3 w-3 -translate-y-1/2 translate-x-1/2 rounded-full shadow-lg transition-transform duration-150;
-    background-color: var(--player-thumb-fill);
-    border: 2px solid var(--player-thumb-border);
-  }
+    .btn-secondary:hover:not(:disabled) {
+      background-color: var(--surface-card);
+      border-color: var(--border-default);
+      transform: translateY(var(--press-lift-hover));
+      box-shadow: var(--shadow-md);
+    }
 
-  .player-seek-thumb:hover {
-    transform: translateY(-50%) translateX(50%) scale(1.05);
-  }
+    .btn-secondary:active:not(:disabled) {
+      background-color: var(--surface-muted);
+      transform: translateY(var(--press-lift-active));
+      border-bottom-width: var(--press-depth-active);
+      box-shadow: none;
+    }
 
-  .player-seek-hover {
-    @apply absolute top-1/2 h-2 w-2 -translate-y-1/2 translate-x-1/2 rounded-full;
-    background-color: var(--player-hover-indicator);
-  }
+    .btn-secondary:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+    }
 
-  .player-seek-tooltip {
-    @apply absolute -top-8 -translate-x-1/2 rounded px-2 py-1 text-xs shadow-md;
-    background-color: var(--player-accent-color);
-    color: var(--player-tooltip-text);
-  }
+    /* Button variant: Outline */
+    .btn-outline {
+      background-color: transparent;
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+      box-shadow: none;
+    }
 
-  .player-card {
-    background-color: var(--player-card-bg);
-    border: 2px solid var(--player-card-border);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-lg);
-    padding: var(--space-card-padding-sm);
-  }
+    .btn-outline:hover:not(:disabled) {
+      background-color: var(--color-primary);
+      color: var(--button-text-color);
+      transform: translateY(var(--press-lift-hover));
+      box-shadow: var(--shadow-md);
+    }
 
-  .player-control-surface {
-    @apply flex flex-col gap-4;
-    background-color: var(--player-card-bg);
-    border: 2px solid var(--player-card-border);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-xl);
-    padding: var(--space-card-padding-sm);
-    gap: var(--space-md);
-  }
+    .btn-outline:active:not(:disabled) {
+      transform: translateY(var(--press-lift-active));
+      border-bottom-width: var(--press-depth-active);
+    }
 
-  .settings-header {
-    @apply text-center mb-10;
-  }
+    .btn-outline:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
 
-  .settings-title {
-    @apply text-3xl font-bold;
-    color: var(--text-primary);
-  }
+    /* Button variant: Ghost */
+    .btn-ghost {
+      background-color: transparent;
+      color: var(--text-secondary);
+      border-color: transparent;
+      box-shadow: none;
+    }
 
-  .settings-section-title {
-    @apply text-xl font-bold uppercase mb-2 px-2;
-    color: var(--text-primary);
-    opacity: 0.6;
-  }
+    .btn-ghost:hover:not(:disabled) {
+      background-color: var(--surface-muted);
+      color: var(--text-primary);
+      transform: translateY(var(--press-lift-hover));
+    }
 
-  /* ===================================
+    .btn-ghost:active:not(:disabled) {
+      background-color: var(--surface-muted);
+      transform: translateY(1px);
+    }
+
+    .btn-ghost:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+    }
+
+    /* Button variant: Danger */
+    .btn-danger {
+      background-color: var(--color-error);
+      color: var(--button-text-color);
+      border-bottom-color: var(--state-error-strong);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background-color: var(--state-error-strong);
+      transform: translateY(var(--press-lift-hover));
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-danger:active:not(:disabled) {
+      background-color: var(--state-error-strong);
+      transform: translateY(var(--press-lift-active));
+      border-bottom-width: var(--press-depth-active);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-danger:focus-visible {
+      outline: 2px solid var(--color-error);
+      outline-offset: 2px;
+    }
+
+    /* 尊重"减少动态效果"：保留颜色/阴影反馈，去掉位移与长度变化 */
+    @media (prefers-reduced-motion: reduce) {
+      .btn-primary:hover:not(:disabled),
+      .btn-primary:active:not(:disabled),
+      .btn-secondary:hover:not(:disabled),
+      .btn-secondary:active:not(:disabled),
+      .btn-outline:hover:not(:disabled),
+      .btn-outline:active:not(:disabled),
+      .btn-ghost:hover:not(:disabled),
+      .btn-ghost:active:not(:disabled),
+      .btn-danger:hover:not(:disabled),
+      .btn-danger:active:not(:disabled) {
+        transform: none;
+      }
+    }
+
+    /* Icon button variant */
+    .btn-icon {
+      @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+      width: 3.5rem;
+      height: 3.5rem;
+      padding: 0;
+      border-radius: var(--radius-pill);
+    }
+
+    .btn-icon.btn-icon-sm {
+      width: 2.75rem;
+      height: 2.75rem;
+    }
+
+    .btn-icon.btn-icon-lg {
+      width: 4rem;
+      height: 4rem;
+    }
+
+    /* Dark theme button optimizations are now integrated into base button styles */
+
+    .btn-play {
+      @apply flex items-center justify-center rounded-full h-12 w-12 text-white transition-all;
+      background-color: var(--color-success);
+      box-shadow: 0 4px 0 0 var(--state-success-strong);
+      border-radius: var(--radius-pill);
+    }
+
+    .btn-play:active {
+      box-shadow: none;
+      transform: translateY(4px);
+    }
+
+    .btn-retry {
+      @apply flex items-center justify-center rounded-xl h-12 px-6 text-white text-sm font-bold uppercase tracking-wider transition-all;
+      background-color: var(--color-warning);
+      box-shadow: 0 4px 0 0 var(--state-warning-strong);
+      border-radius: var(--radius-control);
+    }
+
+    .btn-retry:active {
+      box-shadow: none;
+      transform: translateY(4px);
+    }
+
+    .btn-delete {
+      @apply flex items-center justify-center p-3 rounded-full transition-all;
+      border-radius: var(--radius-pill);
+      color: var(--text-muted);
+      background-color: transparent;
+    }
+
+    .btn-delete:hover {
+      background-color: var(--state-error-surface);
+      color: var(--state-error-text);
+    }
+
+    /* 导航按钮样式 */
+    .nav-button {
+      @apply flex items-center justify-center rounded-full h-12 w-12 transition-colors;
+      color: var(--inactive-icon-color);
+    }
+
+    .nav-button:hover {
+      background-color: var(--surface-muted);
+    }
+
+    .nav-button.active {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    /* 导航容器样式 */
+    .nav-container {
+      @apply flex items-center justify-center gap-2 rounded-full p-2 shadow-lg border-2 backdrop-blur-sm;
+      background-color: var(--nav-container-background);
+      border-color: var(--border-primary);
+      border-radius: var(--radius-pill);
+      box-shadow: var(--shadow-md);
+    }
+
+    .settings-header {
+      @apply text-center mb-10;
+    }
+
+    .settings-title {
+      @apply text-3xl font-bold;
+      color: var(--text-primary);
+    }
+
+    .settings-section-title {
+      @apply text-xl font-bold uppercase mb-2 px-2;
+      color: var(--text-primary);
+      opacity: 0.6;
+    }
+
+    /* ===================================
    设置面板组件样式
    =================================== */
-  .settings-card {
-    background-color: var(--surface-card);
-    border: 2px solid var(--settings-border-color);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-  }
-
-  .settings-row {
-    @apply flex items-center justify-between gap-4 px-4 py-4;
-  }
-
-  .settings-card .settings-row + .settings-row {
-    border-top: 2px solid var(--settings-divider-color);
-  }
-
-  .settings-row-content {
-    @apply flex flex-col gap-1 text-left;
-  }
-
-  .settings-row-title {
-    @apply font-bold text-lg;
-    color: var(--text-primary);
-  }
-
-  .settings-row-description {
-    @apply text-sm;
-    color: var(--settings-muted-color);
-  }
-
-  .settings-value {
-    @apply text-sm;
-    color: var(--settings-muted-color);
-  }
-
-  .settings-inline-controls {
-    @apply flex items-center gap-2;
-  }
-
-  .settings-link {
-    @apply flex items-center justify-between gap-3 px-4 py-4 transition-colors;
-  }
-
-  .settings-link:hover {
-    background-color: rgba(34, 197, 94, 0.05);
-  }
-
-  /* 设置按钮组 */
-  .settings-button-group {
-    @apply inline-flex items-center gap-2;
-  }
-
-  .settings-button {
-    @apply rounded-lg px-3 py-1 text-sm font-bold uppercase transition-all duration-200;
-    color: rgba(74, 74, 74, 0.4);
-    border: 2px solid var(--border-color);
-    background-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 0 var(--settings-shadow-color);
-  }
-
-  .settings-button:hover:not(.active) {
-    @apply translate-y-[1px];
-    background-color: rgba(92, 157, 82, 0.08);
-  }
-
-  .settings-button.active {
-    color: var(--button-text-color);
-    background-color: var(--player-accent-color);
-    border-color: transparent;
-  }
-
-  /* 数字调整器 */
-  .settings-number-adjuster {
-    @apply flex items-center gap-2;
-  }
-
-  .settings-number-button {
-    @apply p-2 rounded-full transition-colors;
-    color: var(--settings-muted-color);
-  }
-
-  .settings-number-button:hover {
-    background-color: rgba(132, 204, 22, 0.1);
-  }
-
-  .settings-number-value {
-    @apply font-bold text-lg w-8 text-center;
-    color: var(--text-primary);
-  }
-
-  /* 账户信息卡片 */
-  .settings-account-card {
-    @apply flex flex-col gap-4 p-4;
-  }
-
-  .settings-account-header {
-    @apply flex items-center gap-4;
-  }
-
-  .settings-account-avatar {
-    @apply w-16 h-16 rounded-full border-2;
-    border-color: var(--settings-border-color);
-  }
-
-  .settings-account-info {
-    @apply flex flex-col gap-1;
-  }
-
-  .settings-account-name {
-    @apply font-bold text-lg;
-    color: var(--text-primary);
-  }
-
-  .settings-account-label {
-    @apply text-sm;
-    color: var(--settings-muted-color);
-  }
-
-  .settings-progress-bar {
-    @apply relative w-full h-4 overflow-hidden rounded-full bg-gray-200/50;
-  }
-
-  .settings-progress-fill {
-    @apply absolute inset-y-0 left-0 h-full rounded-full bg-primary transition-[width] duration-300 ease-out;
-  }
-
-  .settings-progress-text {
-    @apply text-sm text-center mt-2;
-    color: var(--settings-muted-color);
-  }
-
-  /* Pro 升级卡片 */
-  .settings-pro-card {
-    @apply p-6 text-center;
-  }
-
-  .settings-pro-icon {
-    @apply text-5xl text-yellow-400 mb-4;
-  }
-
-  .settings-pro-title {
-    @apply text-2xl font-bold mb-2;
-    color: var(--text-primary);
-  }
-
-  .settings-pro-description {
-    @apply text-sm mb-6;
-    color: var(--settings-muted-color);
-  }
-
-  .settings-pro-button {
-    @apply w-full py-3 px-4 font-bold rounded-lg transition-all;
-    background-color: var(--player-accent-color);
-    color: var(--button-text-color);
-    box-shadow: 0 4px 0 0 var(--settings-shadow-color);
-  }
-
-  .settings-pro-button:hover {
-    background-color: var(--button-hover-color);
-  }
-
-  .settings-pro-button:active {
-    box-shadow: none;
-    transform: translateY(4px);
-  }
-
-  /* 响应式设计 */
-  @media (max-width: 768px) {
-    .settings-title {
-      @apply text-2xl;
+    .settings-card {
+      background-color: var(--surface-card);
+      border: 2px solid var(--settings-border-color);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
 
     .settings-row {
-      @apply px-3 py-3;
+      @apply flex items-center justify-between gap-4 px-4 py-4;
+    }
+
+    .settings-card .settings-row + .settings-row {
+      border-top: 2px solid var(--settings-divider-color);
+    }
+
+    .settings-row-content {
+      @apply flex flex-col gap-1 text-left;
+    }
+
+    .settings-row-title {
+      @apply font-bold text-lg;
+      color: var(--text-primary);
+    }
+
+    .settings-row-description {
+      @apply text-sm;
+      color: var(--settings-muted-color);
+    }
+
+    .settings-value {
+      @apply text-sm;
+      color: var(--settings-muted-color);
+    }
+
+    .settings-inline-controls {
+      @apply flex items-center gap-2;
+    }
+
+    .settings-link {
+      @apply flex items-center justify-between gap-3 px-4 py-4 transition-colors;
+    }
+
+    .settings-link:hover {
+      background-color: rgba(34, 197, 94, 0.05);
+    }
+
+    /* 设置按钮组 */
+    .settings-button-group {
+      @apply inline-flex items-center gap-2;
     }
 
     .settings-button {
-      @apply px-2 py-1 text-xs;
+      @apply rounded-lg px-3 py-1 text-sm font-bold uppercase transition-all duration-200;
+      color: rgba(74, 74, 74, 0.4);
+      border: 2px solid var(--border-color);
+      background-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 0 var(--settings-shadow-color);
     }
-  }
 
-  /* ===================================
-   文本和状态样式
-   =================================== */
-  .text-stats-label {
-    @apply text-base font-bold;
-    color: var(--secondary-text-color);
-  }
+    .settings-button:hover:not(.active) {
+      @apply translate-y-[1px];
+      background-color: rgba(92, 157, 82, 0.08);
+    }
 
-  .text-stats-value {
-    @apply text-3xl font-black mt-2;
-    color: var(--stats-text-color);
-  }
+    .settings-button.active {
+      color: var(--button-text-color);
+      background-color: var(--player-accent-color);
+      border-color: transparent;
+    }
 
-  .text-file-name {
-    @apply font-bold text-lg;
-    color: var(--stats-text-color);
-  }
+    /* 数字调整器 */
+    .settings-number-adjuster {
+      @apply flex items-center gap-2;
+    }
 
-  .text-file-status {
-    @apply text-sm;
-    color: var(--text-muted);
-  }
+    .settings-number-button {
+      @apply p-2 rounded-full transition-colors;
+      color: var(--settings-muted-color);
+    }
 
-  /* 加载动画 */
-  .loading-spinner {
-    @apply w-10 h-10 animate-spin rounded-full border-4 border-dashed;
-    border-color: var(--color-info);
-  }
+    .settings-number-button:hover {
+      background-color: var(--surface-hover);
+    }
 
-  /* 状态图标 */
-  .status-success {
-    color: var(--state-success-text);
-  }
+    .settings-number-value {
+      @apply font-bold text-lg w-8 text-center;
+      color: var(--text-primary);
+    }
 
-  .status-warning {
-    color: var(--state-warning-text);
-  }
+    /* 账户信息卡片 */
+    .settings-account-card {
+      @apply flex flex-col gap-4 p-4;
+    }
 
-  .status-error {
-    color: var(--state-error-text);
-  }
+    .settings-account-header {
+      @apply flex items-center gap-4;
+    }
 
-  .status-processing {
-    color: var(--state-info-text);
-  }
+    .settings-account-avatar {
+      @apply w-16 h-16 rounded-full border-2;
+      border-color: var(--settings-border-color);
+    }
 
-  .status-ready {
-    color: var(--text-secondary);
-  }
+    .settings-account-info {
+      @apply flex flex-col gap-1;
+    }
 
-  .status-loading {
-    color: var(--text-muted);
-  }
+    .settings-account-name {
+      @apply font-bold text-lg;
+      color: var(--text-primary);
+    }
 
-  /* ===================================
-   滚动条和工具类样式
-   =================================== */
-  .scrollbar-custom {
-    overflow-y: auto;
-  }
+    .settings-account-label {
+      @apply text-sm;
+      color: var(--settings-muted-color);
+    }
 
-  .scrollbar-custom::-webkit-scrollbar {
-    width: var(--scrollbar-width);
-  }
+    .settings-progress-bar {
+      @apply relative w-full h-4 overflow-hidden rounded-full bg-gray-200/50;
+    }
 
-  .scrollbar-custom::-webkit-scrollbar-track {
-    background: var(--scrollbar-track-color);
-  }
+    .settings-progress-fill {
+      @apply absolute inset-y-0 left-0 h-full rounded-full bg-primary transition-[width] duration-300 ease-out;
+    }
 
-  .scrollbar-custom::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb-color);
-    border-radius: var(--scrollbar-border-radius);
-  }
+    .settings-progress-text {
+      @apply text-sm text-center mt-2;
+      color: var(--settings-muted-color);
+    }
 
-  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover-color);
-  }
+    /* Pro 升级卡片 */
+    .settings-pro-card {
+      @apply p-6 text-center;
+    }
 
-  /* 可应用滚动条样式的基础类 */
-  .scrollable {
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
+    .settings-pro-icon {
+      @apply text-5xl text-yellow-400 mb-4;
+    }
 
-  .scrollable::-webkit-scrollbar {
-    width: var(--scrollbar-width);
-  }
+    .settings-pro-title {
+      @apply text-2xl font-bold mb-2;
+      color: var(--text-primary);
+    }
 
-  .scrollable::-webkit-scrollbar-track {
-    background: var(--scrollbar-track-color);
-  }
+    .settings-pro-description {
+      @apply text-sm mb-6;
+      color: var(--settings-muted-color);
+    }
 
-  .scrollable::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb-color);
-    border-radius: var(--scrollbar-border-radius);
-  }
+    .settings-pro-button {
+      @apply w-full py-3 px-4 font-bold rounded-lg transition-all;
+      background-color: var(--player-accent-color);
+      color: var(--button-text-color);
+      box-shadow: 0 4px 0 0 var(--settings-shadow-color);
+    }
 
-  .scrollable::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover-color);
+    .settings-pro-button:hover {
+      background-color: var(--button-hover-color);
+    }
+
+    .settings-pro-button:active {
+      box-shadow: none;
+      transform: translateY(4px);
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .settings-title {
+        @apply text-2xl;
+      }
+
+      .settings-row {
+        @apply px-3 py-3;
+      }
+
+      .settings-button {
+        @apply px-2 py-1 text-xs;
+      }
+    }
   }
 }

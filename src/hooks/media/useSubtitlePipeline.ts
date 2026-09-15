@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranscriptionLanguage } from '~/components/layout/contexts/TranscriptionLanguageContext'
 import { subtitleKeys } from '~/hooks/media/subtitle-keys'
-import { useFileStatusManager } from '~/hooks/useFileStatus'
 import { DBUtils, db } from '~/lib/db/db'
 import { type ProcessedSegment, runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
 import { transcriptionLogger } from '~/lib/utils/logger'
@@ -10,13 +9,7 @@ import type { MediaRow, Segment } from '~/types/db/database'
 
 export { subtitleKeys } from '~/hooks/media/subtitle-keys'
 
-export type PipelineStage =
-  | 'idle'
-  | 'fetching-captions'
-  | 'transcribing'
-  | 'translating'
-  | 'done'
-  | 'failed'
+export type PipelineStage = 'idle' | 'fetching-captions' | 'translating' | 'done' | 'failed'
 
 interface TranslateProgress {
   done: number
@@ -45,27 +38,14 @@ async function writeSegments(
   )
 }
 
-async function writeChunkResults(
-  subtitleId: number,
-  processed: ProcessedSegment[],
-  source: 'official' | 'whisper',
-): Promise<void> {
+async function writeChunkResults(subtitleId: number, processed: ProcessedSegment[]): Promise<void> {
   // ponytail: per-segment modify (N queries), bulkPut by id if translating large media becomes slow
   for (const p of processed) {
     await db.segments
       .where('transcriptId')
       .equals(subtitleId)
       .and((s: Segment) => s.segmentIndex === p.segmentIndex)
-      .modify(
-        source === 'official'
-          ? { translation: p.translation, furigana: p.furigana }
-          : {
-              normalizedText: p.normalizedText,
-              translation: p.translation,
-              annotations: p.annotations,
-              furigana: p.furigana,
-            },
-      )
+      .modify({ translation: p.translation, furigana: p.furigana })
   }
 }
 
@@ -74,7 +54,6 @@ export function useSubtitlePipeline(media: MediaRow | null) {
   const { learningLanguage } = useTranscriptionLanguage()
   const targetLanguage = learningLanguage.nativeLanguage
   const mediaId = media?.id ?? 0
-  const { startTranscription } = useFileStatusManager(media?.kind === 'audio' ? mediaId : 0)
 
   const [stage, setStage] = useState<PipelineStage>('idle')
   const [translateProgress, setTranslateProgress] = useState<TranslateProgress | null>(null)
@@ -98,7 +77,7 @@ export function useSubtitlePipeline(media: MediaRow | null) {
   }, [queryClient, mediaId])
 
   const runTranslate = useCallback(
-    async (subtitleId: number, source: 'official' | 'whisper', sourceLanguage: string) => {
+    async (subtitleId: number, sourceLanguage: string) => {
       if (baseLang(sourceLanguage) === baseLang(targetLanguage)) {
         await DBUtils.update(db.subtitles, subtitleId, {
           postProcessStatus: 'completed' as const,
@@ -121,7 +100,7 @@ export function useSubtitlePipeline(media: MediaRow | null) {
         targetLanguage,
         enableFurigana: baseLang(sourceLanguage) === 'ja',
         onChunkDone: async (processed, i, total) => {
-          await writeChunkResults(subtitleId, processed, source)
+          await writeChunkResults(subtitleId, processed)
           setTranslateProgress({ done: i + 1, total })
           invalidate()
         },
@@ -167,7 +146,7 @@ export function useSubtitlePipeline(media: MediaRow | null) {
         })
         await writeSegments(subtitleId, segments)
         invalidate()
-        await runTranslate(subtitleId, 'official', language)
+        await runTranslate(subtitleId, language)
         return
       }
 
@@ -228,45 +207,19 @@ export function useSubtitlePipeline(media: MediaRow | null) {
     if (!media?.id || query.isLoading || runningRef.current) return
     const { subtitle } = query.data ?? { subtitle: null }
 
-    // 跨会话恢复：不分 kind，字幕行已存在但翻译卡在 pending（页面被关闭/导航打断）就续跑翻译。
-    // 音频侧 postProcessTranscription 现在被 await（见 useTranscription.ts），
-    // 同一会话内 runningRef 会一直占用到后处理结束，不会与这里重复触发。
+    // 跨会话恢复：字幕行已存在但翻译卡在 pending（页面被关闭/导航打断）就续跑翻译。
     if (subtitle?.status === 'completed' && subtitle.postProcessStatus === 'pending') {
       runningRef.current = true
-      void runTranslate(subtitle.id as number, subtitle.source, subtitle.sourceLanguage).finally(
-        () => {
-          runningRef.current = false
-        },
-      )
+      void runTranslate(subtitle.id as number, subtitle.sourceLanguage).finally(() => {
+        runningRef.current = false
+      })
       return
     }
 
-    if (media.kind === 'youtube') {
-      if (!subtitle) {
-        void runYouTubePipeline()
-      }
-    } else if (media.kind === 'audio' && !subtitle) {
-      // 音频走现有转写链路（useTranscription 内部完成时会失效 subtitleKeys）；
-      // 这里补阶段反馈 + 完成后兜底刷新（双保险，防 onSuccess 失效被竞态吞掉）
-      runningRef.current = true
-      setStage('transcribing')
-      void startTranscription()
-        .then(() => setStage('done'))
-        .catch(() => setStage('failed'))
-        .finally(() => {
-          runningRef.current = false
-          invalidate()
-        })
+    if (!subtitle) {
+      void runYouTubePipeline()
     }
-  }, [
-    media,
-    query.isLoading,
-    query.data,
-    runYouTubePipeline,
-    runTranslate,
-    startTranscription,
-    invalidate,
-  ])
+  }, [media, query.isLoading, query.data, runYouTubePipeline, runTranslate])
 
   const retry = useCallback(async () => {
     const subtitle = query.data?.subtitle

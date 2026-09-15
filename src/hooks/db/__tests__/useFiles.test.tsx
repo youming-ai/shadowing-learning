@@ -8,7 +8,6 @@ import { useFiles } from '../useFiles'
 vi.mock('~/lib/db/db', () => ({
   DBUtils: {
     listMedia: vi.fn(),
-    addMedia: vi.fn(),
     deleteMedia: vi.fn(),
   },
   db: {},
@@ -26,6 +25,18 @@ function createWrapper() {
   )
 }
 
+function youtubeRow(id: number, title: string, externalId: string) {
+  return {
+    id,
+    kind: 'youtube' as const,
+    title,
+    durationSec: 10,
+    addedAt: new Date(),
+    updatedAt: new Date(),
+    externalId,
+  }
+}
+
 describe('useFiles', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -39,26 +50,8 @@ describe('useFiles', () => {
   describe('初始化', () => {
     it('should load files on mount', async () => {
       const mockFiles = [
-        {
-          id: 1,
-          kind: 'audio',
-          title: 'test1.mp3',
-          durationSec: null,
-          fileSize: 1000,
-          mimeType: 'audio/mpeg',
-          addedAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 2,
-          kind: 'audio',
-          title: 'test2.mp3',
-          durationSec: null,
-          fileSize: 2000,
-          mimeType: 'audio/mpeg',
-          addedAt: new Date(),
-          updatedAt: new Date(),
-        },
+        youtubeRow(1, 'video-1', 'aaaaaaaaaaa'),
+        youtubeRow(2, 'video-2', 'bbbbbbbbbbb'),
       ]
       ;(DBUtils.listMedia as ReturnType<typeof vi.fn>).mockResolvedValue(mockFiles)
 
@@ -102,103 +95,10 @@ describe('useFiles', () => {
     })
   })
 
-  describe('addFiles', () => {
-    it('should add files and refresh list', async () => {
-      const mockFile = new File(['content'], 'test.mp3', { type: 'audio/mpeg' })
-      ;(DBUtils.addMedia as ReturnType<typeof vi.fn>).mockResolvedValue(1)
-      ;(DBUtils.listMedia as ReturnType<typeof vi.fn>).mockResolvedValue([
-        {
-          id: 1,
-          kind: 'audio',
-          title: 'test.mp3',
-          durationSec: null,
-          fileSize: 7,
-          mimeType: 'audio/mpeg',
-          addedAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ])
-
-      const { result } = renderHook(() => useFiles(), { wrapper: createWrapper() })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      await act(async () => {
-        await result.current.addFiles([mockFile])
-      })
-
-      expect(DBUtils.addMedia).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'test.mp3',
-          mimeType: 'audio/mpeg',
-          kind: 'audio',
-        }),
-      )
-    })
-
-    it('should handle add error', async () => {
-      const errorMessage = 'Storage quota exceeded'
-      ;(DBUtils.addMedia as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage),
-      )
-
-      const { result } = renderHook(() => useFiles(), { wrapper: createWrapper() })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      const mockFile = new File(['content'], 'test.mp3', { type: 'audio/mpeg' })
-      let caughtError: Error | undefined
-
-      try {
-        await act(async () => {
-          await result.current.addFiles([mockFile])
-        })
-      } catch (err) {
-        caughtError = err as Error
-      }
-
-      expect(caughtError).toBeDefined()
-    })
-
-    it('should add multiple files', async () => {
-      ;(DBUtils.addMedia as ReturnType<typeof vi.fn>).mockResolvedValue(1)
-
-      const { result } = renderHook(() => useFiles(), { wrapper: createWrapper() })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      const files = [
-        new File(['content1'], 'test1.mp3', { type: 'audio/mpeg' }),
-        new File(['content2'], 'test2.mp3', { type: 'audio/mpeg' }),
-      ]
-
-      await act(async () => {
-        await result.current.addFiles(files)
-      })
-
-      expect(DBUtils.addMedia).toHaveBeenCalledTimes(2)
-    })
-  })
-
   describe('deleteFile', () => {
     it('should delete file and refresh list', async () => {
       ;(DBUtils.listMedia as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([
-          {
-            id: 1,
-            kind: 'audio',
-            title: 'test.mp3',
-            durationSec: null,
-            addedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ])
+        .mockResolvedValueOnce([youtubeRow(1, 'video-1', 'aaaaaaaaaaa')])
         .mockResolvedValueOnce([])
       ;(DBUtils.deleteMedia as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
@@ -278,38 +178,16 @@ describe('useFiles', () => {
   describe('kind filter', () => {
     it('filters media by kind when a kind arg is passed', async () => {
       const allMedia = [
-        {
-          id: 1,
-          kind: 'youtube',
-          title: 'yt',
-          durationSec: 10,
-          addedAt: new Date('2026-01-02'),
-          updatedAt: new Date('2026-01-02'),
-          externalId: 'dQw4w9WgXcQ',
-        },
-        {
-          id: 2,
-          kind: 'audio',
-          title: 'a.mp3',
-          durationSec: null,
-          addedAt: new Date('2026-01-01'),
-          updatedAt: new Date('2026-01-01'),
-          fileName: 'a.mp3',
-          fileSize: 1,
-          mimeType: 'audio/mpeg',
-        },
+        youtubeRow(1, 'video-1', 'aaaaaaaaaaa'),
+        youtubeRow(2, 'video-2', 'bbbbbbbbbbb'),
       ]
       ;(DBUtils.listMedia as ReturnType<typeof vi.fn>).mockResolvedValue(allMedia)
 
       const { result: online } = renderHook(() => useFiles('youtube'), {
         wrapper: createWrapper(),
       })
-      await waitFor(() => expect(online.current.files).toHaveLength(1))
+      await waitFor(() => expect(online.current.files).toHaveLength(2))
       expect(online.current.files[0].kind).toBe('youtube')
-
-      const { result: mine } = renderHook(() => useFiles('audio'), { wrapper: createWrapper() })
-      await waitFor(() => expect(mine.current.files).toHaveLength(1))
-      expect(mine.current.files[0].kind).toBe('audio')
 
       const { result: all } = renderHook(() => useFiles(), { wrapper: createWrapper() })
       await waitFor(() => expect(all.current.files).toHaveLength(2))

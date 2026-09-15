@@ -11,7 +11,7 @@ interface MediaViewportProps {
 export function MediaViewport({ media, containerRef, embedBlocked }: MediaViewportProps) {
   const { t } = useI18n()
 
-  if (media.kind === 'youtube' && embedBlocked) {
+  if (embedBlocked) {
     return (
       <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-xl bg-[var(--surface-muted)]">
         <p className="text-sm text-[var(--text-secondary)]">{t('watch.embedBlocked')}</p>
@@ -29,20 +29,10 @@ export function MediaViewport({ media, containerRef, embedBlocked }: MediaViewpo
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl bg-black">
-      {media.kind === 'youtube' ? (
-        // YT.Player 会把这个 div 替换为 iframe；外层比例容器负责 16:9
-        <div className="aspect-video w-full">
-          <div ref={containerRef} className="h-full w-full" />
-        </div>
-      ) : (
-        <div className="flex aspect-video w-full items-center justify-center bg-[var(--surface-muted)]">
-          <span className="material-symbols-outlined text-7xl text-[var(--text-tertiary)]">
-            music_note
-          </span>
-          {/* AudioFileAdapter 把隐藏 <audio> 挂在这里 */}
-          <div ref={containerRef} className="hidden" />
-        </div>
-      )}
+      {/* YT.Player 会把这个 div 替换为 iframe；外层比例容器负责 16:9 */}
+      <div className="aspect-video w-full">
+        <div ref={containerRef} className="h-full w-full" />
+      </div>
     </div>
   )
 }

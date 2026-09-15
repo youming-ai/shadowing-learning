@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-Web-based language shadowing learning application with AI-powered audio transcription (Whisper via Groq). Client-persisted with IndexedDB (Dexie). A Vite 8 SPA (React 19 + TanStack Router file-based routing, TypeScript strict mode) built with Bun, served together with its API by a single Cloudflare Worker (Hono). Not TanStack Start — there is no server-side render or server-route layer.
+Web-based language shadowing learning application. Imports a YouTube URL, fetches the video's caption track, and enriches it with AI post-processing (translation / annotations / furigana via Groq). Client-persisted with IndexedDB (Dexie). A Vite 8 SPA (React 19 + TanStack Router file-based routing, TypeScript strict mode) built with Bun, served together with its API by a single Cloudflare Worker (Hono). Not TanStack Start — there is no server-side render or server-route layer. There is no audio-upload / Whisper transcription path; it was removed.
 
 ## Prerequisites
 
 - Bun >=1.2.0 (required; do not use npm/pnpm/yarn/node)
 - Wrangler (dev dependency) for running/deploying the Worker
 - `GROQ_API_KEY` in `.dev.vars` for `wrangler dev`; in production via `wrangler secret put GROQ_API_KEY`
-- `RATE_LIMIT_KV` namespace binding (id in `wrangler.jsonc`)
+- `RATE_LIMIT_KV` namespace binding — **optional**. It is not currently bound in `wrangler.jsonc`, and `rate-limit.ts` no-ops without it, so the Worker deploys and runs fine. Re-add the binding to turn rate limiting on (see the comment in `wrangler.jsonc`).
 
 ## Common Commands
 
@@ -57,10 +57,10 @@ bun run clean
 
 See `docs/ARCHITECTURE.md` for the full picture.
 
-- **Client Routes**: `src/routes/index.tsx` (home), `src/routes/watch.$mediaId.tsx` (watch/player), `src/routes/me.tsx` (library), `src/routes/settings.tsx`, `src/routes/account.tsx`.
-- **Worker**: `worker/index.ts` (Hono) mounts `cors` on `*`, `rateLimit` on `/api/*`, then routes `/api/transcribe`, `/api/postprocess`, `/api/youtube/{resolve,captions}`, `/api/health`; all other paths fall back to the `ASSETS` binding (SPA).
+- **Client Routes**: `src/routes/index.tsx` (home / online library), `src/routes/watch.$mediaId.tsx` (watch/player), `src/routes/settings.tsx`, `src/routes/account.tsx`.
+- **Worker**: `worker/index.ts` (Hono) mounts `cors` on `*`, `rateLimit` on `/api/*`, then routes `/api/postprocess`, `/api/youtube/{resolve,captions}`, `/api/health`; all other paths fall back to the `ASSETS` binding (SPA). There is no `/api/transcribe` route.
 - **Rate limiting**: `worker/middleware/rate-limit.ts`, KV-backed sliding window. Client id precedence: `cf-connecting-ip` → first `x-forwarded-for` → `request.cf.colo` → `user-agent`+`accept-language` hash.
-- **Database**: Dexie IndexedDB client-side (`src/lib/db/db.ts`). Version 4 schema: live tables `media`, `subtitles`, `segments`; `files`/`transcripts` retained read-only from v3 pending v5 removal.
+- **Database**: Dexie IndexedDB client-side (`src/lib/db/db.ts`). Version 5 schema: live tables `media` (YouTube rows only), `subtitles`, `segments`. The v5 migration dropped the legacy `files`/`transcripts` tables and purged the unreachable `kind: 'audio'` rows written by v4. Never edit a shipped migration; add a new version. Note that Dexie's `stores()` merges declarations across versions, so a table is only dropped by declaring it `null` — omitting it does not delete it.
 - **State**: TanStack Query for server state; React hooks for component state.
 - **AI**: Direct Groq SDK (`groq-sdk`), not via AI SDK. Post-processing uses `openai/gpt-oss-120b`.
 - **UI**: shadcn/ui + Radix UI primitives.
@@ -87,7 +87,7 @@ See `docs/ARCHITECTURE.md` for the full picture.
 
 - Target is Cloudflare Workers. `bun run build` emits the SPA to `dist/`; `bun run deploy` builds then runs `wrangler deploy` to upload the Worker plus assets.
 - PWA manifest at `/manifest.json`; service worker registration via `PwaRegister`.
-- `Dockerfile`, `docker-compose.yml`, and `docs/DOKPLOY.md` are legacy: they start `dist/server/server.js`, which the current build no longer produces. Do not treat them as the deployment path.
+- There is no Docker/Dokploy path; those manifests were removed with the TanStack Start server bundle.
 
 ## What to Avoid
 

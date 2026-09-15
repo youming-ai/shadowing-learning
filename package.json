@@ -1,7 +1,7 @@
 {
   "name": "shadowing-learning",
   "version": "1.0.0",
-  "description": "A language learning application focused on shadowing practice with AI-powered audio transcription",
+  "description": "A language learning application focused on shadowing practice with YouTube captions and AI post-processing",
   "type": "module",
   "private": false,
   "scripts": {
@@ -20,12 +20,10 @@
   "keywords": [
     "language-learning",
     "shadowing",
-    "speech-recognition",
-    "transcription",
-    "audio-processing",
+    "youtube",
+    "captions",
     "ai",
     "groq",
-    "whisper",
     "react",
     "typescript",
     "education",

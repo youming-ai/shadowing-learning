@@ -1,20 +1,11 @@
 /** * Simplified database operations file * Removed complex batch processors, keeping core functionality*/
 
-import Dexie, { type Table } from 'dexie'
-import type {
-  DatabaseStats,
-  FileRow,
-  MediaRow,
-  Segment,
-  SubtitleRow,
-  TranscriptRow,
-} from '~/types/db/database'
+import Dexie, { type Table, type UpdateSpec } from 'dexie'
+import type { MediaRow, Segment, SubtitleRow } from '~/types/db/database'
 import { handleError } from '../utils/error-handler'
 import { dbLogger } from '../utils/logger'
 
 export class AppDatabase extends Dexie {
-  files!: Table<FileRow>
-  transcripts!: Table<TranscriptRow>
   segments!: Table<Segment>
   media!: Table<MediaRow>
   subtitles!: Table<SubtitleRow>
@@ -114,6 +105,50 @@ export class AppDatabase extends Dexie {
         )
         dbLogger.debug(`v4 migration done: ${files.length} media, ${transcripts.length} subtitles`)
       })
+
+    // v5：音频模块已下线，收尾清理。
+    // - files / transcripts 置 null 才会被真正删除：Dexie 的 stores() 是跨版本累加的
+    //   （内部 versions.forEach(v => extend(storesSpec, v._cfg.storesSource))），
+    //   单靠"不声明"会继承 v4 的声明，表会一直留着。
+    // - 同时清掉 v4 为 v3 老用户写入的 kind:'audio' 行（带 Blob，UI 已无法访问）及其子行。
+    // media / subtitles / segments 未改动，沿用 v4 的声明。
+    this.version(5)
+      .stores({
+        files: null,
+        transcripts: null,
+      })
+      .upgrade(async (tx) => {
+        const media = tx.table('media')
+
+        // 只取主键：遗留行带 Blob，toArray() 会把整段音频读进内存。
+        // 用"全量主键 − kind:'youtube' 主键"求差集，而不是 where('kind').notEqual(...)：
+        // 后者走稀疏索引，会漏掉 kind 缺失的行，这里一律按遗留处理。
+        const allIds: number[] = await media.toCollection().primaryKeys()
+        const youtubeIds: number[] = await media.where('kind').equals('youtube').primaryKeys()
+        const youtubeSet = new Set(youtubeIds)
+        const legacyMediaIds = allIds.filter((id) => !youtubeSet.has(id))
+
+        if (legacyMediaIds.length === 0) {
+          dbLogger.debug('v5 migration done: no legacy audio rows to purge')
+          return
+        }
+
+        // children-first：segments → subtitles → media（与 DBUtils.deleteMedia 同序）
+        const legacySubtitleIds: number[] = await tx
+          .table('subtitles')
+          .where('mediaId')
+          .anyOf(legacyMediaIds)
+          .primaryKeys()
+        if (legacySubtitleIds.length > 0) {
+          await tx.table('segments').where('transcriptId').anyOf(legacySubtitleIds).delete()
+          await tx.table('subtitles').bulkDelete(legacySubtitleIds)
+        }
+        await media.bulkDelete(legacyMediaIds)
+
+        dbLogger.debug(
+          `v5 migration done: purged ${legacyMediaIds.length} legacy audio rows, ${legacySubtitleIds.length} subtitles`,
+        )
+      })
   }
 }
 
@@ -126,19 +161,6 @@ db.on('versionchange', () => {
   db.close({ disableAutoOpen: true })
   if (typeof window !== 'undefined') {
     window.location.reload()
-  }
-})
-
-// v4 打开后的一次性行数校验（检测线：不一致只上报，不阻断）
-db.on('ready', async () => {
-  if (typeof window === 'undefined') return
-  try {
-    const [filesCount, mediaCount] = await Promise.all([db.files.count(), db.media.count()])
-    if (mediaCount < filesCount) {
-      dbLogger.error(`v4 row-count mismatch: files=${filesCount} media=${mediaCount}`)
-    }
-  } catch (e) {
-    dbLogger.error('v4 row-count check failed:', e)
   }
 })
 
@@ -162,9 +184,13 @@ export const DBUtils = {
     }
   },
 
-  async update<T>(table: Dexie.Table<T, number>, id: number, changes: Partial<T>): Promise<number> {
+  async update<T>(
+    table: Dexie.Table<T, number>,
+    id: number,
+    changes: UpdateSpec<T>,
+  ): Promise<number> {
     try {
-      return await table.update(id, changes as any)
+      return await table.update(id, changes)
     } catch (error) {
       throw handleError(error, `DBUtils.update`)
     }
@@ -190,11 +216,11 @@ export const DBUtils = {
 
   async bulkUpdate<T>(
     table: Dexie.Table<T, number>,
-    items: Array<{ id: number; changes: Partial<T> }>,
+    items: Array<{ id: number; changes: UpdateSpec<T> }>,
   ): Promise<number[]> {
     try {
       return await db.transaction('rw', table, async () => {
-        return await Promise.all(items.map(({ id, changes }) => table.update(id, changes as any)))
+        return await Promise.all(items.map(({ id, changes }) => table.update(id, changes)))
       })
     } catch (error) {
       throw handleError(error, `DBUtils.bulkUpdate`)
@@ -272,18 +298,14 @@ export const DBUtils = {
   },
 
   async getStorageUsage(): Promise<{
-    totalSize: number
     totalFiles: number
-    averageFileSize: number
-    largestFileSize: number
     fileCountByType: Record<string, number>
   }> {
     try {
       const media = await db.media.toArray()
-      const totalSize = media.reduce((sum, m) => sum + (m.fileSize ?? 0), 0)
       const fileCountByType = media.reduce(
         (acc, m) => {
-          const key = m.mimeType ?? 'youtube'
+          const key = m.kind
           acc[key] = (acc[key] || 0) + 1
           return acc
         },
@@ -291,10 +313,7 @@ export const DBUtils = {
       )
 
       return {
-        totalSize,
         totalFiles: media.length,
-        averageFileSize: media.length > 0 ? Math.round(totalSize / media.length) : 0,
-        largestFileSize: media.length > 0 ? Math.max(...media.map((m) => m.fileSize ?? 0)) : 0,
         fileCountByType,
       }
     } catch (error) {
@@ -470,38 +489,6 @@ export const DBUtils = {
       })
     } catch (error) {
       throw handleError(error, 'DBUtils.clearAll')
-    }
-  },
-
-  async getDatabaseStats(): Promise<DatabaseStats> {
-    try {
-      // segments 只需要总数，用 count() 避免把每条 segment 都拉进内存
-      const [media, subtitles, segmentsCount] = await Promise.all([
-        db.media.toArray(),
-        db.subtitles.toArray(),
-        db.segments.count(),
-      ])
-
-      const totalStorageSize = media.reduce((sum, m) => sum + (m.fileSize ?? 0), 0)
-      const subtitlesByStatus = subtitles.reduce(
-        (acc, subtitle) => {
-          acc[subtitle.status] = (acc[subtitle.status] || 0) + 1
-          return acc
-        },
-        {} as Record<string, number>,
-      )
-      const averageSegmentsPerSubtitle = subtitles.length > 0 ? segmentsCount / subtitles.length : 0
-
-      return {
-        totalMedia: media.length,
-        totalSubtitles: subtitles.length,
-        totalSegments: segmentsCount,
-        totalStorageSize,
-        averageSegmentsPerSubtitle: Math.round(averageSegmentsPerSubtitle * 100) / 100,
-        subtitlesByStatus,
-      }
-    } catch (error) {
-      throw handleError(error, 'DBUtils.getDatabaseStats')
     }
   },
 }

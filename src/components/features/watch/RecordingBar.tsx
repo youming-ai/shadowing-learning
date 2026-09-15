@@ -49,7 +49,8 @@ export function RecordingBar({
             onClick={onToggleRecord}
             className={cn(
               'btn-secondary !h-9 !rounded-full !px-3 text-xs font-medium',
-              recording && '!border-red-500 !bg-red-500/15 !text-red-500 animate-pulse',
+              recording &&
+                '!border-[var(--rhythm-voice)] !bg-[var(--rhythm-voice-soft)] !text-[var(--rhythm-voice)] animate-pulse',
             )}
             aria-pressed={recording}
             aria-label={recording ? t('watch.record.stop') : t('watch.record.start')}
@@ -66,7 +67,7 @@ export function RecordingBar({
             onClick={playing ? onStopPlayback : onPlayMine}
             className={cn(
               'btn-secondary !h-9 !rounded-full !px-3 text-xs',
-              playing && '!border-[var(--color-primary)] !text-[var(--color-primary)]',
+              playing && '!border-[var(--rhythm-voice)] !text-[var(--rhythm-voice)]',
             )}
             aria-label={t('watch.record.playMine')}
           >
@@ -91,14 +92,16 @@ export function RecordingBar({
         </div>
 
         {isGapPhase && !recording && (
-          <span className="text-xs text-[var(--color-primary)]">{t('watch.record.gapHint')}</span>
+          <span className="text-xs text-[var(--rhythm-beat)]">{t('watch.record.gapHint')}</span>
         )}
         {recording && (
-          <span className="text-xs font-medium text-red-500">{t('watch.record.recording')}</span>
+          <span className="text-xs font-medium text-[var(--rhythm-voice)]">
+            {t('watch.record.recording')}
+          </span>
         )}
       </div>
 
-      {errorText && <p className="text-xs text-red-500">{errorText}</p>}
+      {errorText && <p className="text-xs text-[var(--color-error)]">{errorText}</p>}
       {!errorText && !hasRecording && !recording && (
         <p className="text-[11px] text-[var(--text-tertiary)]">{t('watch.record.hint')}</p>
       )}

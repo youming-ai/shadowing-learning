@@ -16,12 +16,6 @@ export default function Navigation() {
       href: '/',
     },
     {
-      id: 'myAudio',
-      labelKey: 'nav.myAudio' as const,
-      icon: 'library_music',
-      href: '/me',
-    },
-    {
       id: 'settings',
       labelKey: 'nav.settings' as const,
       icon: 'settings',

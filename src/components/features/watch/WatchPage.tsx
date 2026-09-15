@@ -18,7 +18,7 @@ import { useWatchKeyboard } from '~/hooks/player/useWatchKeyboard'
 import { DBUtils } from '~/lib/db/db'
 import type { Segment } from '~/types/db/database'
 
-export const mediaKeys = {
+const mediaKeys = {
   all: ['media'] as const,
   byId: (id: number) => [...mediaKeys.all, id] as const,
 }
@@ -157,11 +157,8 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
   }, [shadowing.config.enabled, toggleLoop])
 
   const handleRegenerate = useCallback(() => {
-    if (pipeline.subtitle?.source === 'whisper') {
-      if (!window.confirm(t('watch.regenerateConfirm'))) return
-    }
     void pipeline.regenerate()
-  }, [pipeline, t])
+  }, [pipeline])
 
   const handleToggleRecord = useCallback(() => {
     if (!activeSegment || activeIndex < 0) return
