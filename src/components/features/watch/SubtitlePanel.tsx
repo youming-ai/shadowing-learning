@@ -45,14 +45,12 @@ export function SubtitlePanel({
   const stageText =
     stage === 'fetching-captions'
       ? t('watch.stage.captions')
-      : stage === 'transcribing'
-        ? t('watch.stage.transcribing')
-        : stage === 'translating' && translateProgress
-          ? t('watch.stage.translating', {
-              done: translateProgress.done,
-              total: translateProgress.total,
-            })
-          : null
+      : stage === 'translating' && translateProgress
+        ? t('watch.stage.translating', {
+            done: translateProgress.done,
+            total: translateProgress.total,
+          })
+        : null
 
   return (
     <aside className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--border-primary)] bg-[var(--surface-card)]">
@@ -106,7 +104,7 @@ export function SubtitlePanel({
                 onClick={() => onSegmentClick(segment, index)}
                 className={`block w-full rounded-lg px-3 py-2 text-left transition-colors ${
                   isActive
-                    ? 'bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]'
+                    ? 'bg-[var(--rhythm-beat-soft)] ring-1 ring-[var(--rhythm-beat)]'
                     : 'hover:bg-[var(--surface-muted)]'
                 }`}
               >
@@ -115,7 +113,7 @@ export function SubtitlePanel({
                 </span>
                 <p
                   className={`text-sm font-medium ${
-                    isActive ? 'text-[var(--color-primary)]' : 'text-[var(--text-primary)]'
+                    isActive ? 'text-[var(--rhythm-beat)]' : 'text-[var(--text-primary)]'
                   }`}
                 >
                   {original}

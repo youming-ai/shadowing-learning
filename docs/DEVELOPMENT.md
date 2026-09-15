@@ -5,7 +5,7 @@ This guide covers local development setup and workflow for the Shadowing Learnin
 ## Prerequisites
 
 - **Bun** >= 1.2.0 — the project uses Bun exclusively for install, dev, build, test, and deploy.
-- A **Groq API key** (used by `/api/transcribe` and `/api/postprocess`).
+- A **Groq API key** (used by `/api/postprocess`).
 - A **Cloudflare account** for deployment. `wrangler` is already a devDependency.
 
 ## First-run setup
@@ -90,14 +90,13 @@ Test locations:
 
 | Directory | Coverage |
 |-----------|----------|
-| `src/lib/db/__tests__/` | Dexie schema, `DBUtils` CRUD, v4 migration |
+| `src/lib/db/__tests__/` | Dexie schema, `DBUtils` CRUD, v4 + v5 migrations |
 | `src/lib/player/__tests__/` | Shadowing state machine, active segment/word |
 | `src/lib/subtitles/__tests__/` | Chunked post-processing |
 | `src/lib/utils/__tests__/` | Error-handler versioning |
 | `src/hooks/db/__tests__/` | `useFiles` with TanStack Query |
-| `src/hooks/api/__tests__/` | `useTranscription` |
 | `src/hooks/media/__tests__/` | `useMediaImport` |
-| `src/components/features/**/__tests__/` | Player source adapters, library grid, file upload |
+| `src/components/features/**/__tests__/` | Player source adapters, library grid |
 
 ## Styling
 
@@ -109,7 +108,7 @@ Tailwind v4 is integrated via `@tailwindcss/vite` (no `tailwind.config.*`). Desi
 bun run deploy   # = bun run build && wrangler deploy
 ```
 
-Set the production secret first with `wrangler secret put GROQ_API_KEY`. There is no Docker/Dokploy deployment path: the legacy `Dockerfile`, `docker-compose.yml`, and `docs/DOKPLOY.md` target a server bundle the current build does not produce, and Workers cannot run the `yt-dlp` binary those images bundle.
+Set the production secret first with `wrangler secret put GROQ_API_KEY`. There is no Docker/Dokploy deployment path — those manifests targeted a TanStack Start server bundle the current build does not produce, and Workers cannot run the `yt-dlp` binary they bundled; they have been removed.
 
 ## Development cycle
 

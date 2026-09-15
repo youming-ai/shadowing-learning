@@ -10,12 +10,12 @@
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,
-      "invocation_logs": true,
+      "invocation_logs": true
     },
     "traces": {
       "enabled": true,
-      "head_sampling_rate": 1,
-    },
+      "head_sampling_rate": 1
+    }
   },
   // Rate limiting is OPTIONAL. The Worker runs fine without a KV namespace
   // (rate-limit middleware no-ops when RATE_LIMIT_KV is unbound). To enable
@@ -25,6 +25,6 @@
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-  },
+    "not_found_handling": "single-page-application"
+  }
 }

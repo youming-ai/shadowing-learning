@@ -1,14 +1,13 @@
-import type { Context, Next } from "hono"
-import type { Env } from "../lib/types"
+import type { Context, Next } from 'hono'
+import type { Env } from '../lib/types'
 
 const DEFAULT_WINDOW_MS = 60_000
 const DEFAULT_MAX = 60
 
 const ROUTE_CONFIGS: Record<string, { windowMs: number; maxRequests: number }> = {
-  "/api/transcribe": { windowMs: 60_000, maxRequests: 10 },
-  "/api/postprocess": { windowMs: 60_000, maxRequests: 20 },
-  "/api/youtube/resolve": { windowMs: 600_000, maxRequests: 20 },
-  "/api/youtube/captions": { windowMs: 600_000, maxRequests: 20 },
+  '/api/postprocess': { windowMs: 60_000, maxRequests: 20 },
+  '/api/youtube/resolve': { windowMs: 600_000, maxRequests: 20 },
+  '/api/youtube/captions': { windowMs: 600_000, maxRequests: 20 },
 }
 
 function getConfig(pathname: string) {
@@ -19,14 +18,14 @@ function getConfig(pathname: string) {
 }
 
 function getClientId(request: Request): string {
-  const cfIp = request.headers.get("cf-connecting-ip")?.trim()
+  const cfIp = request.headers.get('cf-connecting-ip')?.trim()
   if (cfIp) return cfIp
-  const xff = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  const xff = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
   if (xff) return xff
   const cf = (request as Request & { cf?: { colo?: string } }).cf
   if (cf?.colo) return `cf:${cf.colo}`
-  const ua = request.headers.get("user-agent") ?? ""
-  const al = request.headers.get("accept-language") ?? ""
+  const ua = request.headers.get('user-agent') ?? ''
+  const al = request.headers.get('accept-language') ?? ''
   let hash = 0
   const fp = `${ua}|${al}`
   for (let i = 0; i < fp.length; i++) {
@@ -72,15 +71,15 @@ export async function rateLimit(c: Context<{ Bindings: Env }>, next: Next) {
     resetTime = Math.ceil((timestamps[0] + config.windowMs) / 1000)
   }
 
-  c.res.headers.set("X-RateLimit-Limit", String(config.maxRequests))
-  c.res.headers.set("X-RateLimit-Remaining", String(remaining))
-  c.res.headers.set("X-RateLimit-Reset", String(resetTime))
+  c.res.headers.set('X-RateLimit-Limit', String(config.maxRequests))
+  c.res.headers.set('X-RateLimit-Remaining', String(remaining))
+  c.res.headers.set('X-RateLimit-Reset', String(resetTime))
 
   if (limited) {
     const retryAfter = Math.ceil((timestamps[0] + config.windowMs - now) / 1000)
-    c.res.headers.set("Retry-After", String(retryAfter))
+    c.res.headers.set('Retry-After', String(retryAfter))
     return c.json(
-      { error: { code: "RATE_LIMITED", message: "请求过于频繁，请稍后再试", retryAfter } },
+      { error: { code: 'RATE_LIMITED', message: '请求过于频繁，请稍后再试', retryAfter } },
       429,
     )
   }

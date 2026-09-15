@@ -23,16 +23,16 @@
 
 [影子跟读（Shadowing）](https://en.wikipedia.org/wiki/Shadowing_(psycholinguistics)) 是一种通过紧跟原音模仿来训练听说能力的语言学习方法。本项目是一个 Web 应用：
 
-1. **导入**一段音频（MP3 / WAV / M4A / FLAC）或粘贴一个 YouTube 链接
-2. **获取字幕**：音频走 Groq Whisper-large-v3-turbo 转录；YouTube 优先抓取官方字幕轨
-3. **后处理**生成规范化文本、翻译和标注（Groq LLM，分块增量写入）
+1. **导入**：粘贴一个 YouTube 链接
+2. **获取字幕**：抓取视频的官方字幕轨
+3. **后处理**：LLM 翻译与标注（Groq LLM，分块增量写入）
 4. **同步播放**：字幕随媒体高亮，支持逐句循环、可调速度、逐句录音对比，专注跟读练习
 
-支持中文（简/繁）、英语、日语、韩语，UI 与转录语言可独立切换。
+支持中文（简/繁）、英语、日语、韩语，UI 与翻译目标语言可独立切换。
 
 ## 特性
 
-- **客户端优先**：除少量服务端 API 调用（Groq 转录 / 后处理、YouTube 字幕抓取）外，所有数据（音频 Blob、字幕、片段）都存放在浏览器的 IndexedDB（Dexie），无后端数据库
+- **客户端优先**：除少量服务端 API 调用（Groq 后处理、YouTube 字幕抓取）外，所有数据（媒体、字幕、片段）都存放在浏览器的 IndexedDB（Dexie），无后端数据库
 - **多语言**：UI 与翻译目标支持 5 种语言，可独立切换
 - **PWA**：可安装、支持离线降级（Service Worker 注册）
 - **主题系统**：浅色 / 深色 / 跟随系统 / 高对比度，CSS 变量驱动
@@ -47,8 +47,8 @@
 | 框架       | Vite 8 SPA + TanStack Router（文件路由，无 SSR） |
 | 视图       | React 19, Tailwind CSS v4, Radix UI, lucide-react |
 | 状态       | TanStack Query（服务态） + React Context（UI 态） |
-| 持久化     | Dexie / IndexedDB（v4 schema：media / subtitles / segments） |
-| AI         | Groq SDK（Whisper-large-v3-turbo + LLM 后处理） |
+| 持久化     | Dexie / IndexedDB（v5 schema：media / subtitles / segments） |
+| AI         | Groq SDK（LLM 翻译 / 标注后处理） |
 | 校验       | Zod                                            |
 | 通知       | sonner                                         |
 | 工具链     | Biome 2（lint + format）, Vitest               |
@@ -61,19 +61,17 @@
 ```
                  ┌──────────────────────────── Cloudflare Worker (Hono) ───┐
 ┌──────────────┐ │ ┌──────────────────┐     ┌──────────────────┐          │
-│ 浏览器 SPA    │─┼▶│ /api/transcribe   │ ──▶ │ Groq Whisper     │          │
+│ 浏览器 SPA    │─┼▶│ /api/postprocess  │ ──▶ │ Groq LLM         │          │
 │ (React 19 +  │ │ ├──────────────────┤     ├──────────────────┤          │
-│  TanStack    │─┼▶│ /api/postprocess  │ ──▶ │ Groq LLM         │          │
-│  Router)     │ │ ├──────────────────┤     ├──────────────────┤          │
-│              │─┼▶│ /api/youtube/*    │ ──▶ │ youtubei.js      │          │
-│              │ │ ├──────────────────┤     └──────────────────┘          │
+│  TanStack    │─┼▶│ /api/youtube/*    │ ──▶ │ youtubei.js      │          │
+│  Router)     │ │ ├──────────────────┤     └──────────────────┘          │
 │              │◀┼─│ ASSETS (dist/)    │  ← 其余路径 SPA 回退               │
 └──────┬───────┘ │ └──────────────────┘     ┌──────────────────┐          │
        │         │   rateLimit 中间件 ─────▶ │ RATE_LIMIT_KV    │          │
        │         └──────────────────────────┴──────────────────┴──────────┘
        ▼
 ┌──────────────────────────────────────────┐
-│ IndexedDB (Dexie v4)                      │
+│ IndexedDB (Dexie v5)                      │
 │   media / subtitles / segments            │
 └──────┬───────────────────────────────────┘
        ▼
@@ -116,7 +114,7 @@ bun run dev:client
 
 | 变量名                      | 位置 | 必填 | 说明                                     |
 | --------------------------- | ---- | ---- | ---------------------------------------- |
-| `GROQ_API_KEY`              | 本地 `.dev.vars`；线上 `wrangler secret put` | ✓ | Groq Whisper + LLM 调用（Worker 内） |
+| `GROQ_API_KEY`              | 本地 `.dev.vars`；线上 `wrangler secret put` | ✓ | Groq LLM 后处理调用（Worker 内） |
 | `RATE_LIMIT_KV`             | `wrangler.jsonc` 绑定 | ✗ | 限流计数用的 KV namespace（可选；未绑定时限流自动关闭，Worker 仍可正常部署/运行） |
 
 
@@ -148,16 +146,15 @@ bun run test:coverage  # 覆盖率
 ```
 worker/                        # Cloudflare Worker（API + 资源分发）
 ├── index.ts                   # Hono app：cors → rateLimit → 路由 → ASSETS 回退
-├── routes/                    # transcribe / postprocess / youtube
-├── lib/                       # groq-whisper / groq-client / youtube-captions / api-response
+├── routes/                    # postprocess / youtube
+├── lib/                       # groq-client / youtube-captions / api-response
 └── middleware/                # cors / rate-limit（KV 支撑）
 
 src/
 ├── routes/                    # TanStack Router 文件路由
 │   ├── __root.tsx             # 根布局 + Provider 栈
-│   ├── index.tsx              # 首页
+│   ├── index.tsx              # 首页（在线内容库）
 │   ├── watch.$mediaId.tsx     # 观看 / 播放器页面
-│   ├── me.tsx                 # 我的音频库
 │   ├── settings.tsx           # 设置
 │   └── account.tsx            # 账户
 ├── main.tsx                   # SPA 入口
@@ -165,10 +162,9 @@ src/
 ├── routeTree.gen.ts           # 自动生成的路由树（勿手改）
 ├── components/
 │   ├── ui/                    # 基础组件（Radix 包装 + sonner）
-│   ├── features/              # watch / player / library / file / settings 业务模块
+│   ├── features/              # watch / player / library / settings 业务模块
 │   └── layout/                # Context（Theme / I18n / TranscriptionLanguage）+ Providers
 ├── hooks/
-│   ├── api/                   # useTranscription
 │   ├── media/                 # useSubtitlePipeline / useMediaImport
 │   ├── player/                # 播放器与跟读状态
 │   └── db/                    # IndexedDB 读写
@@ -179,7 +175,7 @@ src/
 │   ├── youtube/               # error-messages
 │   ├── config/                # 路由常量
 │   ├── i18n/                  # 多语种翻译字典
-│   └── utils/                 # error-handler / retry-utils / transcription-queue 等
+│   └── utils/                 # error-handler / logger 等
 ├── styles/app.css             # Tailwind v4 + CSS 变量主题（@theme 块）
 ├── types/                     # api / db / ui 类型
 └── __tests__/setup.ts         # 测试全局 setup（happy-dom / fake-indexeddb）
@@ -194,7 +190,7 @@ wrangler secret put GROQ_API_KEY   # 首次配置密钥
 bun run deploy                     # build + wrangler deploy
 ```
 
-> `Dockerfile`、`docker-compose.yml` 与 `docs/DOKPLOY.md` 是**历史遗留**：它们以 `bun run dist/server/server.js` 启动 TanStack Start 服务端产物，而当前构建不再生成该文件。请勿当作现行部署方式。
+> 本地开发请在 `.dev.vars` 中配置 `GROQ_API_KEY`（可从 [`.dev.vars.example`](./.dev.vars.example) 复制）。本项目没有 Docker/Dokploy 部署路径。
 
 > 限流基于 Cloudflare KV，跨 colo 最终一致，属于成本护栏而非强一致配额。`RATE_LIMIT_KV` 是**可选**绑定：`wrangler.jsonc` 默认不声明 KV namespace，限流中间件在未绑定时自动放行（关闭限流），因此开箱即可 `bun run deploy`。需要启用限流时，在 `wrangler.jsonc` 中添加：
 >

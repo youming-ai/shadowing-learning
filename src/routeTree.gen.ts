@@ -4,7 +4,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as MeRouteImport } from './routes/me'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchMediaIdRouteImport } from './routes/watch.$mediaId'
@@ -12,11 +11,6 @@ import { Route as WatchMediaIdRouteImport } from './routes/watch.$mediaId'
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MeRoute = MeRouteImport.update({
-  id: '/me',
-  path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountRoute = AccountRouteImport.update({
@@ -38,14 +32,12 @@ const WatchMediaIdRoute = WatchMediaIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
   '/watch/$mediaId': typeof WatchMediaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
   '/watch/$mediaId': typeof WatchMediaIdRoute
 }
@@ -53,22 +45,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/me': typeof MeRoute
   '/settings': typeof SettingsRoute
   '/watch/$mediaId': typeof WatchMediaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/me' | '/settings' | '/watch/$mediaId'
+  fullPaths: '/' | '/account' | '/settings' | '/watch/$mediaId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/account' | '/me' | '/settings' | '/watch/$mediaId'
-  id: '__root__' | '/' | '/account' | '/me' | '/settings' | '/watch/$mediaId'
+  to: '/' | '/account' | '/settings' | '/watch/$mediaId'
+  id: '__root__' | '/' | '/account' | '/settings' | '/watch/$mediaId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
-  MeRoute: typeof MeRoute
   SettingsRoute: typeof SettingsRoute
   WatchMediaIdRoute: typeof WatchMediaIdRoute
 }
@@ -80,13 +70,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/me': {
-      id: '/me'
-      path: '/me'
-      fullPath: '/me'
-      preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account': {
@@ -116,7 +99,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
-  MeRoute: MeRoute,
   SettingsRoute: SettingsRoute,
   WatchMediaIdRoute: WatchMediaIdRoute,
 }

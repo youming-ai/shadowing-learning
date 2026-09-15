@@ -10,15 +10,12 @@ afterEach(async () => {
 describe('DBUtils media/subtitles operations', () => {
   it('addMedia / getMedia / listMedia (newest first)', async () => {
     const id1 = await DBUtils.addMedia({
-      kind: 'audio',
-      title: 'a.mp3',
+      kind: 'youtube',
+      title: 'video-a',
       durationSec: null,
       addedAt: new Date('2026-01-01'),
       updatedAt: new Date('2026-01-01'),
-      blob: new Blob(['x']),
-      fileName: 'a.mp3',
-      fileSize: 1,
-      mimeType: 'audio/mpeg',
+      externalId: 'aaaaaaaaaaa',
     })
     await DBUtils.addMedia({
       kind: 'youtube',
@@ -31,9 +28,9 @@ describe('DBUtils media/subtitles operations', () => {
       thumbnailUrl: 'https://i.ytimg.com/x.jpg',
       sourceUrl: 'https://youtu.be/dQw4w9WgXcQ',
     })
-    expect((await DBUtils.getMedia(id1))?.title).toBe('a.mp3')
+    expect((await DBUtils.getMedia(id1))?.title).toBe('video-a')
     const list = await DBUtils.listMedia()
-    expect(list.map((m) => m.title)).toEqual(['video', 'a.mp3'])
+    expect(list.map((m) => m.title)).toEqual(['video', 'video-a'])
   })
 
   it('findMediaByExternalId', async () => {
@@ -51,16 +48,16 @@ describe('DBUtils media/subtitles operations', () => {
 
   it('deleteMedia removes children first (segments → subtitles → media)', async () => {
     const mediaId = await DBUtils.addMedia({
-      kind: 'audio',
+      kind: 'youtube',
       title: 'a',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
+      externalId: 'bbbbbbbbbbb',
     })
     const subId = await DBUtils.addSubtitle({
       mediaId,
-      source: 'whisper',
+      source: 'official',
       status: 'completed',
       sourceLanguage: 'ja',
       targetLanguage: null,
@@ -83,16 +80,16 @@ describe('DBUtils media/subtitles operations', () => {
 
   it('deleteSubtitleWithSegments removes an orphan subtitle and its segments, leaving media intact', async () => {
     const mediaId = await DBUtils.addMedia({
-      kind: 'audio',
+      kind: 'youtube',
       title: 'a',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
+      externalId: 'bbbbbbbbbbb',
     })
     const subId = await DBUtils.addSubtitle({
       mediaId,
-      source: 'whisper',
+      source: 'official',
       status: 'completed',
       sourceLanguage: 'ja',
       targetLanguage: null,
@@ -125,12 +122,12 @@ describe('DBUtils media/subtitles operations', () => {
 
   it('findSubtitleByMediaId / updateSubtitleStatus', async () => {
     const mediaId = await DBUtils.addMedia({
-      kind: 'audio',
+      kind: 'youtube',
       title: 'a',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
+      externalId: 'bbbbbbbbbbb',
     })
     const subId = await DBUtils.addSubtitle({
       mediaId,

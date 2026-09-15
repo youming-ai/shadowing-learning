@@ -1,34 +1,9 @@
-export interface FileRow {
-  id?: number
-  name: string
-  size: number
-  type: string
-  blob?: Blob
-  isChunked?: boolean
-  chunkSize?: number
-  totalChunks?: number
-  duration?: number
-  uploadedAt: Date
-  updatedAt: Date
-}
+/**
+ * 历史遗留类型（v3 的 files / transcripts 表）已随 v5 迁移删除：
+ * 那两张表在 v5 的 stores 里被移除，Dexie 会在升级事务中把它们丢掉。
+ */
 
 export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed'
-
-export interface TranscriptRow {
-  id?: number
-  fileId: number
-  status: ProcessingStatus
-  rawText?: string
-  text?: string
-  language?: string
-  duration?: number
-  error?: string
-  processingTime?: number
-  postProcessStatus?: 'pending' | 'completed' | 'failed'
-  postProcessError?: string
-  createdAt: Date
-  updatedAt: Date
-}
 
 export interface WordTimestamp {
   word: string
@@ -54,9 +29,9 @@ export interface Segment {
   updatedAt: Date
 }
 
-// ===== v4 unified media model =====
+// ===== v4 unified media model (YouTube-only;音频模块已移除) =====
 
-export type MediaKind = 'audio' | 'youtube'
+export type MediaKind = 'youtube'
 
 export interface MediaRow {
   id?: number
@@ -65,11 +40,6 @@ export interface MediaRow {
   durationSec: number | null
   addedAt: Date
   updatedAt: Date
-  // kind: 'audio'
-  blob?: Blob
-  fileName?: string
-  fileSize?: number
-  mimeType?: string
   // kind: 'youtube'
   externalId?: string
   channelName?: string
@@ -77,10 +47,7 @@ export interface MediaRow {
   sourceUrl?: string
 }
 
-export type AudioMedia = MediaRow & { kind: 'audio'; blob: Blob }
-export type YouTubeMedia = MediaRow & { kind: 'youtube'; externalId: string }
-
-export type SubtitleSource = 'official' | 'whisper'
+export type SubtitleSource = 'official'
 
 export interface SubtitleRow {
   id?: number
@@ -95,21 +62,4 @@ export interface SubtitleRow {
   error?: string
   createdAt: Date
   updatedAt: Date
-}
-
-export interface FileWithTranscripts extends FileRow {
-  transcripts: TranscriptRow[]
-}
-
-export interface TranscriptWithSegments extends TranscriptRow {
-  segments: Segment[]
-}
-
-export interface DatabaseStats {
-  totalMedia: number
-  totalSubtitles: number
-  totalSegments: number
-  totalStorageSize: number
-  averageSegmentsPerSubtitle: number
-  subtitlesByStatus: Record<string, number>
 }

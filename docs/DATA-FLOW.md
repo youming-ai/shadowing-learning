@@ -2,7 +2,7 @@
 
 ## Overview
 
-Shadowing Learning is an offline-first language learning application. Media, subtitles, and time-coded segments are stored locally in IndexedDB. The only network calls are to a single Cloudflare Worker (Hono) that fronts Groq for transcription and text enhancement, plus YouTube for caption resolution.
+Shadowing Learning is an offline-first language learning application. Media, subtitles, and time-coded segments are stored locally in IndexedDB. The only network calls are to a single Cloudflare Worker (Hono) that fronts Groq for text enhancement, plus YouTube for caption resolution.
 
 > The full API surface (request/response shapes, envelopes, error codes) is documented in [ARCHITECTURE.md](./ARCHITECTURE.md). This doc focuses on **data movement**: what is stored, where, and how it flows between IndexedDB, the hooks, and the Worker.
 
@@ -11,7 +11,7 @@ Shadowing Learning is an offline-first language learning application. Media, sub
 - **Dexie 4** (`src/lib/db/db.ts`): IndexedDB wrapper for local persistence
 - **TanStack Query**: client-side query cache, mutations, and invalidation
 - **Cloudflare Worker / Hono** (`worker/index.ts`): the only backend; serves `/api/*` and the built SPA assets
-- **Groq**: Whisper transcription (`/api/transcribe`) and chat-based enhancement (`/api/postprocess`, model `openai/gpt-oss-120b`)
+- **Groq**: chat-based enhancement (`/api/postprocess`, model `openai/gpt-oss-120b`)
 
 ---
 
@@ -21,24 +21,20 @@ Database version: **4** (`src/lib/db/db.ts`). The live tables are **`media`**, *
 
 ### media table
 
-Unified media record for both audio files and YouTube videos.
+YouTube media record.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | id | number | Auto-increment primary key |
-| kind | `'audio' \| 'youtube'` | Media source |
-| title | string | Display title (filename or video title) |
+| kind | `'youtube'` | Media source |
+| title | string | Display title |
 | durationSec | number \| null | Duration in seconds |
 | addedAt | Date | Creation timestamp |
 | updatedAt | Date | Last modification timestamp |
-| blob | Blob? | Audio binary data (kind `'audio'`) |
-| fileName | string? | Original filename (kind `'audio'`) |
-| fileSize | number? | File size in bytes (kind `'audio'`) |
-| mimeType | string? | MIME type (kind `'audio'`) |
-| externalId | string? | YouTube video id (kind `'youtube'`) |
-| channelName | string? | YouTube channel (kind `'youtube'`) |
-| thumbnailUrl | string? | Thumbnail URL (kind `'youtube'`) |
-| sourceUrl | string? | Source URL (kind `'youtube'`) |
+| externalId | string? | YouTube video id |
+| channelName | string? | YouTube channel |
+| thumbnailUrl | string? | Thumbnail URL |
+| sourceUrl | string? | Source URL |
 
 **Indexes:** `++id, kind, &externalId, addedAt, [kind+addedAt]` (`&externalId` is unique).
 
@@ -50,13 +46,13 @@ Tracks subtitle processing for a media row. `status` is the single source of tru
 |-------|------|-------------|
 | id | number | Auto-increment primary key |
 | mediaId | number | Foreign key → `media.id` |
-| source | `'official' \| 'whisper'` | YouTube captions vs. Groq Whisper |
+| source | `'official'` | YouTube captions (the `whisper` source was removed with the audio module) |
 | status | `'pending' \| 'processing' \| 'completed' \| 'failed'` | Source of truth for subtitle state |
 | sourceLanguage | string | Detected/selected source language |
 | targetLanguage | string \| null | Translation target language |
 | postProcessStatus | `'pending' \| 'completed' \| 'failed'`? | Post-processing state |
 | postProcessError | string? | Last post-processing error |
-| rawText | string? | Full raw text (Whisper path) |
+| rawText | string? | Full raw text (legacy; no longer written) |
 | error | string? | Last subtitle error (e.g. `NO_CAPTIONS`) |
 | createdAt | Date | Creation timestamp |
 | updatedAt | Date | Last update timestamp |
@@ -85,12 +81,15 @@ Time-coded segments and enhanced learning data. `transcriptId` is a foreign key 
 
 **Indexes:** `++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]`.
 
-### Legacy v3 tables (read-only recovery window)
+### Legacy v3 tables (dropped in v5)
 
-`files` and `transcripts` are still declared in the v4 schema **verbatim from v3**. They exist only as a read-only recovery window and are **not** read or written by the live app; they will be dropped in v5. New code must use `media` / `subtitles`.
+The v4 schema carried `files` and `transcripts` verbatim from v3 as a read-only recovery window. The **v5 migration drops both tables** and also purges the `media` rows the v4 migration created with `kind: 'audio'` (plus their `subtitles`/`segments` children), which became unreachable once the audio module was removed.
 
-- `files`: `++id, name, size, type, uploadedAt, [name+type]`
-- `transcripts`: `++id, fileId, status, language, createdAt, updatedAt`
+Note for future schema work: in Dexie, omitting a table from `stores()` does **not** delete it — `stores()` merges declarations across versions. A table is only dropped by declaring it explicitly as `null` in a later version:
+
+```ts
+this.version(5).stores({ files: null, transcripts: null })
+```
 
 ### CRUD via `DBUtils`
 
@@ -99,7 +98,7 @@ All persistence goes through `DBUtils` (`src/lib/db/db.ts`). Key entry points:
 - **Media:** `addMedia`, `getMedia`, `listMedia`, `findMediaByExternalId`, `deleteMedia`, `cleanupOldMedia`, `getStorageUsage`
 - **Subtitles:** `addSubtitle`, `findSubtitleByMediaId`, `updateSubtitleStatus`, `deleteSubtitleWithSegments`
 - **Segments:** `addSegment`, `getSegmentsByTranscriptId`, `getSegmentsByTranscriptIdOrdered`, `addSegments` (bulk), `updateSegmentsByTranscriptId`, `findSegmentsByTimeRange`
-- **Maintenance:** `clearAll`, `getDatabaseStats`
+- **Maintenance:** `clearAll`
 
 **Cascade delete is children-first:**
 
@@ -107,37 +106,6 @@ All persistence goes through `DBUtils` (`src/lib/db/db.ts`). Key entry points:
 - `DBUtils.deleteSubtitleWithSegments(subtitleId)` — delete `segments` (by `transcriptId`) → `subtitles`.
 
 Use `addSegments` (bulk) for large segment sets.
-
----
-
-## Audio Upload Flow
-
-Path: `AudioUploadDialog` → `useFiles.addFiles` → `DBUtils.addMedia` → `db.media`
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Dialog as AudioUploadDialog
-    participant useFiles
-    participant DBUtils
-    participant DB as IndexedDB
-    participant Query as TanStack Query
-
-    User->>Dialog: Select/drop audio files
-    Dialog->>useFiles: addFiles(files)
-    useFiles->>DBUtils: addMedia({ kind:'audio', title, blob, ... })
-    DBUtils->>DB: db.media.add(media)
-    DB-->>DBUtils: media.id
-    useFiles->>Query: invalidateQueries(filesKeys.all)
-    Query-->>Dialog: refetch media list
-    Dialog-->>User: Show updated library
-```
-
-### Validation Rules
-
-- Accepted formats: MP3, WAV, M4A, OGG, FLAC and matching audio MIME types
-- Upload entry supports audio only; `kind` is hard-coded to `'audio'` in `useFiles.addFiles`
-- The UI shows a loading state while files are written to IndexedDB
 
 ---
 
@@ -172,62 +140,6 @@ sequenceDiagram
 ```
 
 The resolve endpoint returns `LIVE_NOT_SUPPORTED` (422) for live streams and `INVALID_URL` / `EXTRACTOR_FAILED` for unresolvable input. No audio is downloaded at import time.
-
----
-
-## Audio Transcription Flow
-
-### Triggers
-
-- Automatic (watch page): `useSubtitlePipeline` sees an `audio` media row with no subtitle and calls `useFileStatusManager.startTranscription` (`src/hooks/useFileStatus.ts`).
-- Manual retry: the player UI can re-trigger transcription after a failed subtitle is removed.
-
-### Process
-
-1. `useTranscription` (`src/hooks/api/useTranscription.ts`) loads the media blob via `DBUtils.getMedia`.
-2. The transcribe call is wrapped in `withRetry` (`src/lib/utils/retry-utils.ts`): up to 3 attempts, exponential backoff (`baseDelay` 1s, `maxDelay` 30s, factor 2). `AbortError`, `401`/`403`, and non-`429` 4xx are not retried.
-3. `POST /api/transcribe?language=<code>` sends the blob as `FormData` field `audio` (Worker default language `en`).
-4. Worker calls Groq Whisper and returns `{ status, text, language, duration, segments }`.
-5. `saveTranscriptionResults` writes the `subtitles` row and its `segments` in **one IndexedDB transaction** (existing subtitle is updated in place; old segments are deleted then re-added in batches of 100).
-6. `postProcessTranscription` runs `runChunkedPostProcess` against the new segments, writing each chunk back by `segmentIndex` (see [Chunked Post-Processing](#chunked-post-processing)).
-7. Both `transcriptionKeys.forFile(mediaId)` and `subtitleKeys.forMedia(mediaId)` are invalidated so the watch page reflects the new state.
-
-```mermaid
-sequenceDiagram
-    participant Pipeline as useSubtitlePipeline
-    participant Status as useFileStatusManager
-    participant Hook as useTranscription
-    participant Retry as withRetry
-    participant API as /api/transcribe
-    participant Groq as Groq Whisper
-    participant DB as IndexedDB
-    participant Post as runChunkedPostProcess
-    participant Query as TanStack Query
-
-    Pipeline->>Status: startTranscription()
-    Status->>Hook: mutate({ mediaId, language, nativeLanguage })
-    Hook->>DB: DBUtils.getMedia(mediaId)
-    DB-->>Hook: media (with blob)
-    Hook->>Retry: withRetry(callTranscribeAPI)
-    Retry->>API: POST FormData(audio)
-    API->>Groq: Whisper
-    Groq-->>API: text, language, duration, segments
-    API-->>Hook: transcription result
-    Hook->>DB: tx: upsert subtitle + replace segments
-    Hook->>Post: runChunkedPostProcess(segments)
-    Post->>API: POST /api/postprocess (per chunk)
-    API-->>Post: enhanced segment JSON
-    Post->>DB: modify segments by segmentIndex
-    Post->>Query: invalidate subtitleKeys.forMedia
-    Hook->>Query: invalidate transcriptionKeys.forFile + subtitleKeys.forMedia
-    Query-->>Pipeline: refreshed subtitle + segments
-```
-
-### Error Handling
-
-- `withRetry` re-throws `AbortError` immediately; `401`/`403` and non-`429` 4xx abort without retry.
-- A failed transcription cleans up partial rows: any `subtitles`/`segments` written for the media are deleted in a transaction before re-throwing.
-- User-facing errors are surfaced through `handleTranscriptionError` and Sonner toasts.
 
 ---
 
@@ -266,8 +178,7 @@ sequenceDiagram
 
 `useSubtitlePipeline` decides the next step from the persisted `subtitles` state in a `useEffect`:
 
-- No subtitle for a `youtube` media → run `runYouTubePipeline`.
-- No subtitle for an `audio` media → call `startTranscription` (audio transcription flow).
+- No subtitle for the media → run `runYouTubePipeline`.
 - Subtitle exists with `status: 'completed'` but `postProcessStatus: 'pending'` → resume `runTranslate` (cross-session recovery after a closed tab / navigation).
 
 `retry()` / `regenerate()` delete the failed subtitle and its segments via `DBUtils.deleteSubtitleWithSegments`, then invalidate so the effect re-triggers.
@@ -276,11 +187,11 @@ sequenceDiagram
 
 ## Chunked Post-Processing
 
-Both the audio and YouTube paths share `runChunkedPostProcess` (`src/lib/subtitles/chunk-postprocess.ts`). The only cap `/api/postprocess` actually enforces is **`segments.length`**: empty → 400 `NO_SEGMENTS`, more than 100 → 400 `TOO_MANY_SEGMENTS` (`worker/routes/postprocess.ts`). So chunking, serial execution, and per-chunk write-back all happen client-side.
+The YouTube path runs `runChunkedPostProcess` (`src/lib/subtitles/chunk-postprocess.ts`). The only cap `/api/postprocess` actually enforces is **`segments.length`**: empty → 400 `NO_SEGMENTS`, more than 100 → 400 `TOO_MANY_SEGMENTS` (`worker/routes/postprocess.ts`). So chunking, serial execution, and per-chunk write-back all happen client-side.
 
 - `MAX_SEGMENTS_PER_CHUNK = 100` mirrors the server's real limit. `MAX_CHARS_PER_CHUNK = 10_000` is **client policy only** — the endpoint validates no character budget, so that number is a self-imposed payload/latency guard, not a server rule.
 - Chunks run **serially**, which avoids concurrent requests but is *not* a rate-limit guarantee: `/api/postprocess` allows 20 req / 60s, and a job with more than 20 chunks whose responses return quickly can still hit `429`. There is no delay, backoff, or retry in the loop — a non-OK response (including `429`) returns `failed: true` with `postprocess HTTP <status>` and abandons every remaining chunk.
-- Each `onChunkDone` writes results back to `segments` by matching `segmentIndex` (`normalizedText`, `translation`, `annotations`, `furigana`) and invalidates `subtitleKeys.forMedia`, so enhanced text appears progressively.
+- Each `onChunkDone` writes results back to `segments` by matching `segmentIndex` (`translation`, `furigana`) and invalidates `subtitleKeys.forMedia`, so enhanced text appears progressively.
 - If `sourceLanguage` and `targetLanguage` share a base language, post-processing is skipped and `postProcessStatus` is set to `completed` directly.
 
 ---
@@ -296,7 +207,7 @@ The watch page reads a single subtitle + its segments through `useSubtitlePipeli
 Rendering:
 
 - **With segments**: `SubtitlePanel` renders synced subtitles; the player adapter emits `timeupdate` to drive the active segment.
-- **Acquiring**: stage feedback (`fetching-captions` / `transcribing` / `translating`) is shown while the pipeline runs.
+- **Acquiring**: stage feedback (`fetching-captions` / `translating`) is shown while the pipeline runs.
 - **Failed (`NO_CAPTIONS` or error)**: the panel offers retry.
 
 ---
@@ -311,39 +222,23 @@ export const filesKeys = {
   all: ["files"] as const,
 };
 
-// src/hooks/api/useTranscription.ts
-export const transcriptionKeys = {
-  all: ["transcription"] as const,
-  forFile: (fileId: number) => [...transcriptionKeys.all, "file", fileId] as const,
-  progress: (fileId: number) => [...transcriptionKeys.forFile(fileId), "progress"] as const,
-};
-
 // src/hooks/media/subtitle-keys.ts
 export const subtitleKeys = {
   all: ["subtitle"] as const,
   forMedia: (mediaId: number) => [...subtitleKeys.all, "media", mediaId] as const,
 };
-
-// src/hooks/useFileStatus.ts
-export const fileStatusKeys = {
-  all: ["fileStatus"] as const,
-  forFile: (fileId: number) => [...fileStatusKeys.all, "file", fileId] as const,
-};
 ```
 
 ### Query Invalidation
 
-- Audio upload / YouTube import: invalidates `filesKeys.all`
+- YouTube import: invalidates `filesKeys.all`
 - Media delete (`useFiles.deleteFile`): invalidates `filesKeys.all`
-- `useFileStatusManager` status change: invalidates `fileStatusKeys.forFile(fileId)` and `filesKeys.all`
-- Transcription success/error: invalidates `transcriptionKeys.forFile(mediaId)` and `subtitleKeys.forMedia(mediaId)`
-- Post-process chunk done / status update: invalidates `subtitleKeys.forMedia(mediaId)` (and `transcriptionKeys.forFile` on status transitions)
+- Post-process chunk done / status update: invalidates `subtitleKeys.forMedia(mediaId)`
 - Subtitle pipeline local mutations: invalidates `subtitleKeys.forMedia(mediaId)`
 
 ### Cache Timing
 
 - **`QueryProvider`** (`src/components/layout/providers/QueryProvider.tsx`): `staleTime` 15 min, `gcTime` 30 min; queries retry but never on 4xx; mutations retry once; `refetchOnWindowFocus: false`, `refetchOnReconnect: true`.
-- **`useTranscriptionStatus`**: `staleTime` 1 min, `gcTime` 10 min.
 - **`useFiles`**: `staleTime` 0, `gcTime` 30 min.
 - **`useSubtitlePipeline`** subtitle query: `staleTime` 30 s.
 
@@ -353,14 +248,10 @@ export const fileStatusKeys = {
 
 Only these are consumed by the current application code:
 
-- **`GROQ_API_KEY`** — required Worker secret used by `/api/transcribe` and `/api/postprocess`. Locally put it in `.dev.vars` (gitignored); in production set it with `wrangler secret put GROQ_API_KEY`.
-- **`RATE_LIMIT_KV`** — a KV namespace binding declared in `wrangler.jsonc`, backing the rate limiter (see below).
+- **`GROQ_API_KEY`** — required Worker secret used by `/api/postprocess`. Locally put it in `.dev.vars` (gitignored; copy `.dev.vars.example`); in production set it with `wrangler secret put GROQ_API_KEY`.
+- **`RATE_LIMIT_KV`** — an **optional** KV namespace binding. It is not declared in `wrangler.jsonc` by default, and the rate limiter no-ops when it is unbound.
 
-Dead / legacy (do not rely on):
-
-- **`VITE_APP_URL`** — present in `wrangler.jsonc` `vars` and `.env.example` but **read by nothing** in `src/`, `worker/`, `index.html`, or `vite.config.ts`.
-- **`PERFORMANCE_ADMIN_TOKEN`** — dead; its consumer endpoint was removed.
-- SEO/meta tags are static in `index.html`; `robots.txt` and `sitemap.xml` are static files in `public/`. No app-URL environment variable drives metadata, sitemap, or robots generation.
+`VITE_APP_URL` and `PERFORMANCE_ADMIN_TOKEN` (and the `.env.example` file that documented them) have been removed — nothing read them after the Worker migration. SEO/meta tags are static in `index.html`, and `robots.txt` / `sitemap.xml` are static files in `public/`.
 
 ---
 
@@ -369,25 +260,5 @@ Dead / legacy (do not rely on):
 Rate limiting is a **KV-backed sliding window** (`worker/middleware/rate-limit.ts`), not in-process memory. Every `/api/*` request is classified by route config; the request timestamp list is stored under `rl:<path>:<clientId>` in `RATE_LIMIT_KV` with a TTL.
 
 - **Client id** is derived from request headers in this order: `cf-connecting-ip`, then the first `x-forwarded-for` entry, then `request.cf.colo`, then a hash of `user-agent` + `accept-language`.
-- Limits relevant to data flow: `/api/transcribe` 10 req / 60 s; `/api/postprocess` 20 req / 60 s; `/api/youtube/resolve` and `/api/youtube/captions` 20 req / 600 s each.
-- Responses carry `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`; when limited, `Retry-After` and a `429` body `{ error: { code: "RATE_LIMITED", ... } }` are returned. The client's `withRetry` treats `429` as retryable.
-
----
-
-## Object URL Lifecycle
-
-Audio object URLs are managed per adapter, not via a global cache. `AudioFileAdapter` (`src/components/features/player/sources/AudioFileAdapter.ts`) creates the URL on mount and revokes it on destroy:
-
-```typescript
-// mount()
-this.objectUrl = URL.createObjectURL(this.media.blob);
-audio.src = this.objectUrl;
-
-// destroy()
-if (this.objectUrl) {
-  URL.revokeObjectURL(this.objectUrl);
-  this.objectUrl = null;
-}
-```
-
-The adapter is selected by `usePlayerAdapter` based on `media.kind` (`AudioFileAdapter` for `'audio'`, `YouTubeAdapter` for `'youtube'`). Revocation on destroy prevents leaked object URLs when navigating away from the watch page.
+- Limits relevant to data flow: `/api/postprocess` 20 req / 60 s; `/api/youtube/resolve` and `/api/youtube/captions` 20 req / 600 s each.
+- Responses carry `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`; when limited, `Retry-After` and a `429` body `{ error: { code: "RATE_LIMITED", ... } }` are returned.

@@ -50,7 +50,7 @@ function KaraokeLine({ words, currentTime }: { words: WordTimestamp[]; currentTi
             key={`${w.start}:${w.end}:${w.word}`}
             className={
               isActive
-                ? 'text-[var(--color-primary)] underline decoration-[var(--color-primary)] decoration-2 underline-offset-4 transition-colors'
+                ? 'text-[var(--rhythm-beat)] underline decoration-[var(--rhythm-beat)] decoration-2 underline-offset-4 transition-colors'
                 : isPast
                   ? 'text-[var(--text-primary)] opacity-90'
                   : 'text-[var(--text-secondary)] opacity-70'
@@ -99,7 +99,7 @@ export function CurrentSentence({
         <ul className="mt-1 max-w-prose space-y-0.5 text-left text-xs text-[var(--text-tertiary)]">
           {segment.annotations.slice(0, 4).map((note) => (
             <li key={note} className="flex gap-1.5">
-              <span className="text-[var(--color-primary)]">·</span>
+              <span className="text-[var(--rhythm-beat)]">·</span>
               <span>{note}</span>
             </li>
           ))}

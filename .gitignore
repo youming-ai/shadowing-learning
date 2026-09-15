@@ -41,3 +41,6 @@ pnpm-lock.yaml
 
 # superpowers brainstorm artifacts
 .superpowers/
+
+# Keep the example file tracked
+!.dev.vars.example

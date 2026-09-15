@@ -1,6 +1,17 @@
+import type { UpdateSpec } from 'dexie'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MediaRow, Segment, SubtitleRow } from '~/types/db/database'
 import { DBUtils, db } from '../db'
+
+function makeMedia(title: string): Omit<MediaRow, 'id'> {
+  return {
+    kind: 'youtube',
+    title,
+    durationSec: null,
+    addedAt: new Date(),
+    updatedAt: new Date(),
+  }
+}
 
 // Mock error handler
 vi.mock('~/lib/utils/error-handler', () => ({
@@ -19,13 +30,13 @@ describe('DBUtils', () => {
       const mockAdd = vi.fn().mockResolvedValue(1)
       db.media.add = mockAdd
 
-      const item = {
-        kind: 'audio',
-        title: 'test.mp3',
+      const item: Omit<MediaRow, 'id'> = {
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-      } as any
+      }
       const result = await DBUtils.add(db.media, item)
 
       expect(mockAdd).toHaveBeenCalledWith(item)
@@ -46,7 +57,7 @@ describe('DBUtils', () => {
       const mockUpdate = vi.fn().mockResolvedValue(1)
       db.media.update = mockUpdate
 
-      const changes = { title: 'updated.mp3' } as any
+      const changes: UpdateSpec<MediaRow> = { title: 'updated.mp3' }
       const result = await DBUtils.update(db.media, 1, changes)
 
       expect(mockUpdate).toHaveBeenCalledWith(1, changes)
@@ -66,7 +77,7 @@ describe('DBUtils', () => {
       const mockBulkAdd = vi.fn().mockResolvedValue([1, 2, 3])
       db.media.bulkAdd = mockBulkAdd
 
-      const items = [{ title: 'test1.mp3' }, { title: 'test2.mp3' }, { title: 'test3.mp3' }] as any
+      const items = [makeMedia('test1.mp3'), makeMedia('test2.mp3'), makeMedia('test3.mp3')]
       const result = await DBUtils.bulkAdd(db.media, items)
 
       expect(mockBulkAdd).toHaveBeenCalledWith(items)
@@ -77,10 +88,10 @@ describe('DBUtils', () => {
       const mockUpdate = vi.fn().mockResolvedValue(1)
       db.media.update = mockUpdate
 
-      const items = [
+      const items: Array<{ id: number; changes: UpdateSpec<MediaRow> }> = [
         { id: 1, changes: { title: 'updated1.mp3' } },
         { id: 2, changes: { title: 'updated2.mp3' } },
-      ] as any
+      ]
       const result = await DBUtils.bulkUpdate(db.media, items)
 
       expect(mockUpdate).toHaveBeenCalledTimes(2)
@@ -94,15 +105,11 @@ describe('DBUtils', () => {
       db.media.add = mockAdd
 
       const media: Omit<MediaRow, 'id'> = {
-        kind: 'audio',
-        title: 'test.mp3',
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-        blob: new Blob(),
-        fileName: 'test.mp3',
-        fileSize: 1024,
-        mimeType: 'audio/mpeg',
       }
 
       const result = await DBUtils.addMedia(media)
@@ -137,7 +144,7 @@ describe('DBUtils', () => {
 
       const subtitle: Omit<SubtitleRow, 'id'> = {
         mediaId: 1,
-        source: 'whisper',
+        source: 'official',
         status: 'completed',
         sourceLanguage: 'en',
         targetLanguage: null,
@@ -159,7 +166,7 @@ describe('DBUtils', () => {
         first: vi.fn().mockResolvedValue({
           id: 1,
           mediaId: 1,
-          source: 'whisper',
+          source: 'official',
           status: 'completed',
           sourceLanguage: 'en',
           targetLanguage: null,
@@ -175,7 +182,7 @@ describe('DBUtils', () => {
       expect(result).toEqual({
         id: 1,
         mediaId: 1,
-        source: 'whisper',
+        source: 'official',
         status: 'completed',
         sourceLanguage: 'en',
         targetLanguage: null,
@@ -266,7 +273,9 @@ describe('DBUtils', () => {
         return callback()
       })
 
-      db.transaction = mockTransaction as any
+      // Dexie.transaction 是一组重载签名，没有能同时匹配它们的 mock 类型，
+      // 所以这里只能双重断言；实现本身只是"立刻以同一参数调用最后一个回调"。
+      db.transaction = mockTransaction as unknown as typeof db.transaction
       db.segments.clear = mockClear
       db.subtitles.clear = mockClear
       db.media.clear = mockClear

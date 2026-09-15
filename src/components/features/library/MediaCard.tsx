@@ -35,7 +35,7 @@ export function MediaCard({ media, onDelete }: MediaCardProps) {
         className="block overflow-hidden rounded-xl border border-[var(--border-primary)] bg-[var(--surface-card)] transition-shadow hover:shadow-[var(--shadow-md)]"
       >
         <div className="relative aspect-video w-full bg-[var(--surface-muted)]">
-          {media.kind === 'youtube' && media.thumbnailUrl ? (
+          {media.thumbnailUrl ? (
             <img
               src={media.thumbnailUrl}
               alt=""
@@ -45,7 +45,7 @@ export function MediaCard({ media, onDelete }: MediaCardProps) {
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <span className="material-symbols-outlined text-5xl text-[var(--text-tertiary)]">
-                music_note
+                smart_display
               </span>
             </div>
           )}
@@ -59,9 +59,7 @@ export function MediaCard({ media, onDelete }: MediaCardProps) {
           <p className="line-clamp-2 font-heading text-sm font-semibold text-[var(--text-primary)]">
             {media.title}
           </p>
-          <p className="truncate text-xs text-[var(--text-secondary)]">
-            {media.kind === 'youtube' ? media.channelName : media.fileName}
-          </p>
+          <p className="truncate text-xs text-[var(--text-secondary)]">{media.channelName}</p>
           <p className="text-xs text-[var(--text-tertiary)]">
             {relativeTime(media.addedAt, currentLanguage)}
           </p>

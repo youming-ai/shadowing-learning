@@ -1,0 +1,8 @@
+# 本地开发用：`bun run dev`（wrangler dev）会读取本文件。
+# 用法：cp .dev.vars.example .dev.vars 然后填入真实 key。
+# .dev.vars 已被 .gitignore 忽略，切勿提交。
+#
+# 线上通过 `wrangler secret put GROQ_API_KEY` 设置，不写进 wrangler.jsonc。
+
+# 必填 —— 唯一的服务端密钥，用于 /api/postprocess 的 Groq LLM 调用。
+GROQ_API_KEY=your_groq_api_key_here

@@ -12,13 +12,13 @@ export interface CaptionSegment {
 
 function decodeEntities(text: string): string {
   return text
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
@@ -27,9 +27,9 @@ function decodeEntities(text: string): string {
 function parseSrv3TimedtextXml(xml: string): MsCue[] {
   const cues: MsCue[] = []
   const grab = /<p\s([^>]*)>([\s\S]*?)<\/p>/g
-  let match: RegExpExecArray | null
 
-  while ((match = grab.exec(xml)) !== null) {
+  // `for` (not `while`) so the inner `continue`s still advance the regex lastIndex.
+  for (let match = grab.exec(xml); match !== null; match = grab.exec(xml)) {
     const attrs = match[1]
     const t = attrs.match(/\bt="(\d+)"/)
     if (!t) continue
@@ -53,9 +53,9 @@ function parseSrv3TimedtextXml(xml: string): MsCue[] {
 function parseLegacyTimedtextXml(xml: string): MsCue[] {
   const cues: MsCue[] = []
   const grab = /<text\s[^>]*?start="([\d.]+)"[^>]*?dur="([\d.]+)"[^>]*?>([\s\S]*?)<\/text>/g
-  let match: RegExpExecArray | null
 
-  while ((match = grab.exec(xml)) !== null) {
+  // `for` (not `while`) so the inner `continue` still advances the regex lastIndex.
+  for (let match = grab.exec(xml); match !== null; match = grab.exec(xml)) {
     const startSec = Number.parseFloat(match[1])
     const durationSec = Number.parseFloat(match[2])
     if (Number.isNaN(startSec)) continue
@@ -72,7 +72,7 @@ function parseLegacyTimedtextXml(xml: string): MsCue[] {
 }
 
 function parseTimedtextXml(xml: string): MsCue[] {
-  return xml.includes("<text ") ? parseLegacyTimedtextXml(xml) : parseSrv3TimedtextXml(xml)
+  return xml.includes('<text ') ? parseLegacyTimedtextXml(xml) : parseSrv3TimedtextXml(xml)
 }
 
 export function msCuesToSeconds(cues: MsCue[]): CaptionSegment[] {
@@ -107,7 +107,7 @@ export async function fetchTimedtextSubtitles(baseUrl: string): Promise<MsCue[]>
   // baseUrl comes signed from the Innertube caption track (player response); a hand-built
   // /api/timedtext URL has no signature and YouTube silently returns an empty 200 body.
   // fmt=srv3 isn't part of the signed params, so it's safe to append for a consistent, richer format.
-  const url = baseUrl.includes("fmt=") ? baseUrl : `${baseUrl}&fmt=srv3`
+  const url = baseUrl.includes('fmt=') ? baseUrl : `${baseUrl}&fmt=srv3`
 
   const response = await fetch(url)
   if (!response.ok) {
@@ -115,8 +115,8 @@ export async function fetchTimedtextSubtitles(baseUrl: string): Promise<MsCue[]>
   }
 
   const xml = await response.text()
-  if (!xml.includes("<p ") && !xml.includes("<text ")) {
-    throw new Error("NO_CAPTIONS")
+  if (!xml.includes('<p ') && !xml.includes('<text ')) {
+    throw new Error('NO_CAPTIONS')
   }
 
   return parseTimedtextXml(xml)

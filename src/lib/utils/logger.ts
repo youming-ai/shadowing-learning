@@ -44,9 +44,8 @@ export function createLogger(prefix: string, options: LoggerOptions = {}) {
 
 // 预定义日志器实例
 export const dbLogger = createLogger('DB')
-export const apiLogger = createLogger('API')
 export const transcriptionLogger = createLogger('Transcription')
-export const performanceLogger = createLogger('Performance', { enabled: isDev })
+export const errorLogger = createLogger('Error')
 export const themeLogger = createLogger('Theme', { enabled: isDev })
 
 // 默认日志器

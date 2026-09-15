@@ -14,15 +14,11 @@ describe('DBUtils', () => {
 
   describe('Media operations', () => {
     const createMockMedia = (): Omit<MediaRow, 'id'> => ({
-      kind: 'audio',
-      title: 'test-audio.mp3',
+      kind: 'youtube',
+      title: 'test-video',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
-      fileName: 'test-audio.mp3',
-      fileSize: 1024000,
-      mimeType: 'audio/mpeg',
     })
 
     describe('addMedia', () => {
@@ -43,8 +39,7 @@ describe('DBUtils', () => {
 
         expect(stored).toBeDefined()
         expect(stored?.title).toBe(media.title)
-        expect(stored?.fileSize).toBe(media.fileSize)
-        expect(stored?.mimeType).toBe(media.mimeType)
+        expect(stored?.kind).toBe('youtube')
       })
     })
 
@@ -74,13 +69,13 @@ describe('DBUtils', () => {
       it('should return all media ordered by addedAt descending', async () => {
         const media1 = {
           ...createMockMedia(),
-          title: 'file1.mp3',
+          title: 'video-1',
           addedAt: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
         }
         const media2 = {
           ...createMockMedia(),
-          title: 'file2.mp3',
+          title: 'video-2',
           addedAt: new Date('2024-01-02'),
           updatedAt: new Date('2024-01-02'),
         }
@@ -92,8 +87,8 @@ describe('DBUtils', () => {
 
         expect(list.length).toBe(2)
         // 最新media应该在前面
-        expect(list[0].title).toBe('file2.mp3')
-        expect(list[1].title).toBe('file1.mp3')
+        expect(list[0].title).toBe('video-2')
+        expect(list[1].title).toBe('video-1')
       })
     })
 
@@ -114,7 +109,7 @@ describe('DBUtils', () => {
         // 创建Subtitle记录
         const subtitleId = await DBUtils.addSubtitle({
           mediaId,
-          source: 'whisper',
+          source: 'official',
           status: 'completed',
           sourceLanguage: 'en',
           targetLanguage: null,
@@ -153,15 +148,11 @@ describe('DBUtils', () => {
 
     beforeEach(async () => {
       mediaId = await DBUtils.addMedia({
-        kind: 'audio',
-        title: 'test.mp3',
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-        blob: new Blob(['x']),
-        fileName: 'test.mp3',
-        fileSize: 1000,
-        mimeType: 'audio/mpeg',
       })
     })
 
@@ -169,7 +160,7 @@ describe('DBUtils', () => {
       it('should add subtitle and return its id', async () => {
         const id = await DBUtils.addSubtitle({
           mediaId,
-          source: 'whisper',
+          source: 'official',
           status: 'pending',
           sourceLanguage: '',
           targetLanguage: null,
@@ -186,7 +177,7 @@ describe('DBUtils', () => {
       it('should update subtitle status', async () => {
         const id = await DBUtils.addSubtitle({
           mediaId,
-          source: 'whisper',
+          source: 'official',
           status: 'pending',
           sourceLanguage: '',
           targetLanguage: null,
@@ -204,7 +195,7 @@ describe('DBUtils', () => {
         const initialDate = new Date('2024-01-01')
         const id = await DBUtils.addSubtitle({
           mediaId,
-          source: 'whisper',
+          source: 'official',
           status: 'pending',
           sourceLanguage: '',
           targetLanguage: null,
@@ -225,20 +216,16 @@ describe('DBUtils', () => {
 
     beforeEach(async () => {
       const mediaId = await DBUtils.addMedia({
-        kind: 'audio',
-        title: 'test.mp3',
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-        blob: new Blob(['x']),
-        fileName: 'test.mp3',
-        fileSize: 1000,
-        mimeType: 'audio/mpeg',
       })
 
       transcriptId = await DBUtils.addSubtitle({
         mediaId,
-        source: 'whisper',
+        source: 'official',
         status: 'completed',
         sourceLanguage: '',
         targetLanguage: null,
@@ -326,20 +313,16 @@ describe('DBUtils', () => {
     it('should clear all data from database', async () => {
       // Add一些数据
       const mediaId = await DBUtils.addMedia({
-        kind: 'audio',
-        title: 'test.mp3',
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-        blob: new Blob(['x']),
-        fileName: 'test.mp3',
-        fileSize: 1000,
-        mimeType: 'audio/mpeg',
       })
 
       await DBUtils.addSubtitle({
         mediaId,
-        source: 'whisper',
+        source: 'official',
         status: 'pending',
         sourceLanguage: '',
         targetLanguage: null,

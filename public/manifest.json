@@ -1,7 +1,7 @@
 {
   "name": "影子跟读 Shadowing",
   "short_name": "影子跟读",
-  "description": "AI 驱动的多语言跟读学习工具：上传音频，自动转录，时间同步字幕，逐句跟读练习。",
+  "description": "AI 驱动的多语言跟读学习工具：导入 YouTube 字幕，自动翻译，时间同步字幕，逐句跟读练习。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
