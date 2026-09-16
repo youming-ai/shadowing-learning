@@ -1,0 +1,25 @@
+# 静态资源的响应头策略。
+#
+# 适用范围（官方文档有明确警告）：本文件**只作用于静态资源响应**
+# —— index.html、/assets/*、manifest.json、图标、robots.txt 等。
+# Worker 代码生成的响应（/api/*）**不**吃这些规则，那些头在
+# worker/middleware/security-headers.ts 里设置。
+#
+# ⚠️ CSP 与 BYOK 的耦合：connect-src 必须列出所有允许浏览器直连的供应商。
+# 新增供应商时（src/lib/ai/catalog.ts）必须同步这里，否则该供应商会被 CSP 拦掉 ——
+# 表现为"填了 key 也无法翻译"，且浏览器控制台才有线索。
+
+# 内容哈希命名的构建产物：内容变了文件名就变，因此可以长期不可变缓存。
+# （资产默认是 Cache-Control: public, max-age=0, must-revalidate + ETag）
+/assets/*
+  Cache-Control: public, max-age=31556952, immutable
+
+# 其余静态资源：含 SPA 外壳、sw.js、manifest、图标。
+# 刻意不给这些设长缓存 —— sw.js 与外壳必须每次回源校验，否则更新无法生效。
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: microphone=(self), camera=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://i.ytimg.com https://img.youtube.com; media-src 'self' blob:; connect-src 'self' https://api.groq.com https://api.openai.com https://api.anthropic.com https://api.deepseek.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
