@@ -19,6 +19,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '~': resolve(__dirname, './src'),
+      // 客户端与 Worker 共用的运行时中立代码（Worker 侧只能用相对路径，wrangler 不认别名）
+      '~shared': resolve(__dirname, './shared'),
     },
   },
   plugins: [react(), tailwindcss()],

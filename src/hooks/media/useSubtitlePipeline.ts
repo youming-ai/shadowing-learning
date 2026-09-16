@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranscriptionLanguage } from '~/components/layout/contexts/TranscriptionLanguageContext'
 import { subtitleKeys } from '~/hooks/media/subtitle-keys'
+import { resolveEngine } from '~/lib/ai/transports'
 import { DBUtils, db } from '~/lib/db/db'
 import { type ProcessedSegment, runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
 import { transcriptionLogger } from '~/lib/utils/logger'
@@ -89,6 +90,12 @@ export function useSubtitlePipeline(media: MediaRow | null) {
       }
       setStage('translating')
       const segments = await DBUtils.getSegmentsByTranscriptIdOrdered(subtitleId)
+      // 每次翻译前解析一次引擎：用户可能刚在设置里填了 key / 切换了供应商。
+      // 选了 BYOK 但没填 key 时会回退到服务器额度（界面会说明），而不是直接失败。
+      const { transport, fellBackToServer } = resolveEngine()
+      if (fellBackToServer) {
+        transcriptionLogger.warn('BYOK engine selected without a key; using server quota')
+      }
       const result = await runChunkedPostProcess({
         segments: segments.map((s) => ({
           segmentIndex: s.segmentIndex ?? 0,
@@ -99,6 +106,7 @@ export function useSubtitlePipeline(media: MediaRow | null) {
         language: sourceLanguage,
         targetLanguage,
         enableFurigana: baseLang(sourceLanguage) === 'ja',
+        transport,
         onChunkDone: async (processed, i, total) => {
           await writeChunkResults(subtitleId, processed)
           setTranslateProgress({ done: i + 1, total })

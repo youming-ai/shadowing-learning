@@ -1,10 +1,29 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { PostProcessTransport } from '~/lib/ai/transports'
 import {
   chunkSegmentsForPostProcess,
   runChunkedPostProcess,
 } from '~/lib/subtitles/chunk-postprocess'
 
 const seg = (i: number, text: string) => ({ segmentIndex: i, start: i, end: i + 1, text })
+
+/** 假传输层：记录每片的大小，并回填可辨识的翻译。 */
+function fakeTransport(impl: (segments: { segmentIndex: number }[]) => Promise<unknown>): {
+  transport: PostProcessTransport
+  sizes: number[]
+} {
+  const sizes: number[] = []
+  return {
+    sizes,
+    transport: {
+      id: 'fake',
+      async run(segments) {
+        sizes.push(segments.length)
+        return (await impl(segments)) as never
+      },
+    },
+  }
+}
 
 describe('chunkSegmentsForPostProcess', () => {
   it('splits by 100-segment limit', () => {
@@ -27,58 +46,71 @@ describe('chunkSegmentsForPostProcess', () => {
 })
 
 describe('runChunkedPostProcess', () => {
-  it('posts chunks sequentially and reports each chunk result', async () => {
+  it('逐片串行调用传输层，并逐片回报结果', async () => {
     const segs = Array.from({ length: 150 }, (_, i) => seg(i, 'hello'))
-    const calls: number[] = []
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body))
-      calls.push(body.segments.length)
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: {
-            segments: body.segments.map((s: { segmentIndex: number }) => ({
-              segmentIndex: s.segmentIndex,
-              translation: `t${s.segmentIndex}`,
-            })),
-          },
-        }),
-        { status: 200 },
-      )
-    })
+    const { transport, sizes } = fakeTransport(async (chunk) =>
+      chunk.map((s) => ({
+        segmentIndex: s.segmentIndex,
+        normalizedText: 'x',
+        translation: `t${s.segmentIndex}`,
+      })),
+    )
     const onChunkDone = vi.fn()
     const result = await runChunkedPostProcess({
       segments: segs,
       language: 'en',
       targetLanguage: 'zh-CN',
       enableFurigana: false,
-      fetchImpl,
+      transport,
       onChunkDone,
     })
-    expect(calls).toEqual([100, 50])
+    expect(sizes).toEqual([100, 50])
     expect(onChunkDone).toHaveBeenCalledTimes(2)
     expect(result.completedChunks).toBe(2)
     expect(result.failed).toBe(false)
   })
 
-  it('stops at first failed chunk and reports failure with resume point', async () => {
+  it('第一片失败即停止，并给出续跑点', async () => {
     const segs = Array.from({ length: 150 }, (_, i) => seg(i, 'hello'))
     let n = 0
-    const fetchImpl = vi.fn(async () => {
+    const { transport } = fakeTransport(async (chunk) => {
       n++
-      return n === 1
-        ? new Response(JSON.stringify({ success: true, data: { segments: [] } }), { status: 200 })
-        : new Response('{}', { status: 500 })
+      if (n > 1) throw new Error('HTTP 500')
+      return chunk.map((s) => ({ segmentIndex: s.segmentIndex, normalizedText: 'x' }))
     })
     const result = await runChunkedPostProcess({
       segments: segs,
       language: 'en',
       targetLanguage: 'zh-CN',
       enableFurigana: false,
-      fetchImpl,
+      transport,
       onChunkDone: vi.fn(),
     })
     expect(result.failed).toBe(true)
     expect(result.completedChunks).toBe(1)
+    expect(result.error).toContain('HTTP 500')
+  })
+
+  it('把语言与 furigana 选项原样交给传输层', async () => {
+    const seen: unknown[] = []
+    const { transport } = fakeTransport(async () => [])
+    transport.run = async (_segments, options) => {
+      seen.push(options)
+      return []
+    }
+    await runChunkedPostProcess({
+      segments: [seg(0, 'a')],
+      language: 'ja',
+      targetLanguage: 'zh-CN',
+      enableFurigana: true,
+      transport,
+      onChunkDone: vi.fn(),
+    })
+    expect(seen[0]).toEqual({
+      language: 'ja',
+      targetLanguage: 'zh-CN',
+      enableAnnotations: true,
+      enableFurigana: true,
+    })
   })
 })

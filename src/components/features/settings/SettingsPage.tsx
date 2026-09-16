@@ -1,5 +1,6 @@
 'use client'
 
+import { AiEngineSection } from '~/components/features/settings/page/AiEngineSection'
 import { FeedbackSection } from '~/components/features/settings/page/FeedbackSection'
 import { LearningLanguageSection } from '~/components/features/settings/page/LearningLanguageSection'
 import { SettingsLayout } from '~/components/features/settings/SettingsLayout'
@@ -9,6 +10,7 @@ export default function SettingsPage() {
     <SettingsLayout>
       <div className="space-y-8">
         <LearningLanguageSection />
+        <AiEngineSection />
         <FeedbackSection />
       </div>
     </SettingsLayout>

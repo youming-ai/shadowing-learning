@@ -17,7 +17,7 @@ This project runs on **Bun + Vite + TanStack Router, deployed to Cloudflare Work
 - **API: Hono**, mounted directly in the Worker entry ([worker/index.ts](worker/index.ts)) — see [wrangler.jsonc](wrangler.jsonc) (`main: worker/index.ts`).
 - **Routing: TanStack Router**, file-based, client-only (no server route handlers on this side — those live in `worker/`, see below).
 - **View: React 19, Tailwind CSS v4** (CSS-only config via `@tailwindcss/vite`), Radix UI, lucide-react.
-- **Path alias: `~/*` → `./src/*`** (configured in both [vite.config.ts](vite.config.ts) and [tsconfig.json](tsconfig.json)). `worker/` is excluded from the root `tsconfig.json` (has its own [tsconfig.worker.json](tsconfig.worker.json), not wired into any script) and its files use relative imports (`../lib/...`), not `~/`.
+- **Path alias: `~/*` → `./src/*`** (configured in both [vite.config.ts](vite.config.ts) and [tsconfig.json](tsconfig.json)). `worker/` is excluded from the root `tsconfig.json` and has its own [tsconfig.worker.json](tsconfig.worker.json), which `bun run type-check` now runs too (the Worker used to be entirely unchecked). Its files use relative imports (`../lib/...`), not `~/` — and because wrangler does not resolve aliases, anything the Worker imports from `shared/` must also be a relative path.
 
 ## Commands
 
@@ -34,7 +34,7 @@ bun run clean          # rm -rf .output dist dist-worker node_modules/.cache *.t
 # Quality
 bun run lint           # biome check .
 bun run format         # biome format . --write
-bun run type-check     # tsc --noEmit
+bun run type-check     # tsc --noEmit (client) + tsc -p tsconfig.worker.json (Worker)
 
 # Tests (Vitest — see the Testing section; do NOT use `bun test`)
 bun run test                          # Watch mode (vitest)
@@ -55,13 +55,25 @@ YouTube URL → POST /api/youtube/resolve (youtubei.js) → video metadata (incl
            → client writes `media` row to IndexedDB
            → watch page self-drives:
                POST /api/youtube/captions       → captions, if a track exists (else NO_CAPTIONS; no server-side ASR fallback for YouTube)
-           → client-side chunked translation:
-               POST /api/postprocess in ≤100-segment / ≤10k-char chunks
+           → client-side chunked translation through the resolved AI engine:
+               (default) POST /api/postprocess in ≤100-segment / ≤10k-char chunks
+               (BYOK)    direct browser → provider, same prompt, key never reaches us
                → each chunk written back to IndexedDB incrementally
            → watch/$mediaId subtitle sync        → user
 ```
 
-The chunked post-process orchestrator is `runChunkedPostProcess` ([src/lib/subtitles/chunk-postprocess.ts](src/lib/subtitles/chunk-postprocess.ts)) — the 100-segment/10k-char chunking exists because `/api/postprocess` 400s (`TOO_MANY_SEGMENTS`) above 100 segments in one call. The watch page drives it through `useSubtitlePipeline` ([src/hooks/media/useSubtitlePipeline.ts](src/hooks/media/useSubtitlePipeline.ts)), which self-drives captions/translate with resume & regenerate support. Don't add a manual "fetch subtitles" button flow — the auto-trigger is the contract.
+The chunked post-process orchestrator is `runChunkedPostProcess` ([src/lib/subtitles/chunk-postprocess.ts](src/lib/subtitles/chunk-postprocess.ts)) — the 100-segment/10k-char chunking exists because `/api/postprocess` 400s (`TOO_MANY_SEGMENTS`) above 100 segments in one call. The watch page drives it through `useSubtitlePipeline` ([src/hooks/media/useSubtitlePipeline.ts](src/hooks/media/useSubtitlePipeline.ts)), which self-drives captions/translate with resume & regenerate support. Don't add a manual "fetch subtitles" button flow — the auto-trigger is the contract. The orchestrator only chunks and writes back; **who** translates is an injected `PostProcessTransport` (see below).
+
+### AI engines (default quota + BYOK)
+
+See [docs/AI-ENGINES.md](docs/AI-ENGINES.md) for the full picture and the security model. The essentials:
+
+- Two mutually exclusive paths to the same translation: our **server quota** (`/api/postprocess` + the Worker's `GROQ_API_KEY`) and **BYOK** (the user's own key, sent **directly from the browser** to the provider). Default is the server quota — zero setup; BYOK is opt-in.
+- The prompt, the short/long-text split, the JSON parsing and the degradation rules live in **exactly one place**: [shared/ai/postprocess-core.ts](shared/ai/postprocess-core.ts). It is pure and takes an injected `ChatFn`; both [worker/routes/postprocess.ts](worker/routes/postprocess.ts) and [src/lib/ai/transports.ts](src/lib/ai/transports.ts) import it. Never fork the prompt into a second copy — the two paths would silently diverge in output quality.
+- `shared/` holds runtime-neutral code both sides run. Client code may use the `~shared/*` alias; the Worker **must** use a relative path (wrangler does not resolve aliases).
+- Providers are **declarative data** in [src/lib/ai/catalog.ts](src/lib/ai/catalog.ts). Only add one after probing its CORS preflight — every entry there was verified to allow browser-direct calls, and an unverified entry is an option that fails the moment it is used.
+- Keys live in `localStorage` (`shadowing.ai.*`) and are sent **only** to the chosen provider; a test guards the invariant that a server request body never contains a key. Stay honest in the UI about the residual risk — same-origin scripts can read the key.
+- `resolveEngine()` falls back to the server quota when a BYOK engine is selected without a key, and reports `fellBackToServer` so the UI can explain itself.
 
 ### Routing (client) & API (Cloudflare Worker)
 
@@ -147,7 +159,7 @@ Blob URLs from `URL.createObjectURL` leak unless revoked. The live path is **sen
 
 Uses **Vitest** (not Bun's native `bun test`). DOM environment is **happy-dom** and IndexedDB is **fake-indexeddb**.
 
-- Config: [vitest.config.ts](vitest.config.ts) — sets `environment: 'happy-dom'` and `setupFiles: ['./src/__tests__/setup.ts']`.
+- Config: [vitest.config.ts](vitest.config.ts) — sets `environment: 'happy-dom'` and `setupFiles: ['./src/__tests__/setup.ts']`. Its `include` covers both `src/**` and `shared/**` (the runtime-neutral code shared with the Worker also has tests).
 - Setup file [src/__tests__/setup.ts](src/__tests__/setup.ts) wires up `fake-indexeddb/auto`, jest-dom matchers (`@testing-library/jest-dom/vitest`), and mocks `@tanstack/react-router` hooks (`useNavigate`/`useLocation`/`useSearch`/`useParams`) and `sonner`.
 - Tests are colocated in `__tests__/` next to the code they cover.
 - When mocking router navigation or toasts in a new test, rely on the global mocks in setup rather than re-mocking.
