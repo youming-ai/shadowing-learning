@@ -198,7 +198,9 @@ All API routes run in the Worker under Hono: `cors` on `*`, then `rateLimit` on 
 | /api/postprocess | POST | 20 req / 1 min | Groq chat (`openai/gpt-oss-120b`) on our quota. Validates, then delegates to `shared/ai/postprocess-core`. **Bypassed entirely when the user picks BYOK** |
 | /api/youtube/resolve | POST | 20 req / 10 min | Resolve YouTube URL → video metadata + caption-track list via youtubei.js |
 | /api/youtube/captions | POST | 20 req / 10 min | Fetch + normalize a caption track; returns `NO_CAPTIONS` (404) if unavailable |
-| /api/health | GET | default (60 / 1 min) | `{ status: "ok" }` |
+| /api/health | GET | default (60 / 1 min) | Liveness **plus** config readiness: `{ status: 'ok' \| 'degraded', config: { groqKey, rateLimit } }` |
+
+**Response headers live in two places.** `public/_headers` applies **only** to static-asset responses (shell, `/assets/*`, manifest, icons) — Cloudflare's docs state explicitly that it never applies to Worker-generated responses. Every `/api/*` response therefore gets its headers from [worker/middleware/security-headers.ts](../worker/middleware/security-headers.ts). The CSP in `public/_headers` is **report-only** until YouTube playback and BYOK are smoke-tested in a browser, and its `connect-src` is coupled to the AI provider catalog (guarded by a test).
 
 Client identity for rate limiting, in precedence order: the `cf-connecting-ip` header, else the first `x-forwarded-for` entry, else `request.cf.colo`, else a hash of `user-agent` + `accept-language`. Responses carry `X-RateLimit-Limit/Remaining/Reset` and, when limited, `Retry-After` with a `429 RATE_LIMITED` body.
 

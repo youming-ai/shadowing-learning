@@ -182,9 +182,12 @@ youtubeRoute.post('/captions', async (c) => {
     if (e.message === 'NO_CAPTIONS') {
       return apiError({ code: 'NO_CAPTIONS', message: '该视频没有可用字幕', statusCode: 404 })
     }
+    // 不回显内部错误原文：上游的异常信息可能带内部 URL、签名参数或库版本。
+    // 排障信息留在 Worker 日志里（observability 已开启）。
+    console.error('[youtube/captions] extractor failed:', e.message)
     return apiError({
       code: 'EXTRACTOR_FAILED',
-      message: `字幕抓取失败: ${e.message}`,
+      message: '字幕抓取失败，请稍后重试',
       statusCode: 502,
     })
   }
