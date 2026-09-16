@@ -1,5 +1,6 @@
 import { useI18n } from '~/components/layout/contexts/I18nContext'
-import type { RecorderStatus } from '~/hooks/player/useSentenceRecorder'
+import type { RecorderStatus, SentenceRecording } from '~/hooks/player/useSentenceRecorder'
+import type { RhythmVerdict } from '~/lib/player/rhythm'
 import { cn } from '~/lib/utils/utils'
 
 interface RecordingBarProps {
@@ -8,10 +9,66 @@ interface RecordingBarProps {
   error: string | null
   hasRecording: boolean
   isGapPhase: boolean
+  /** 当前句已录的那一条（含节奏结论）。未录时为 null。 */
+  take: SentenceRecording | null
   onToggleRecord: () => void
   onPlayMine: () => void
   onPlayOriginal: () => void
   onStopPlayback: () => void
+}
+
+/** 分档 → 语义色。三档颜色与「节拍」设计语言的 --rhythm-* 对应。 */
+const VERDICT_COLOR: Record<RhythmVerdict, string> = {
+  ahead: 'var(--rhythm-ahead)',
+  onTime: 'var(--rhythm-ontime)',
+  late: 'var(--rhythm-late)',
+}
+
+function formatSeconds(sec: number): string {
+  // 保留一位小数即可；负值表示抢拍（在原句结束前就开口）
+  return `${sec >= 0 ? '' : '−'}${Math.abs(sec).toFixed(1)}s`
+}
+
+/**
+ * 跟读节奏读数 —— 本项目区别于"只给发音打分数"的产品的核心反馈。
+ *
+ * 只在拿得到结论时显示数字；算不出时如实说明原因（浏览器不支持 / 没听到人声 /
+ * 还在算），而不是留空或编一个值。
+ */
+function RhythmReadout({ take }: { take: SentenceRecording }) {
+  const { t } = useI18n()
+  const { rhythm, rhythmStatus } = take
+
+  if (!rhythmStatus) return null
+
+  if (rhythmStatus !== 'ready' || !rhythm) {
+    const key =
+      rhythmStatus === 'pending'
+        ? 'watch.rhythm.analyzing'
+        : rhythmStatus === 'noSpeech'
+          ? 'watch.rhythm.noSpeech'
+          : 'watch.rhythm.unavailable'
+    return <p className="text-[11px] text-[var(--text-tertiary)]">{t(key)}</p>
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+      <span className="font-medium" style={{ color: VERDICT_COLOR[rhythm.verdict] }}>
+        {t(`watch.rhythm.${rhythm.verdict}`)}
+      </span>
+      {/* 只有以"原句结束"为零点时，开口延迟才有意义；manual 基准下不展示 */}
+      {rhythm.basis === 'sentenceEnd' && (
+        <span className="text-[var(--text-secondary)]">
+          {t('watch.rhythm.latency', { sec: formatSeconds(rhythm.onsetLatencySec) })}
+        </span>
+      )}
+      {rhythm.paceRatio != null && (
+        <span className="text-[var(--text-secondary)]">
+          {t('watch.rhythm.pace', { ratio: rhythm.paceRatio.toFixed(2) })}
+        </span>
+      )}
+    </div>
+  )
 }
 
 export function RecordingBar({
@@ -20,6 +77,7 @@ export function RecordingBar({
   error,
   hasRecording,
   isGapPhase,
+  take,
   onToggleRecord,
   onPlayMine,
   onPlayOriginal,
@@ -102,7 +160,8 @@ export function RecordingBar({
       </div>
 
       {errorText && <p className="text-xs text-[var(--color-error)]">{errorText}</p>}
-      {!errorText && !hasRecording && !recording && (
+      {!errorText && take && <RhythmReadout take={take} />}
+      {!errorText && !take && !recording && (
         <p className="text-[11px] text-[var(--text-tertiary)]">{t('watch.record.hint')}</p>
       )}
     </div>

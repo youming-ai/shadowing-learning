@@ -1,12 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { decodeAudioBlob, isAudioDecodingSupported } from '~/lib/audio/decode'
+import { analyzeSamples, type RhythmReference, type RhythmResult } from '~/lib/player/rhythm'
 
 export type RecorderStatus = 'idle' | 'recording' | 'playing' | 'unsupported' | 'denied'
+
+/**
+ * 节奏分析的状态。与 `rhythm` 分开表达，好让 UI 区分
+ * "还在算" / "算出来了" / "没听到人声" / "这台浏览器算不了"。
+ */
+export type RhythmStatus = 'pending' | 'ready' | 'noSpeech' | 'unavailable'
 
 export interface SentenceRecording {
   blob: Blob
   url: string
   createdAt: number
   durationMs: number | null
+  /** 跟读节奏结论；`rhythmStatus === 'ready'` 时才有值。 */
+  rhythm?: RhythmResult | null
+  /** 未提供基准（reference）时为 undefined —— 此时不算节奏，也不显示读数。 */
+  rhythmStatus?: RhythmStatus
+}
+
+/**
+ * 录音结束后分析节奏。任何一步失败都降级为 `unavailable` / `noSpeech`，
+ * 不抛错：跟读练习中算不出节奏不该打断练习。
+ */
+async function analyzeTake(
+  blob: Blob,
+  reference: RhythmReference,
+): Promise<{ rhythm: RhythmResult | null; rhythmStatus: RhythmStatus }> {
+  if (!isAudioDecodingSupported()) return { rhythm: null, rhythmStatus: 'unavailable' }
+  const decoded = await decodeAudioBlob(blob)
+  if (!decoded) return { rhythm: null, rhythmStatus: 'unavailable' }
+  const rhythm = analyzeSamples(decoded.samples, decoded.sampleRate, reference)
+  return rhythm ? { rhythm, rhythmStatus: 'ready' } : { rhythm: null, rhythmStatus: 'noSpeech' }
 }
 
 function pickMimeType(): string | undefined {
@@ -42,6 +69,9 @@ export function useSentenceRecorder() {
   const startedAtRef = useRef<number>(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const recordingKeyRef = useRef<string | null>(null)
+  const referenceRef = useRef<RhythmReference | null>(null)
+  /** 卸载后不再写 state：节奏分析是异步的，可能晚于组件生命周期。 */
+  const disposedRef = useRef(false)
   const recordingsRef = useRef(recordings)
   recordingsRef.current = recordings
 
@@ -89,7 +119,11 @@ export function useSentenceRecorder() {
   }, [])
 
   const startRecording = useCallback(
-    async (segment: { start: number; end: number; id?: number }, index: number) => {
+    async (
+      segment: { start: number; end: number; id?: number },
+      index: number,
+      reference?: RhythmReference,
+    ) => {
       if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
         setStatus('unsupported')
         return
@@ -101,6 +135,7 @@ export function useSentenceRecorder() {
 
       const key = segmentKey(segment, index)
       recordingKeyRef.current = key
+      referenceRef.current = reference ?? null
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -109,6 +144,12 @@ export function useSentenceRecorder() {
         const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
         mediaRecorderRef.current = mr
         chunksRef.current = []
+        // 节奏反馈的实测起点。
+        //
+        // 已知偏差：时间戳取在 `mr.start()` **之前**，而 blob 的 t=0 才是真正开始采集的时刻，
+        // 两者通常相差几十毫秒（个别浏览器更多）。因此算出的开口延迟会略微偏乐观。
+        // 量级远小于分档阈值（0.15s / 0.6s），且没有可靠手段在线校准，故接受并记录在此，
+        // 不假装它不存在。
         startedAtRef.current = performance.now()
 
         mr.ondataavailable = (e) => {
@@ -133,11 +174,14 @@ export function useSentenceRecorder() {
           }
 
           const url = URL.createObjectURL(blob)
+          const reference = referenceRef.current
           const rec: SentenceRecording = {
             blob,
             url,
             createdAt: Date.now(),
             durationMs,
+            // 有基准时先落一个 pending 占位，UI 立刻显示"分析中…"，录音本身可立即回放
+            ...(reference ? { rhythm: null, rhythmStatus: 'pending' as const } : {}),
           }
           const recKey = recordingKeyRef.current
           if (recKey) {
@@ -147,6 +191,18 @@ export function useSentenceRecorder() {
               return { ...prev, [recKey]: rec }
             })
             setActiveKey(recKey)
+
+            if (reference) {
+              void analyzeTake(blob, reference).then((result) => {
+                if (disposedRef.current) return
+                setRecordings((prev) => {
+                  const existing = prev[recKey]
+                  // 用户可能已经重录/删除；只在同一条录音上回填
+                  if (!existing || existing.blob !== blob) return prev
+                  return { ...prev, [recKey]: { ...existing, ...result } }
+                })
+              })
+            }
           }
           setStatus('idle')
         }
@@ -207,7 +263,9 @@ export function useSentenceRecorder() {
 
   // Cleanup object URLs + stream on unmount
   useEffect(() => {
+    disposedRef.current = false
     return () => {
+      disposedRef.current = true
       const mr = mediaRecorderRef.current
       if (mr && mr.state !== 'inactive') mr.stop()
       const stream = streamRef.current

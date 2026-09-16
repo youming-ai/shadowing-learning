@@ -16,6 +16,8 @@ import { useSentenceRecorder } from '~/hooks/player/useSentenceRecorder'
 import { useShadowingPractice } from '~/hooks/player/useShadowingPractice'
 import { useWatchKeyboard } from '~/hooks/player/useWatchKeyboard'
 import { DBUtils } from '~/lib/db/db'
+import type { RhythmReference } from '~/lib/player/rhythm'
+import { nowMs } from '~/lib/utils/utils'
 import type { Segment } from '~/types/db/database'
 
 const mediaKeys = {
@@ -170,8 +172,32 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     if (player.isPlaying) player.pause()
     if (recorder.status === 'playing') recorder.stopPlayback()
     originalEndRef.current = null
-    void recorder.startRecording(activeSegment, activeIndex)
-  }, [activeSegment, activeIndex, player, recorder])
+
+    // 节奏基准：间隔模型下零点是"原句播完、轮到你开口"，这是唯一有意义的基准；
+    // 否则退化为"按下录音那一刻"（此时不显示开口延迟，只显示语速比）。
+    // 语速比的参照是原句**自然时长**，不是 0.75x 慢放后的墙钟时长 —— 否则正常语速会被判成快 33%。
+    // 注意：这里直接读 shadowing 而不用页面下方的 isGapPhase —— 那个变量声明在早返回之后，
+    // 放进取景依赖数组会在渲染期触发 TDZ。
+    const inGap = shadowing.config.enabled && shadowing.state.phase === 'gap'
+    const referenceSec = activeSegment.end - activeSegment.start
+    const reference: RhythmReference = inGap
+      ? {
+          basis: 'sentenceEnd',
+          startDelaySec: Math.max(0, (nowMs() - shadowing.phaseStartedAt) / 1000),
+          referenceSec,
+        }
+      : { basis: 'manual', startDelaySec: 0, referenceSec }
+
+    void recorder.startRecording(activeSegment, activeIndex, reference)
+  }, [
+    activeSegment,
+    activeIndex,
+    player,
+    recorder,
+    shadowing.config.enabled,
+    shadowing.state.phase,
+    shadowing.phaseStartedAt,
+  ])
 
   const handlePlayMine = useCallback(() => {
     if (!activeSegment || activeIndex < 0) return
@@ -233,6 +259,11 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     activeSegment != null && activeIndex >= 0
       ? recorder.hasRecording(activeSegment, activeIndex)
       : false
+  // 当前句已录的那一条：节奏读数从它身上取
+  const activeTake =
+    activeSegment != null && activeIndex >= 0
+      ? recorder.getRecording(activeSegment, activeIndex)
+      : null
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 px-4 py-4 lg:h-screen">
@@ -273,6 +304,7 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
             error={recorder.error}
             hasRecording={hasRecording}
             isGapPhase={isGapPhase}
+            take={activeTake}
             onToggleRecord={handleToggleRecord}
             onPlayMine={handlePlayMine}
             onPlayOriginal={handlePlayOriginal}

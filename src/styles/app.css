@@ -115,6 +115,9 @@
   --color-rhythm-beat-soft: var(--rhythm-beat-soft);
   --color-rhythm-voice: var(--rhythm-voice);
   --color-rhythm-voice-soft: var(--rhythm-voice-soft);
+  --color-rhythm-ontime: var(--rhythm-ontime);
+  --color-rhythm-ahead: var(--rhythm-ahead);
+  --color-rhythm-late: var(--rhythm-late);
 }
 
 /* Material Icons基础样式 */
@@ -376,6 +379,10 @@
     --rhythm-beat-soft: rgba(74, 222, 128, 0.16);
     --rhythm-voice: #fb7185;
     --rhythm-voice-soft: rgba(251, 113, 133, 0.18);
+    /* 分档：合拍=目标色（品牌绿）、抢拍=冷色、拖拍=暖色提示（非错误红） */
+    --rhythm-ontime: var(--brand-400);
+    --rhythm-ahead: #38bdf8;
+    --rhythm-late: #fbbf24;
 
     /* 播放器 */
 
@@ -573,6 +580,9 @@
     --rhythm-beat-soft: rgba(34, 197, 94, 0.16);
     --rhythm-voice: #e11d48;
     --rhythm-voice-soft: rgba(225, 29, 72, 0.14);
+    --rhythm-ontime: var(--brand-600);
+    --rhythm-ahead: #0284c7;
+    --rhythm-late: #b45309;
 
     /* 播放器 - 浅色主题 */
 
@@ -708,6 +718,9 @@
     --rhythm-beat-soft: rgba(0, 255, 0, 0.2);
     --rhythm-voice: #ff6392;
     --rhythm-voice-soft: rgba(255, 99, 146, 0.24);
+    --rhythm-ontime: var(--brand-500);
+    --rhythm-ahead: #8ce8ff;
+    --rhythm-late: #ffd166;
 
     /* 强制应用高对比度主题关键变量 */
   }
