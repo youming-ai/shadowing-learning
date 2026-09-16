@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   analyzeSamples,
+  buildRhythmReference,
   classifyVerdict,
   computeEnvelope,
+  computeStartDelaySec,
   detectSpeechBounds,
   MIN_PEAK_RMS,
   RHYTHM_THRESHOLDS,
@@ -134,6 +136,80 @@ describe('classifyVerdict', () => {
   it('阈值边界本身归入对应档位', () => {
     expect(classifyVerdict(RHYTHM_THRESHOLDS.aheadSec)).toBe('ahead')
     expect(classifyVerdict(RHYTHM_THRESHOLDS.lateSec)).toBe('late')
+  })
+})
+
+describe('computeStartDelaySec / buildRhythmReference', () => {
+  const base = {
+    phaseStartedAtMs: 1000,
+    capturedAtMs: 1400,
+    mediaTimeSec: 8,
+    segmentEndSec: 10,
+    rate: 1,
+  } as const
+
+  it('gap：零点就是阶段开始时刻，结果非负', () => {
+    expect(computeStartDelaySec({ ...base, phase: 'gap' })).toBeCloseTo(0.4, 5)
+  })
+
+  it('gap：即使时间倒退（异常时钟）也不会给出负值', () => {
+    expect(computeStartDelaySec({ ...base, phase: 'gap', capturedAtMs: 500 })).toBe(0)
+  })
+
+  it('listening：媒体还在播 → 得到负值，抢拍因此可达', () => {
+    // 距原句结束还有 2s 媒体时间，1x → -2s
+    expect(computeStartDelaySec({ ...base, phase: 'listening' })).toBeCloseTo(-2, 5)
+  })
+
+  it('listening：按倍速换算剩余时长（0.75x 慢放 → 墙钟更长）', () => {
+    expect(computeStartDelaySec({ ...base, phase: 'listening', rate: 0.75 })).toBeCloseTo(
+      -(2 / 0.75),
+      4,
+    )
+  })
+
+  it('listening：媒体已越过原句末尾时不产生正延迟', () => {
+    expect(computeStartDelaySec({ ...base, phase: 'listening', mediaTimeSec: 12 })).toBeCloseTo(
+      -0,
+      5,
+    )
+  })
+
+  it('listening：倍速非法时无法换算 → null', () => {
+    expect(computeStartDelaySec({ ...base, phase: 'listening', rate: 0 })).toBeNull()
+  })
+
+  it('other：没有有意义的零点 → null', () => {
+    expect(computeStartDelaySec({ ...base, phase: 'other' })).toBeNull()
+  })
+
+  it('buildRhythmReference：有零点时 basis=sentenceEnd 并带上原句时长', () => {
+    const ref = buildRhythmReference({ ...base, phase: 'listening', referenceSec: 4 })
+    expect(ref.basis).toBe('sentenceEnd')
+    expect(ref.startDelaySec).toBeCloseTo(-2, 5)
+    expect(ref.referenceSec).toBe(4)
+  })
+
+  it('buildRhythmReference：拿不到零点时退化为 manual（只保留语速比）', () => {
+    const ref = buildRhythmReference({ ...base, phase: 'other', referenceSec: 4 })
+    expect(ref.basis).toBe('manual')
+    expect(ref.startDelaySec).toBe(0)
+    expect(ref.referenceSec).toBe(4)
+  })
+
+  it('端到端：listening 下抢先开口 → 分档为"抢拍"（该档位确实可达）', () => {
+    // 距结束还有 1s 媒体时间，用户在录音内 0.2s 就开口 → 延迟 ≈ -0.8s
+    const ref = buildRhythmReference({
+      ...base,
+      phase: 'listening',
+      mediaTimeSec: 9,
+      rate: 1,
+      referenceSec: 4,
+    })
+    const samples = makeSignal(2.0, [[0.2, 1.2]], { syllableHz: 4 })
+    const result = analyzeSamples(samples, SAMPLE_RATE, ref)
+    expect(result?.verdict).toBe('ahead')
+    expect(result?.onsetLatencySec).toBeLessThan(0)
   })
 })
 

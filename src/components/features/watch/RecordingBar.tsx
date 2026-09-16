@@ -51,13 +51,20 @@ function RhythmReadout({ take }: { take: SentenceRecording }) {
     return <p className="text-[11px] text-[var(--text-tertiary)]">{t(key)}</p>
   }
 
+  const hasAnchor = rhythm.basis === 'sentenceEnd'
+
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-      <span className="font-medium" style={{ color: VERDICT_COLOR[rhythm.verdict] }}>
-        {t(`watch.rhythm.${rhythm.verdict}`)}
-      </span>
-      {/* 只有以"原句结束"为零点时，开口延迟才有意义；manual 基准下不展示 */}
-      {rhythm.basis === 'sentenceEnd' && (
+      {/*
+        分档与开口延迟都以"原句结束"为零点。`manual` 基准下零点其实是"按下录音键"，
+        据此算出的抢拍/拖拍没有任何依据 —— 那种情况只显示语速比，不显示分档。
+      */}
+      {hasAnchor && (
+        <span className="font-medium" style={{ color: VERDICT_COLOR[rhythm.verdict] }}>
+          {t(`watch.rhythm.${rhythm.verdict}`)}
+        </span>
+      )}
+      {hasAnchor && (
         <span className="text-[var(--text-secondary)]">
           {t('watch.rhythm.latency', { sec: formatSeconds(rhythm.onsetLatencySec) })}
         </span>

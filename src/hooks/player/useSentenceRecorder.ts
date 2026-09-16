@@ -69,7 +69,7 @@ export function useSentenceRecorder() {
   const startedAtRef = useRef<number>(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const recordingKeyRef = useRef<string | null>(null)
-  const referenceRef = useRef<RhythmReference | null>(null)
+  const getReferenceRef = useRef<(() => RhythmReference) | null>(null)
   /** 卸载后不再写 state：节奏分析是异步的，可能晚于组件生命周期。 */
   const disposedRef = useRef(false)
   const recordingsRef = useRef(recordings)
@@ -122,7 +122,14 @@ export function useSentenceRecorder() {
     async (
       segment: { start: number; end: number; id?: number },
       index: number,
-      reference?: RhythmReference,
+      /**
+       * 在**采集真正开始的那一刻**求值，而不是本函数被调用时。
+       *
+       * `getUserMedia` 可能慢得离谱（首次会弹权限框，可达数秒），而 PCM 时间轴是从
+       * `MediaRecorder.start()` 之后才开始的。若在按下按钮时就把延迟算好，这段启动时间
+       * 会被整段漏掉，真正偏晚的一次跟读会被报成"合拍"。
+       */
+      getReference?: () => RhythmReference,
     ) => {
       if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
         setStatus('unsupported')
@@ -135,7 +142,7 @@ export function useSentenceRecorder() {
 
       const key = segmentKey(segment, index)
       recordingKeyRef.current = key
-      referenceRef.current = reference ?? null
+      getReferenceRef.current = getReference ?? null
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -146,8 +153,11 @@ export function useSentenceRecorder() {
         chunksRef.current = []
         // 节奏反馈的实测起点。
         //
-        // 已知偏差：时间戳取在 `mr.start()` **之前**，而 blob 的 t=0 才是真正开始采集的时刻，
-        // 两者通常相差几十毫秒（个别浏览器更多）。因此算出的开口延迟会略微偏乐观。
+        // 零点（reference）已在下方 `onstop` 里、`mr.start()` 之前求值，因此
+        // `getUserMedia` 的等待（首次会弹权限框，可能数秒）已被正确计入，不再是误差来源。
+        //
+        // 剩余偏差：本时间戳取在 `mr.start()` **之前**，而 blob 的 t=0 才是真正开始采集的时刻，
+        // 两者通常相差几十毫秒（个别浏览器更多）。因此算出的开口延迟仍会略微偏乐观。
         // 量级远小于分档阈值（0.15s / 0.6s），且没有可靠手段在线校准，故接受并记录在此，
         // 不假装它不存在。
         startedAtRef.current = performance.now()
@@ -174,7 +184,8 @@ export function useSentenceRecorder() {
           }
 
           const url = URL.createObjectURL(blob)
-          const reference = referenceRef.current
+          // 采集即将开始 —— 此刻才求值零点（已过 getUserMedia 的等待）
+          const reference = getReferenceRef.current?.() ?? null
           const rec: SentenceRecording = {
             blob,
             url,

@@ -92,6 +92,59 @@ export interface RhythmResult {
   verdict: RhythmVerdict
 }
 
+/** 采集真正开始那一刻的处境。用于换算"相对原句结束"的零点。*/
+export interface StartDelayInput {
+  /** 采集开始时的阶段 */
+  phase: 'listening' | 'gap' | 'other'
+  /** 当前阶段开始时刻（单调 ms）。仅 `gap` 用得上。*/
+  phaseStartedAtMs: number
+  /** 采集真正开始的时刻（单调 ms） */
+  capturedAtMs: number
+  /** 采集开始那一刻的媒体播放位置（秒）。仅 `listening` 用得上。*/
+  mediaTimeSec: number
+  /** 原句结束的媒体时间（秒） */
+  segmentEndSec: number
+  /** 当前实际播放倍速。仅 `listening` 用得上。*/
+  rate: number
+}
+
+/**
+ * 换算"从原句结束到采集开始"的秒数（可为负）。
+ *
+ * 两种处境归一到同一个零点——**原句结束的那一刻**：
+ *
+ * - `gap`：媒体已暂停在原句末尾，零点就是阶段开始的墙钟时刻，结果必然 ≥ 0。
+ * - `listening`：媒体还在播、原句尚未结束，把"剩余媒体时长"按倍速换算成墙钟时长后取**负**。
+ *   于是**抢拍（在原句结束前就开口）能得到负值**，`ahead` 分档才真正可达；
+ *   这也是"真正的影子跟读"（与原声重叠）唯一可被测量的场景。
+ *
+ * `other`（未开启跟读等）返回 null：没有任何有意义的零点，调用方退化为 `manual`。
+ */
+export function computeStartDelaySec(input: StartDelayInput): number | null {
+  if (input.phase === 'gap') {
+    return Math.max(0, (input.capturedAtMs - input.phaseStartedAtMs) / 1000)
+  }
+  if (input.phase === 'listening' && input.rate > 0) {
+    const remainingSec = Math.max(0, input.segmentEndSec - input.mediaTimeSec)
+    return -(remainingSec / input.rate)
+  }
+  return null
+}
+
+/**
+ * 组装给 `analyzeSamples` 的参考量。拿不到有意义的零点时退化为 `manual`
+ * （此时开口延迟无意义，UI 只展示语速比、不展示分档）。
+ */
+export function buildRhythmReference(
+  input: StartDelayInput & { referenceSec: number },
+): RhythmReference {
+  const startDelaySec = computeStartDelaySec(input)
+  if (startDelaySec === null) {
+    return { basis: 'manual', startDelaySec: 0, referenceSec: input.referenceSec }
+  }
+  return { basis: 'sentenceEnd', startDelaySec, referenceSec: input.referenceSec }
+}
+
 /**
  * 取第 p 分位数（0..1）。用于估计噪声底：说话人只占录音的一小部分，
  * 低分位数比"最小值"稳（不会被一帧纯数字静音带偏），也比"均值"稳（不被语音拉高）。

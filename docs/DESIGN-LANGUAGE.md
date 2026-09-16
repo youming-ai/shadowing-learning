@@ -125,16 +125,33 @@
 | 纯函数 | `src/lib/player/rhythm.ts` | 包络 → 语音起止 → 开口延迟 / 语速比 / 分档。无 DOM，可单测 |
 | 解码 | `src/lib/audio/decode.ts` | 录音 Blob → 单声道 PCM。唯一允许出现 Web Audio 的地方，失败一律返回 null |
 | 采集 | `src/hooks/player/useSentenceRecorder.ts` | 录音结束后异步分析，结果回填到该条录音上 |
-| 零点 | `src/hooks/player/useShadowingPractice.ts` | 暴露 `phaseStartedAt`：进入 `gap` 的时刻 = 原句播完、轮到你开口 |
+| 零点 | `src/lib/player/rhythm.ts` 的 `buildRhythmReference` | 把"原句结束"换算成采集开始时的相对秒数（纯函数，可单测） |
+| 采集时序 | `WatchPage` 的 ref + `useSentenceRecorder` | 在采集真正开始时求值零点（见下） |
 | 展示 | `src/components/features/watch/RecordingBar.tsx` | 一行读数：分档 + 开口延迟 + 语速比 |
+
+**零点：同一个"原句结束"，两种处境**（`computeStartDelaySec`）：
+
+| 采集开始时的处境 | 零点怎么算 | 结果 |
+|---|---|---|
+| `gap`（原句已播完、媒体暂停在末尾） | 阶段开始的墙钟时刻 | ≥ 0 |
+| `listening`（媒体还在播） | 剩余媒体时长按倍速换算成墙钟后**取负** | **可为负 → 抢拍可达** |
+
+`listening` 那条是"真正的影子跟读"（与原声重叠）唯一可被测量的场景：用户在原句还在播时就
+开口，延迟为负，分档即"抢拍"。**它还修掉了一个真实缺陷**——早先只在 `gap` 取零点、并对延迟做了
+`Math.max(0, …)` 钳制，导致 `ahead` 分档**永远不可能出现**（等于宣传了一个不存在的档位）。
 
 **两条必须守住的语义约定**：
 
-1. **零点语义要在 UI 上分清。** `basis: 'sentenceEnd'` 时"开口延迟"才有意义（间隔模型下的
-   零点）；`basis: 'manual'`（用户随手按录音）时不能显示延迟，只显示语速比——否则是在
-   展示一个没有意义的数字。见 `RhythmReference`。
+1. **零点语义要在 UI 上分清。** `basis: 'sentenceEnd'` 时"开口延迟"与分档才有意义；
+   `basis: 'manual'`（无法锚定原句结束时，例如未开启跟读）**不显示分档、也不显示延迟**，
+   只显示语速比——否则是在展示一个没有依据的数字。见 `RhythmReference` 与 `RhythmReadout`。
 2. **语速比参照的是原句自然时长**（`segment.end - segment.start`），不是 0.75x 慢放后的
    墙钟时长。否则用户以正常语速跟读会被判成"快 33%"。见 `analyzeSamples` 的 `referenceSec`。
+
+**零点必须在采集真正开始时求值**，而不是按下录音键时：`getUserMedia` 首次会弹权限框，可能等上
+数秒，而 PCM 时间轴从 `MediaRecorder.start()` 才开始。按按钮时就快照下来会把这段等待整段漏掉，
+把一次真正偏晚的跟读报成"合拍"。因此 `startRecording` 接收的是一个 **provider 函数**，
+由它在采集开始时求值（`WatchPage` 用 ref 持有彼时所需状态）。
 
 **分档是提示而非评分**：三档用 `--rhythm-*` 色，不用错误红，不给分数、不记星、不做连胜。
 算不出时如实说原因（不支持 / 没听到人声 / 分析中），绝不编一个数字。

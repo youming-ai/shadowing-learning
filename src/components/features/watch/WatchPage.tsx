@@ -16,7 +16,7 @@ import { useSentenceRecorder } from '~/hooks/player/useSentenceRecorder'
 import { useShadowingPractice } from '~/hooks/player/useShadowingPractice'
 import { useWatchKeyboard } from '~/hooks/player/useWatchKeyboard'
 import { DBUtils } from '~/lib/db/db'
-import type { RhythmReference } from '~/lib/player/rhythm'
+import { buildRhythmReference } from '~/lib/player/rhythm'
 import { nowMs } from '~/lib/utils/utils'
 import type { Segment } from '~/types/db/database'
 
@@ -80,6 +80,25 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
       : navActiveIndex
 
   const activeSegment = activeIndex >= 0 ? (pipeline.segments[activeIndex] ?? null) : null
+
+  /**
+   * 节奏零点要在**采集真正开始那一刻**求值（`getUserMedia` 首次会弹权限框，可能等数秒），
+   * 所以这里用 ref 保存彼时需要的全部状态，而不是把值快照进回调。
+   */
+  const shadowingEnabledRef = useRef(shadowing.config.enabled)
+  shadowingEnabledRef.current = shadowing.config.enabled
+  const phaseRef = useRef(shadowing.state.phase)
+  phaseRef.current = shadowing.state.phase
+  const phaseStartedAtRef = useRef(shadowing.phaseStartedAt)
+  phaseStartedAtRef.current = shadowing.phaseStartedAt
+  const currentTimeRef = useRef(player.currentTime)
+  currentTimeRef.current = player.currentTime
+  const activeSegmentRef = useRef(activeSegment)
+  activeSegmentRef.current = activeSegment
+  // 播放器适配器不暴露当前倍速；跟读开启时 FSM 已把倍速设为 practiceRate，
+  // 未开启时则是底部控制条选择的 browseRate。两者都是权威值。
+  const rateRef = useRef(playbackRate)
+  rateRef.current = shadowing.config.enabled ? shadowing.config.practiceRate : playbackRate
 
   // Original sentence one-shot playback (for A/B compare with user recording).
   const originalEndRef = useRef<number | null>(null)
@@ -173,31 +192,27 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     if (recorder.status === 'playing') recorder.stopPlayback()
     originalEndRef.current = null
 
-    // 节奏基准：间隔模型下零点是"原句播完、轮到你开口"，这是唯一有意义的基准；
-    // 否则退化为"按下录音那一刻"（此时不显示开口延迟，只显示语速比）。
-    // 语速比的参照是原句**自然时长**，不是 0.75x 慢放后的墙钟时长 —— 否则正常语速会被判成快 33%。
-    // 注意：这里直接读 shadowing 而不用页面下方的 isGapPhase —— 那个变量声明在早返回之后，
-    // 放进取景依赖数组会在渲染期触发 TDZ。
-    const inGap = shadowing.config.enabled && shadowing.state.phase === 'gap'
-    const referenceSec = activeSegment.end - activeSegment.start
-    const reference: RhythmReference = inGap
-      ? {
-          basis: 'sentenceEnd',
-          startDelaySec: Math.max(0, (nowMs() - shadowing.phaseStartedAt) / 1000),
-          referenceSec,
-        }
-      : { basis: 'manual', startDelaySec: 0, referenceSec }
+    const segment = activeSegment
+    const referenceSec = segment.end - segment.start
 
-    void recorder.startRecording(activeSegment, activeIndex, reference)
-  }, [
-    activeSegment,
-    activeIndex,
-    player,
-    recorder,
-    shadowing.config.enabled,
-    shadowing.state.phase,
-    shadowing.phaseStartedAt,
-  ])
+    // 零点与原句时长在**采集真正开始那一刻**才求值（见上方 ref 的注释）：
+    // 从 ref 读，保证拿到的是彼时彼刻的阶段/媒体位置，而不是此刻的快照。
+    void recorder.startRecording(segment, activeIndex, () =>
+      buildRhythmReference({
+        phase: !shadowingEnabledRef.current
+          ? 'other'
+          : phaseRef.current === 'listening' || phaseRef.current === 'gap'
+            ? phaseRef.current
+            : 'other',
+        phaseStartedAtMs: phaseStartedAtRef.current,
+        capturedAtMs: nowMs(),
+        mediaTimeSec: currentTimeRef.current,
+        segmentEndSec: activeSegmentRef.current?.end ?? segment.end,
+        rate: rateRef.current,
+        referenceSec,
+      }),
+    )
+  }, [activeSegment, activeIndex, player, recorder])
 
   const handlePlayMine = useCallback(() => {
     if (!activeSegment || activeIndex < 0) return
