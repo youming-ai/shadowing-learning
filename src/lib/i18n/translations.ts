@@ -102,6 +102,14 @@ export interface TranslationKey {
   'watch.record.error.denied': string
   'watch.record.error.failed': string
   'watch.record.error.unsupported': string
+  'watch.rhythm.ahead': string
+  'watch.rhythm.onTime': string
+  'watch.rhythm.late': string
+  'watch.rhythm.latency': string
+  'watch.rhythm.pace': string
+  'watch.rhythm.analyzing': string
+  'watch.rhythm.noSpeech': string
+  'watch.rhythm.unavailable': string
 
   // Two-line nav + pages
   'nav.online': string
@@ -229,6 +237,14 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': '麦克风权限被拒绝，请在浏览器设置中允许',
     'watch.record.error.failed': '无法启动录音，请重试',
     'watch.record.error.unsupported': '当前浏览器不支持录音',
+    'watch.rhythm.ahead': '抢拍',
+    'watch.rhythm.onTime': '合拍',
+    'watch.rhythm.late': '拖拍',
+    'watch.rhythm.latency': '开口 {{sec}}',
+    'watch.rhythm.pace': '语速 ×{{ratio}}',
+    'watch.rhythm.analyzing': '分析节奏…',
+    'watch.rhythm.noSpeech': '没听到人声，再录一次试试',
+    'watch.rhythm.unavailable': '当前浏览器无法分析节奏',
 
     // Two-line nav + pages
     'nav.online': '在线',
@@ -354,6 +370,14 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': '麥克風權限被拒絕，請在瀏覽器設定中允許',
     'watch.record.error.failed': '無法啟動錄音，請重試',
     'watch.record.error.unsupported': '目前瀏覽器不支援錄音',
+    'watch.rhythm.ahead': '搶拍',
+    'watch.rhythm.onTime': '合拍',
+    'watch.rhythm.late': '拖拍',
+    'watch.rhythm.latency': '開口 {{sec}}',
+    'watch.rhythm.pace': '語速 ×{{ratio}}',
+    'watch.rhythm.analyzing': '分析節奏…',
+    'watch.rhythm.noSpeech': '沒聽到人聲，再錄一次試試',
+    'watch.rhythm.unavailable': '目前瀏覽器無法分析節奏',
 
     // Two-line nav + pages
     'nav.online': '線上',
@@ -481,6 +505,14 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': 'Microphone permission denied — enable it in browser settings',
     'watch.record.error.failed': 'Could not start recording — try again',
     'watch.record.error.unsupported': 'Recording is not supported in this browser',
+    'watch.rhythm.ahead': 'Rushed',
+    'watch.rhythm.onTime': 'On beat',
+    'watch.rhythm.late': 'Late',
+    'watch.rhythm.latency': 'Start {{sec}}',
+    'watch.rhythm.pace': 'Pace ×{{ratio}}',
+    'watch.rhythm.analyzing': 'Analyzing rhythm…',
+    'watch.rhythm.noSpeech': 'No speech detected — try recording again',
+    'watch.rhythm.unavailable': 'This browser cannot analyze rhythm',
 
     // Two-line nav + pages
     'nav.online': 'Online',
@@ -608,6 +640,14 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': 'マイクの権限が拒否されました。ブラウザ設定で許可してください',
     'watch.record.error.failed': '録音を開始できませんでした。再試行してください',
     'watch.record.error.unsupported': 'このブラウザは録音に対応していません',
+    'watch.rhythm.ahead': '走り気味',
+    'watch.rhythm.onTime': 'ちょうど良い',
+    'watch.rhythm.late': '遅れ気味',
+    'watch.rhythm.latency': '開始 {{sec}}',
+    'watch.rhythm.pace': '速度 ×{{ratio}}',
+    'watch.rhythm.analyzing': 'リズムを分析中…',
+    'watch.rhythm.noSpeech': '音声を検出できませんでした。もう一度録音してください',
+    'watch.rhythm.unavailable': 'このブラウザはリズム分析に対応していません',
 
     // Two-line nav + pages
     'nav.online': 'オンライン',

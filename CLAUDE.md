@@ -148,6 +148,22 @@ Both are configured via [TranscriptionLanguageContext](src/components/layout/con
 
 Blob URLs from `URL.createObjectURL` leak unless revoked. The live path is **sentence recording** ([src/hooks/player/useSentenceRecorder.ts](src/hooks/player/useSentenceRecorder.ts)): each recording gets an object URL that is explicitly revoked when replaced or cleared. Follow the same pattern if you cache an object URL elsewhere — the former audio-player `WeakMap` cache was removed with the audio module.
 
+### Shadowing rhythm feedback
+
+The per-sentence timing readout (抢拍 / 合拍 / 拖拍 + onset latency + pace ratio) is the differentiator against score-only products, and it is computed entirely client-side — no cloud, no ASR. The layering is deliberate; keep browser APIs out of the pure layer:
+
+- [src/lib/player/rhythm.ts](src/lib/player/rhythm.ts) — **pure** functions: PCM → RMS envelope → speech bounds → latency / pace ratio / verdict. No DOM, fully unit-tested in [__tests__/rhythm.test.ts](src/lib/player/__tests__/rhythm.test.ts).
+- [src/lib/audio/decode.ts](src/lib/audio/decode.ts) — the only place Web Audio appears (Blob → mono PCM). Every failure path returns `null`; analysis must never throw into the practice loop.
+- `useShadowingPractice` exposes `phaseStartedAt`, the moment the current phase began. Entering `gap` is the zero point ("the original just finished, now it's your turn"), and it comes from a monotonic clock (`nowMs()`), not `Date.now()`.
+- `SentenceRecording.rhythm` / `rhythmStatus` carry the result back to the UI; `RecordingBar` renders it.
+
+Two semantic rules that must hold:
+
+1. `RhythmReference.basis` decides whether an onset latency is meaningful. Only `'sentenceEnd'` may show it; `'manual'` (user pressed record at an arbitrary moment) shows the pace ratio alone.
+2. The pace ratio is measured against the **natural** segment duration (`segment.end - segment.start`), never the wall-clock length of 0.75× slowed playback — otherwise normal-speed reading would read as 33% too fast.
+
+The verdict is a hint, never a score: no grades, no stars, no streaks, and no error-red for "late". When analysis is impossible, say why (unsupported / no speech / analyzing) instead of inventing a number.
+
 ### Errors and toasts
 
 - `handleError` / `createError` / `isAppError` / `logError` in [src/lib/utils/error-handler.ts](src/lib/utils/error-handler.ts) normalize any thrown value into an `AppError` and log it through the shared logger.

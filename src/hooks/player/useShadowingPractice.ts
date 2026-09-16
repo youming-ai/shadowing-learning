@@ -9,6 +9,7 @@ import {
   type ShadowingEvent,
   type ShadowingState,
 } from '~/lib/player/shadowing-machine'
+import { nowMs } from '~/lib/utils/utils'
 
 const STORAGE_KEY = 'shadowing-config'
 
@@ -80,6 +81,13 @@ export function useShadowingPractice({
 }: UseShadowingPracticeOptions) {
   const [config, setConfig] = useState<ShadowingConfig>(() => loadConfig())
   const [state, setState] = useState<ShadowingState>(INITIAL_SHADOWING_STATE)
+  /**
+   * 当前阶段开始时刻（单调时钟 ms）。
+   *
+   * 跟读节奏反馈的零点就是它：进入 `gap` 的那一刻 = 原句播完、轮到你开口的那一刻。
+   * 录音侧据此算"开口延迟"，这是纯前端、不需要云端就能拿到的信号。
+   */
+  const [phaseStartedAt, setPhaseStartedAt] = useState(() => nowMs())
   const gapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const segmentsRef = useRef(segments)
@@ -135,12 +143,18 @@ export function useShadowingPractice({
 
   const dispatch = useCallback(
     (event: ShadowingEvent) => {
-      const result = reduceShadowing(stateRef.current, event, {
+      const prev = stateRef.current
+      const result = reduceShadowing(prev, event, {
         segments: segmentsRef.current,
         config: configRef.current,
       })
       stateRef.current = result.next
       setState(result.next)
+
+      // 阶段切换时重置零点。进入 gap = 原句播完，跟读节奏反馈的基准。
+      if (result.next.phase !== prev.phase) {
+        setPhaseStartedAt(nowMs())
+      }
 
       if (result.next.phase === 'idle') {
         // Practice finished or disabled — restore browse rate.
@@ -224,6 +238,11 @@ export function useShadowingPractice({
   return {
     config,
     state,
+    /**
+     * 当前阶段开始时刻（单调时钟 ms）。`state.phase === 'gap'` 时，它表示
+     * "原句播完、该你开口"的时刻，用于计算跟读开口延迟。
+     */
+    phaseStartedAt,
     toggleShadowing,
     setShadowingConfig,
     jumpToIndex,

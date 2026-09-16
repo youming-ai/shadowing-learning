@@ -16,6 +16,8 @@ import { useSentenceRecorder } from '~/hooks/player/useSentenceRecorder'
 import { useShadowingPractice } from '~/hooks/player/useShadowingPractice'
 import { useWatchKeyboard } from '~/hooks/player/useWatchKeyboard'
 import { DBUtils } from '~/lib/db/db'
+import { buildRhythmReference } from '~/lib/player/rhythm'
+import { nowMs } from '~/lib/utils/utils'
 import type { Segment } from '~/types/db/database'
 
 const mediaKeys = {
@@ -78,6 +80,25 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
       : navActiveIndex
 
   const activeSegment = activeIndex >= 0 ? (pipeline.segments[activeIndex] ?? null) : null
+
+  /**
+   * 节奏零点要在**采集真正开始那一刻**求值（`getUserMedia` 首次会弹权限框，可能等数秒），
+   * 所以这里用 ref 保存彼时需要的全部状态，而不是把值快照进回调。
+   */
+  const shadowingEnabledRef = useRef(shadowing.config.enabled)
+  shadowingEnabledRef.current = shadowing.config.enabled
+  const phaseRef = useRef(shadowing.state.phase)
+  phaseRef.current = shadowing.state.phase
+  const phaseStartedAtRef = useRef(shadowing.phaseStartedAt)
+  phaseStartedAtRef.current = shadowing.phaseStartedAt
+  const currentTimeRef = useRef(player.currentTime)
+  currentTimeRef.current = player.currentTime
+  const activeSegmentRef = useRef(activeSegment)
+  activeSegmentRef.current = activeSegment
+  // 播放器适配器不暴露当前倍速；跟读开启时 FSM 已把倍速设为 practiceRate，
+  // 未开启时则是底部控制条选择的 browseRate。两者都是权威值。
+  const rateRef = useRef(playbackRate)
+  rateRef.current = shadowing.config.enabled ? shadowing.config.practiceRate : playbackRate
 
   // Original sentence one-shot playback (for A/B compare with user recording).
   const originalEndRef = useRef<number | null>(null)
@@ -170,7 +191,27 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     if (player.isPlaying) player.pause()
     if (recorder.status === 'playing') recorder.stopPlayback()
     originalEndRef.current = null
-    void recorder.startRecording(activeSegment, activeIndex)
+
+    const segment = activeSegment
+    const referenceSec = segment.end - segment.start
+
+    // 零点与原句时长在**采集真正开始那一刻**才求值（见上方 ref 的注释）：
+    // 从 ref 读，保证拿到的是彼时彼刻的阶段/媒体位置，而不是此刻的快照。
+    void recorder.startRecording(segment, activeIndex, () =>
+      buildRhythmReference({
+        phase: !shadowingEnabledRef.current
+          ? 'other'
+          : phaseRef.current === 'listening' || phaseRef.current === 'gap'
+            ? phaseRef.current
+            : 'other',
+        phaseStartedAtMs: phaseStartedAtRef.current,
+        capturedAtMs: nowMs(),
+        mediaTimeSec: currentTimeRef.current,
+        segmentEndSec: activeSegmentRef.current?.end ?? segment.end,
+        rate: rateRef.current,
+        referenceSec,
+      }),
+    )
   }, [activeSegment, activeIndex, player, recorder])
 
   const handlePlayMine = useCallback(() => {
@@ -233,6 +274,11 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     activeSegment != null && activeIndex >= 0
       ? recorder.hasRecording(activeSegment, activeIndex)
       : false
+  // 当前句已录的那一条：节奏读数从它身上取
+  const activeTake =
+    activeSegment != null && activeIndex >= 0
+      ? recorder.getRecording(activeSegment, activeIndex)
+      : null
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 px-4 py-4 lg:h-screen">
@@ -273,6 +319,7 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
             error={recorder.error}
             hasRecording={hasRecording}
             isGapPhase={isGapPhase}
+            take={activeTake}
             onToggleRecord={handleToggleRecord}
             onPlayMine={handlePlayMine}
             onPlayOriginal={handlePlayOriginal}
