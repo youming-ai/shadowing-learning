@@ -120,3 +120,18 @@ export function describeWireError(status: number, payload: unknown): string {
   if (status === 429) return `RATE_LIMITED (429${suffix})`
   return `HTTP ${status}${suffix}`
 }
+
+/**
+ * 该 HTTP 状态是否属于**系统性失败**（整个引擎不可用，必须让用户看见）。
+ *
+ * 判据：配置或额度问题 —— 换一段文本重试也没用。
+ * - 401 / 403：key 无效或无权限
+ * - 404：端点或模型名不存在（配置错误）
+ * - 429：配额耗尽 / 被限流
+ *
+ * 与之相对，5xx 与超时视为**单次调用失败**：保留内核既有的降级行为（服务器路径有意为之的
+ * 韧性），不让一次抖动废掉整条字幕。
+ */
+export function isFatalWireStatus(status: number): boolean {
+  return status === 401 || status === 403 || status === 404 || status === 429
+}

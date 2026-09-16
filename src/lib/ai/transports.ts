@@ -14,6 +14,7 @@
 
 import {
   type ChatFn,
+  FatalEngineError,
   type PostProcessOptions,
   type PostProcessResult,
   type PostProcessSegmentInput,
@@ -21,7 +22,12 @@ import {
 } from '~shared/ai/postprocess-core'
 import { AI_PROVIDERS, findProvider, SERVER_ENGINE_ID } from './catalog'
 import { getSelectedEngineId, getStoredKey, getStoredModel } from './keys'
-import { buildWireRequest, describeWireError, parseWireResponse } from './protocol'
+import {
+  buildWireRequest,
+  describeWireError,
+  isFatalWireStatus,
+  parseWireResponse,
+} from './protocol'
 
 export interface PostProcessTransport {
   /** 用于 UI 显示当前走的是哪条链路 */
@@ -63,18 +69,34 @@ export function createServerTransport(fetchImpl: typeof fetch = fetch): PostProc
   }
 }
 
-/** 把一次 chat 请求直连发到供应商，返回模型原始文本。*/
+/**
+ * 把一次 chat 请求直连发到供应商，返回模型原始文本。
+ *
+ * 这里**声明哪些失败是系统性**（抛 `FatalEngineError`），内核负责别吞掉它们：
+ * BYOK 最常见的失败恰恰是配置问题（key 打错、额度用完、跨域被拦），换一段文本重试
+ * 也一样失败。若被内核降级成"保留原文"，用户会看到一份空翻译却标着"已完成"，
+ * 既不知道 key 有问题，改完也不会重试。
+ * 只有单次调用失败（5xx / 超时）才交回内核降级。
+ */
 function createDirectChat(providerId: string, apiKey: string, model: string): ChatFn {
   const provider = findProvider(providerId)
   if (!provider) throw new Error(`unknown AI provider: ${providerId}`)
 
   return async (req) => {
     const wire = buildWireRequest(provider, model, apiKey, req)
-    const response = await fetch(wire.url, {
-      method: wire.method,
-      headers: wire.headers,
-      body: wire.body,
-    })
+
+    let response: Response
+    try {
+      response = await fetch(wire.url, {
+        method: wire.method,
+        headers: wire.headers,
+        body: wire.body,
+      })
+    } catch (error) {
+      // 网络不可达 / 被 CORS 拦截：整套配置都跑不通，属系统性失败
+      const msg = error instanceof Error ? error.message : String(error)
+      throw new FatalEngineError(`NETWORK_ERROR: ${msg}`, 'NETWORK_ERROR')
+    }
 
     let payload: unknown = null
     try {
@@ -84,9 +106,20 @@ function createDirectChat(providerId: string, apiKey: string, model: string): Ch
     }
 
     if (!response.ok) {
-      throw new Error(describeWireError(response.status, payload))
+      const described = describeWireError(response.status, payload)
+      if (isFatalWireStatus(response.status)) {
+        throw new FatalEngineError(described, 'ENGINE_UNAVAILABLE')
+      }
+      throw new Error(described)
     }
-    return parseWireResponse(provider, payload)
+
+    try {
+      return parseWireResponse(provider, payload)
+    } catch (error) {
+      // 形状始终不符（端点或模型不对）→ 同样是配置问题，不该被静默降级
+      const msg = error instanceof Error ? error.message : String(error)
+      throw new FatalEngineError(`BAD_RESPONSE_SHAPE: ${msg}`, 'BAD_RESPONSE_SHAPE')
+    }
   }
 }
 

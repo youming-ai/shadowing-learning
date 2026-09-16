@@ -169,6 +169,74 @@ describe('keys', () => {
   })
 })
 
+describe('BYOK 直连的系统性失败必须暴露出来', () => {
+  const seg = [{ segmentIndex: 0, start: 0, end: 1, text: 'a' }]
+  const opts = { language: 'ja', targetLanguage: 'en' }
+
+  /** 让 fetch 返回指定状态（响应体可选） */
+  function stubFetch(status: number, body: unknown): typeof fetch {
+    return (async () =>
+      new Response(body === null ? '' : JSON.stringify(body), {
+        status,
+      })) as unknown as typeof fetch
+  }
+
+  async function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
+    const original = globalThis.fetch
+    globalThis.fetch = impl
+    try {
+      return await fn()
+    } finally {
+      globalThis.fetch = original
+    }
+  }
+
+  it('401 无效 key → 抛错，而不是返回空翻译的"成功"', async () => {
+    await withFetch(stubFetch(401, { error: { message: 'bad key' } }), async () => {
+      await expect(createDirectTransport('groq', 'sk-wrong', 'm').run(seg, opts)).rejects.toThrow(
+        'INVALID_KEY',
+      )
+    })
+  })
+
+  it('429 配额耗尽与 404 配置错误同样抛错', async () => {
+    await withFetch(stubFetch(429, null), async () => {
+      await expect(createDirectTransport('groq', 'k', 'm').run(seg, opts)).rejects.toThrow(
+        'RATE_LIMITED',
+      )
+    })
+    await withFetch(stubFetch(404, null), async () => {
+      await expect(createDirectTransport('groq', 'k', 'm').run(seg, opts)).rejects.toThrow()
+    })
+  })
+
+  it('网络 / 跨域失败 → 抛错（整套配置都跑不通，不能静默降级）', async () => {
+    const failingFetch = (async () => {
+      throw new TypeError('Failed to fetch')
+    }) as unknown as typeof fetch
+    await withFetch(failingFetch, async () => {
+      await expect(createDirectTransport('groq', 'k', 'm').run(seg, opts)).rejects.toThrow(
+        'NETWORK_ERROR',
+      )
+    })
+  })
+
+  it('响应形状不对（端点或模型错）→ 抛错', async () => {
+    await withFetch(stubFetch(200, { unexpected: true }), async () => {
+      await expect(createDirectTransport('groq', 'k', 'm').run(seg, opts)).rejects.toThrow(
+        'BAD_RESPONSE_SHAPE',
+      )
+    })
+  })
+
+  it('5xx 属单次调用失败 → 不抛，交给内核降级', async () => {
+    await withFetch(stubFetch(503, null), async () => {
+      const out = await createDirectTransport('groq', 'k', 'm').run(seg, opts)
+      expect(out[0].normalizedText).toBe('a')
+    })
+  })
+})
+
 describe('server transport 的安全不变量', () => {
   it('请求体里不含任何 key', async () => {
     setStoredKey('groq', 'sk-must-not-leak')

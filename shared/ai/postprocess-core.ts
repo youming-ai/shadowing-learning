@@ -175,38 +175,82 @@ export function fallbackResult(seg: PostProcessSegmentInput): PostProcessResult 
   }
 }
 
+/**
+ * 标记**系统性失败**：鉴权、配额、端点/模型配置、网络或跨域不可达。
+ * 这类失败意味着"这个引擎现在整体不可用"，一条都做不成，必须向上冒泡让用户看见。
+ *
+ * 由**传输层**决定什么算系统性（它才知道自己的语义），内核只负责不吞掉它：
+ * 若在这里降级成"保留原文"，上层会把空翻译当成功写库并标 completed ——
+ * 用户看不到任何错误、改了 key 也不会自动重试，等于静默产出损坏结果。
+ *
+ * 与之相对，普通的单次调用失败（如 5xx、超时）仍可就地降级，保留服务器路径原有的韧性。
+ */
+export class FatalEngineError extends Error {
+  readonly code: string
+
+  constructor(message: string, code = 'ENGINE_UNAVAILABLE') {
+    super(message)
+    this.name = 'FatalEngineError'
+    this.code = code
+  }
+}
+
+export function isFatalEngineError(error: unknown): error is FatalEngineError {
+  return error instanceof FatalEngineError
+}
+
+/**
+ * 降级规则：
+ * - `FatalEngineError`（系统性）→ 冒泡
+ * - 其它错误（单次调用失败）→ 就地降级为"保留原文"
+ */
+function degradeOrRethrow(error: unknown): boolean {
+  if (isFatalEngineError(error)) throw error
+  return true // 允许降级
+}
+
+/**
+ * 错误语义（**别把两者混起来**）：
+ *
+ * - **系统性失败**：传输层抛 `FatalEngineError`（见其文档），内核**必须让它冒泡**。
+ * - **内容级失败**：模型给了文本但不是合法 JSON → 就地降级为"保留原文"，其余照常。
+ */
 async function processOne(
   seg: PostProcessSegmentInput,
   options: PostProcessOptions,
   chat: ChatFn,
 ): Promise<PostProcessResult> {
+  const user = buildSegmentPrompt(
+    seg.text,
+    options.language,
+    options.targetLanguage,
+    options.enableAnnotations,
+    options.enableFurigana,
+  )
+  let responseText: string
   try {
-    const user = buildSegmentPrompt(
-      seg.text,
-      options.language,
-      options.targetLanguage,
-      options.enableAnnotations,
-      options.enableFurigana,
-    )
-    const responseText = await chat({
+    responseText = await chat({
       system: buildSegmentSystemPrompt(options.language),
       user,
       temperature: POSTPROCESS_TEMPERATURE,
       jsonMode: true,
     })
-    const parsed = parsePostProcessJson(responseText)
-    return {
-      originalText: seg.text,
-      normalizedText: parsed.normalizedText,
-      translation: parsed.translation,
-      annotations: parsed.annotations,
-      furigana: parsed.furigana,
-      start: seg.start,
-      end: seg.end,
-      segmentIndex: seg.segmentIndex,
-    }
-  } catch {
+  } catch (error) {
+    degradeOrRethrow(error)
     return fallbackResult(seg)
+  }
+
+  // parsePostProcessJson 自身宽容，不会抛
+  const parsed = parsePostProcessJson(responseText)
+  return {
+    originalText: seg.text,
+    normalizedText: parsed.normalizedText,
+    translation: parsed.translation,
+    annotations: parsed.annotations,
+    furigana: parsed.furigana,
+    start: seg.start,
+    end: seg.end,
+    segmentIndex: seg.segmentIndex,
   }
 }
 
@@ -217,15 +261,22 @@ async function processBatch(
 ): Promise<PostProcessResult[]> {
   if (batch.length === 0) return []
 
+  const combinedText = batch.map((seg, i) => `[SEGMENT_${i}] ${seg.text}`).join('\n')
+  let responseText: string
   try {
-    const combinedText = batch.map((seg, i) => `[SEGMENT_${i}] ${seg.text}`).join('\n')
-    const responseText = await chat({
+    responseText = await chat({
       system: buildBatchSystemPrompt(options.language),
       user: buildBatchPrompt(batch.length, combinedText, options.language, options),
       temperature: POSTPROCESS_TEMPERATURE,
       jsonMode: true,
     })
+  } catch (error) {
+    degradeOrRethrow(error)
+    return batch.map(fallbackResult)
+  }
 
+  // 只有"解析不出形状"这一种内容级失败才整批降级
+  try {
     const cleanedText = stripFence(responseText)
     const parsedBatch = JSON.parse(cleanedText)
 
@@ -249,7 +300,7 @@ async function processBatch(
 
     return batch.map(fallbackResult)
   } catch {
-    // 批处理整体失败 → 这一批全部降级（与既有行为一致；单条失败只影响单条）
+    // 模型给的不是合法 JSON → 这一批全部降级（内容级失败，不是传输失败）
     return batch.map(fallbackResult)
   }
 }
@@ -257,9 +308,10 @@ async function processBatch(
 /**
  * 处理一个分片：短文本合批、长文本逐条，最后按 `segmentIndex` 归位。
  *
- * 分流与降级策略都照搬原 Worker 实现：
- * - 长文本**串行**处理（与批处理一致地避免并发撞限流）
- * - 批处理失败 → 整批降级；单条失败 → 仅该条降级
+ * 分流策略照搬原 Worker 实现：长文本**串行**处理（避免并发撞限流）。
+ *
+ * 失败语义见 `processOne` 上方的说明：**传输/鉴权错误会直接抛出**，由上层分片编排
+ * 判定失败并让用户看到；只有内容级失败（模型输出非法 JSON）才就降级为保留原文。
  */
 export async function processSegmentsWithChat(
   segments: PostProcessSegmentInput[],

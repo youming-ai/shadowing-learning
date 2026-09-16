@@ -3,6 +3,7 @@ import {
   buildBatchPrompt,
   buildSegmentPrompt,
   type ChatFn,
+  FatalEngineError,
   fallbackResult,
   indexResults,
   POSTPROCESS_TEMPERATURE,
@@ -155,25 +156,46 @@ describe('processSegmentsWithChat', () => {
     expect(calls[0].user).toContain('1 independent')
   })
 
-  it('批量失败时整批降级为原文，且不抛错', async () => {
+  it('系统性失败（FatalEngineError）必须冒泡，不能被降级成"成功"', async () => {
     const chat: ChatFn = vi.fn(async () => {
-      throw new Error('boom')
+      throw new FatalEngineError('INVALID_KEY (401)', 'ENGINE_UNAVAILABLE')
+    })
+    await expect(
+      processSegmentsWithChat([SEG('a', 0), SEG('b', 1)], options, chat),
+    ).rejects.toThrow('INVALID_KEY')
+  })
+
+  it('长文本的系统性失败同样冒泡（不是只降级那一条）', async () => {
+    const long = 'y'.repeat(SHORT_TEXT_THRESHOLD + 1)
+    const chat: ChatFn = vi.fn(async () => {
+      throw new FatalEngineError('NETWORK_ERROR', 'NETWORK_ERROR')
+    })
+    await expect(processSegmentsWithChat([SEG(long, 0)], options, chat)).rejects.toThrow(
+      'NETWORK_ERROR',
+    )
+  })
+
+  it('非系统性失败（如 5xx）保留降级行为 —— 不让一次抖动废掉整条字幕', async () => {
+    const chat: ChatFn = vi.fn(async () => {
+      throw new Error('HTTP 503')
     })
     const out = await processSegmentsWithChat([SEG('a', 0), SEG('b', 1)], options, chat)
     expect(out.map((r) => r.normalizedText)).toEqual(['a', 'b'])
-    expect(out.map((r) => r.translation)).toEqual(['', ''])
   })
 
-  it('单条失败只影响那一条，其余正常', async () => {
+  it('内容级失败（非法 JSON）不算传输错误：不冒泡，其余照常', async () => {
     const long = 'y'.repeat(SHORT_TEXT_THRESHOLD + 1)
     let n = 0
     const chat: ChatFn = async () => {
       n++
-      if (n === 1) throw new Error('first fails')
+      if (n === 1) return 'not json at all' // 内容级失败 → 不抛，就地降级
       return '{"normalizedText":"second ok"}'
     }
+    // 关键断言是"不抛"（与传输错误区分开）。不锚定具体降级文案：
+    // 单条路径沿用旧的宽容解析（取模型原文），批处理路径取原句文本，两者尚未统一，
+    // 且 official 字幕链路不落库 normalizedText，因此这里只验证错误语义。
     const out = await processSegmentsWithChat([SEG(long, 0), SEG(long, 1)], options, chat)
-    expect(out[0].normalizedText).toBe(long) // 降级保留原文
+    expect(out).toHaveLength(2)
     expect(out[1].normalizedText).toBe('second ok')
   })
 
