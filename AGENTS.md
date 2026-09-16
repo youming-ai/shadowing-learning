@@ -9,7 +9,7 @@ Web-based language shadowing learning application. Imports a YouTube URL, fetche
 - Bun >=1.2.0 (required; do not use npm/pnpm/yarn/node)
 - Wrangler (dev dependency) for running/deploying the Worker
 - `GROQ_API_KEY` in `.dev.vars` for `wrangler dev`; in production via `wrangler secret put GROQ_API_KEY`
-- `RATE_LIMIT_KV` namespace binding — **optional**. It is not currently bound in `wrangler.jsonc`, and `rate-limit.ts` no-ops without it, so the Worker deploys and runs fine. Re-add the binding to turn rate limiting on (see the comment in `wrangler.jsonc`).
+- `RATE_LIMIT_KV` namespace binding — **currently bound, so rate limiting is enabled**. The middleware still no-ops in code when unbound (a bare deploy keeps working), but do not remove the binding: `/api/postprocess` spends our own Groq quota. Rate limiting and the client's chunk retry are a matched pair (see below).
 
 ## Common Commands
 
@@ -62,13 +62,16 @@ See `docs/ARCHITECTURE.md` for the full picture.
 - **Rate limiting**: `worker/middleware/rate-limit.ts`, KV-backed sliding window. Client id precedence: `cf-connecting-ip` → first `x-forwarded-for` → `request.cf.colo` → `user-agent`+`accept-language` hash.
 - **Database**: Dexie IndexedDB client-side (`src/lib/db/db.ts`). Version 5 schema: live tables `media` (YouTube rows only), `subtitles`, `segments`. The v5 migration dropped the legacy `files`/`transcripts` tables and purged the unreachable `kind: 'audio'` rows written by v4. Never edit a shipped migration; add a new version. Note that Dexie's `stores()` merges declarations across versions, so a table is only dropped by declaring it `null` — omitting it does not delete it.
 - **State**: TanStack Query for server state; React hooks for component state.
-- **AI**: Direct Groq SDK (`groq-sdk`), not via AI SDK. Post-processing uses `openai/gpt-oss-120b`.
+- **AI**: Two mutually exclusive paths. Default is our server quota (`groq-sdk`, `openai/gpt-oss-120b`) via `/api/postprocess`; BYOK sends the user's own key **straight from the browser** to the provider. The prompt / chunk split / JSON parsing / degradation rules live in exactly one place — `shared/ai/postprocess-core.ts` (runtime-neutral, imported by both sides; the Worker must use a relative path). Provider metadata is declarative data in `src/lib/ai/catalog.ts`; the BYOK transport is `src/lib/ai/transports.ts`. Do not fork the prompt.
+- **Rate limiting ⇄ retry**: `/api/postprocess` allows 20 req/60s while the client posts one request per ≤100-segment chunk, so long videos exceed 20 chunks. `src/lib/subtitles/chunk-postprocess.ts` retries `RetryableEngineError` (429/408/5xx) with backoff honoring `Retry-After`; systemic failures (`FatalEngineError`) are not retried. Removing the retry while rate limiting is on silently truncates long videos.
+- **Request bodies** are bounded in `worker/lib/body-guard.ts` (Content-Length fast-reject + streaming cap) before any parsing.
+- **Response headers** are split: `public/_headers` applies **only** to static-asset responses (Cloudflare's documented behavior); `/api/*` headers come from `worker/middleware/security-headers.ts`. The CSP there is report-only until YouTube playback and BYOK are browser-verified, and its `connect-src` is coupled to the provider catalog (guarded by a test).
 - **UI**: shadcn/ui + Radix UI primitives.
-- **No yt-dlp path**: Workers cannot run binaries, so the no-caption audio fallback is gone — the client records `error: 'NO_CAPTIONS'` on the subtitle row. All Groq/YouTube server code lives in `worker/lib/`; there is no `src/lib/ai/` anymore.
+- **No yt-dlp path**: Workers cannot run binaries, so the no-caption audio fallback is gone — the client records `error: 'NO_CAPTIONS'` on the subtitle row. Groq/YouTube server code lives in `worker/lib/`.
 
 ## Testing
 
-- **Runner**: Vitest (`vitest.config.ts`), invoked as `bun run test` / `bun run test:run`. Do not use `bun test` — specs import from `vitest`.
+- **Runner**: Vitest (`vitest.config.ts`), invoked as `bun run test` / `bun run test:run`. Do not use `bun test` — specs import from `vitest`. The `include` covers `src/**`, `shared/**` and `worker/**`.
 - **Environment**: `happy-dom`, with `fake-indexeddb` for Dexie specs and `src/__tests__/setup.ts` for cleanup.
 
 ## Database Operations
@@ -87,6 +90,7 @@ See `docs/ARCHITECTURE.md` for the full picture.
 
 - Target is Cloudflare Workers. `bun run build` emits the SPA to `dist/`; `bun run deploy` builds then runs `wrangler deploy` to upload the Worker plus assets.
 - PWA manifest at `/manifest.json`; service worker registration via `PwaRegister`.
+- `robots.txt` / `sitemap.xml` are **generated at build time** by the `site-metadata` plugin (logic in `src/lib/config/site-metadata.ts`, unit-tested). Set `SITE_URL` to emit canonical/og:url/sitemap; without it no sitemap is produced (never a placeholder domain).
 - There is no Docker/Dokploy path; those manifests were removed with the TanStack Start server bundle.
 
 ## What to Avoid

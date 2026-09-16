@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /player/
-Disallow: /settings
-Disallow: /account
-Sitemap: /sitemap.xml
