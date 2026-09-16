@@ -265,7 +265,7 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
     )
   }
   if (mediaQuery.isLoading || !media) {
-    return <PageLoadingState />
+    return <PageLoadingState loadingLabel={t('common.loading')} />
   }
 
   const showOriginalOnly = pipeline.subtitle?.source === 'official'

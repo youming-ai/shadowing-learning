@@ -11,7 +11,7 @@ export function OnlineLibraryPage() {
   const { files: media, isLoading, deleteFile } = useFiles('youtube')
   const [importOpen, setImportOpen] = useState(false)
 
-  if (isLoading) return <PageLoadingState />
+  if (isLoading) return <PageLoadingState loadingLabel={t('common.loading')} />
 
   return (
     <div className="flex flex-col gap-4">

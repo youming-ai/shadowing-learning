@@ -7,6 +7,7 @@ interface LoadingStateProps {
   size?: 'sm' | 'md' | 'lg'
   variant?: 'spinner' | 'dots' | 'skeleton'
   text?: string
+  loadingLabel?: string
   className?: string
 }
 
@@ -14,6 +15,7 @@ export function LoadingState({
   size = 'md',
   variant = 'spinner',
   text,
+  loadingLabel,
   className,
 }: LoadingStateProps) {
   const sizeClasses = {
@@ -26,7 +28,7 @@ export function LoadingState({
 
   if (variant === 'dots') {
     return (
-      <output className={containerClasses} aria-label={text || '加载中'}>
+      <output className={containerClasses} aria-label={loadingLabel ?? text}>
         <div className="flex space-x-1">
           <div
             className={cn(
@@ -70,7 +72,7 @@ export function LoadingState({
 
   // Default spinner variant
   return (
-    <output className={containerClasses} aria-label={text || '加载中'}>
+    <output className={containerClasses} aria-label={loadingLabel ?? text}>
       <Loader2 className={cn('animate-spin text-[var(--color-primary)]', sizeClasses[size])} />
       {text && <p className="mt-2 text-sm text-muted-foreground">{text}</p>}
     </output>
@@ -78,10 +80,11 @@ export function LoadingState({
 }
 
 // 页面级加载state
-export function PageLoadingState({ text = '加载中...' }: { text?: string }) {
+export function PageLoadingState({ text, loadingLabel }: { text?: string; loadingLabel?: string }) {
+  const resolvedText = text ?? loadingLabel
   return (
     <div className="flex min-h-[400px] items-center justify-center">
-      <LoadingState size="lg" text={text} />
+      <LoadingState size="lg" text={resolvedText} loadingLabel={loadingLabel} />
     </div>
   )
 }

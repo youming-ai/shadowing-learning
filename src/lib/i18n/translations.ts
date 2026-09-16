@@ -15,12 +15,16 @@ export interface TranslationKey {
   'player.error': string
   'player.back': string
   'player.retry': string
+  'player.errorTitle': string
+  'player.unknownError': string
+  'player.devDetails': string
+  'error.title': string
+  'error.description': string
 
   // Settings
   'settings.title': string
   'settings.language': string
   'settings.targetLanguage': string
-  'settings.nativeLanguage': string
   'settings.save': string
   'settings.cancel': string
   'settings.ai.title': string
@@ -38,6 +42,28 @@ export interface TranslationKey {
   'settings.ai.privacy': string
   'settings.ai.defaultQuotaHint': string
   'settings.ai.saved': string
+
+  // Account
+  'account.title': string
+  'account.localUser': string
+  'account.localUserHint': string
+
+  // Learning language
+  'settings.learning.title': string
+  'settings.learning.native': string
+  'settings.learning.nativeHint': string
+  'settings.learning.chooseNative': string
+
+  // Pro upgrade
+  'settings.pro.title': string
+  'settings.pro.heading': string
+  'settings.pro.description': string
+  'settings.pro.comingSoon': string
+
+  // Feedback
+  'settings.feedback.title': string
+  'settings.feedback.github': string
+  'settings.feedback.githubHint': string
 
   // Transcription
 
@@ -102,6 +128,13 @@ export interface TranslationKey {
   'watch.record.error.denied': string
   'watch.record.error.failed': string
   'watch.record.error.unsupported': string
+  'watch.controls.progress': string
+  'watch.controls.play': string
+  'watch.controls.pause': string
+  'watch.controls.speed': string
+  'watch.controls.mute': string
+  'watch.controls.unmute': string
+  'watch.controls.volume': string
   'watch.rhythm.ahead': string
   'watch.rhythm.onTime': string
   'watch.rhythm.late': string
@@ -120,10 +153,20 @@ export interface TranslationKey {
   'online.tab.podcast': string
   'online.tab.podcastSoon': string
 
+  // PWA
+  'pwa.updateAvailable': string
+  'pwa.update': string
+  'pwa.installPrompt': string
+  'pwa.install': string
+  'pwa.installed': string
+  'pwa.online': string
+  'pwa.offline': string
+
   // Common
   'common.loading': string
   'common.error': string
   'common.retry': string
+  'common.reload': string
   'common.cancel': string
   'common.save': string
   'common.delete': string
@@ -152,12 +195,16 @@ export const translations: Record<string, TranslationKey> = {
     'player.error': '加载失败',
     'player.back': '返回',
     'player.retry': '重试',
+    'player.errorTitle': '播放器遇到了问题',
+    'player.unknownError': '发生了未知错误',
+    'player.devDetails': '错误详情（开发者模式）',
+    'error.title': '页面出现错误',
+    'error.description': '抱歉，页面渲染时发生了意外错误。请尝试刷新页面。',
 
     // Settings
     'settings.title': '设置',
     'settings.language': '语言设置',
     'settings.targetLanguage': '目标学习语言（音频语言）',
-    'settings.nativeLanguage': '母语（翻译目标）',
     'settings.save': '保存',
     'settings.cancel': '取消',
     'settings.ai.title': 'AI 引擎',
@@ -177,6 +224,21 @@ export const translations: Record<string, TranslationKey> = {
     'settings.ai.defaultQuotaHint':
       '当前使用免费额度：翻译由我们的服务器调用，你无需配置任何密钥。',
     'settings.ai.saved': '已保存',
+    'account.title': '账户',
+    'account.localUser': '本地用户',
+    'account.localUserHint': '数据保存在本设备浏览器中，无需登录',
+    'settings.learning.title': '学习语言',
+    'settings.learning.native': '母语',
+    'settings.learning.nativeHint': '字幕第二行翻译要使用的语言',
+    'settings.learning.chooseNative': '选择{{name}}作为母语',
+    'settings.pro.title': '升级 Pro 版本',
+    'settings.pro.heading': '用 AI 解锁全部功能',
+    'settings.pro.description':
+      '订阅、跨设备同步与用量统计即将推出。当前版本可免费在本机使用全部已上线能力。',
+    'settings.pro.comingSoon': '敬请期待',
+    'settings.feedback.title': '意见反馈',
+    'settings.feedback.github': 'GitHub 反馈',
+    'settings.feedback.githubHint': '提交问题、建议或错误报告',
 
     // Transcription
 
@@ -237,6 +299,13 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': '麦克风权限被拒绝，请在浏览器设置中允许',
     'watch.record.error.failed': '无法启动录音，请重试',
     'watch.record.error.unsupported': '当前浏览器不支持录音',
+    'watch.controls.progress': '播放进度',
+    'watch.controls.play': '播放',
+    'watch.controls.pause': '暂停',
+    'watch.controls.speed': '播放速度',
+    'watch.controls.mute': '静音',
+    'watch.controls.unmute': '取消静音',
+    'watch.controls.volume': '音量',
     'watch.rhythm.ahead': '抢拍',
     'watch.rhythm.onTime': '合拍',
     'watch.rhythm.late': '拖拍',
@@ -255,10 +324,20 @@ export const translations: Record<string, TranslationKey> = {
     'online.tab.podcast': '播客',
     'online.tab.podcastSoon': '即将推出',
 
+    // PWA
+    'pwa.updateAvailable': '发现新版本，重启后即可更新。',
+    'pwa.update': '更新',
+    'pwa.installPrompt': '安装影子跟读应用，获得更好的体验！',
+    'pwa.install': '安装',
+    'pwa.installed': '应用安装成功！',
+    'pwa.online': '网络已恢复！',
+    'pwa.offline': '当前已离线，部分功能可能受限。',
+
     // Common
     'common.loading': '加载中...',
     'common.error': '错误',
     'common.retry': '重试',
+    'common.reload': '刷新页面',
     'common.cancel': '取消',
     'common.save': '保存',
     'common.delete': '删除',
@@ -285,12 +364,16 @@ export const translations: Record<string, TranslationKey> = {
     'player.error': '載入失敗',
     'player.back': '返回',
     'player.retry': '重試',
+    'player.errorTitle': '播放器發生問題',
+    'player.unknownError': '發生未知錯誤',
+    'player.devDetails': '錯誤詳細資訊（開發者模式）',
+    'error.title': '頁面發生錯誤',
+    'error.description': '抱歉，頁面轉譯時發生未預期的錯誤。請嘗試重新整理頁面。',
 
     // Settings
     'settings.title': '設定',
     'settings.language': '語言設定',
     'settings.targetLanguage': '目標學習語言（音頻語言）',
-    'settings.nativeLanguage': '母語（翻譯目標）',
     'settings.save': '儲存',
     'settings.cancel': '取消',
     'settings.ai.title': 'AI 引擎',
@@ -310,6 +393,21 @@ export const translations: Record<string, TranslationKey> = {
     'settings.ai.defaultQuotaHint':
       '目前使用免費額度：翻譯由我們的伺服器呼叫，你不需要設定任何金鑰。',
     'settings.ai.saved': '已儲存',
+    'account.title': '帳戶',
+    'account.localUser': '本機使用者',
+    'account.localUserHint': '資料保存在這台裝置的瀏覽器中，無須登入',
+    'settings.learning.title': '學習語言',
+    'settings.learning.native': '母語',
+    'settings.learning.nativeHint': '字幕第二行翻譯要使用的語言',
+    'settings.learning.chooseNative': '選擇{{name}}作為母語',
+    'settings.pro.title': '升級 Pro 版本',
+    'settings.pro.heading': '用 AI 解鎖全部功能',
+    'settings.pro.description':
+      '訂閱、跨裝置同步與用量統計即將推出。目前版本可在本機免費使用所有已上線功能。',
+    'settings.pro.comingSoon': '敬請期待',
+    'settings.feedback.title': '意見回饋',
+    'settings.feedback.github': 'GitHub 意見回饋',
+    'settings.feedback.githubHint': '提交問題、建議或錯誤報告',
 
     // Transcription
 
@@ -370,6 +468,13 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': '麥克風權限被拒絕，請在瀏覽器設定中允許',
     'watch.record.error.failed': '無法啟動錄音，請重試',
     'watch.record.error.unsupported': '目前瀏覽器不支援錄音',
+    'watch.controls.progress': '播放進度',
+    'watch.controls.play': '播放',
+    'watch.controls.pause': '暫停',
+    'watch.controls.speed': '播放速度',
+    'watch.controls.mute': '靜音',
+    'watch.controls.unmute': '取消靜音',
+    'watch.controls.volume': '音量',
     'watch.rhythm.ahead': '搶拍',
     'watch.rhythm.onTime': '合拍',
     'watch.rhythm.late': '拖拍',
@@ -388,10 +493,20 @@ export const translations: Record<string, TranslationKey> = {
     'online.tab.podcast': '播客',
     'online.tab.podcastSoon': '即將推出',
 
+    // PWA
+    'pwa.updateAvailable': '發現新版本，重新啟動後即可更新。',
+    'pwa.update': '更新',
+    'pwa.installPrompt': '安裝影子跟讀應用，獲得更好的體驗！',
+    'pwa.install': '安裝',
+    'pwa.installed': '應用程式安裝成功！',
+    'pwa.online': '網路已恢復！',
+    'pwa.offline': '目前處於離線狀態，部分功能可能受限。',
+
     // Common
     'common.loading': '載入中...',
     'common.error': '錯誤',
     'common.retry': '重試',
+    'common.reload': '重新整理頁面',
     'common.cancel': '取消',
     'common.save': '儲存',
     'common.delete': '刪除',
@@ -418,12 +533,16 @@ export const translations: Record<string, TranslationKey> = {
     'player.error': 'Loading failed',
     'player.back': 'Back',
     'player.retry': 'Retry',
+    'player.errorTitle': 'The player ran into a problem',
+    'player.unknownError': 'An unknown error occurred',
+    'player.devDetails': 'Error details (developer mode)',
+    'error.title': 'Something went wrong on this page',
+    'error.description': 'Sorry, the page hit an unexpected rendering error. Try reloading it.',
 
     // Settings
     'settings.title': 'Settings',
     'settings.language': 'Language Settings',
     'settings.targetLanguage': 'Target Learning Language (Audio Language)',
-    'settings.nativeLanguage': 'Native Language (Translation Target)',
     'settings.save': 'Save',
     'settings.cancel': 'Cancel',
     'settings.ai.title': 'AI Engine',
@@ -444,6 +563,21 @@ export const translations: Record<string, TranslationKey> = {
     'settings.ai.defaultQuotaHint':
       'Using the free quota: translation runs on our servers, so you do not need to configure any key.',
     'settings.ai.saved': 'Saved',
+    'account.title': 'Account',
+    'account.localUser': 'Local user',
+    'account.localUserHint': 'Your data stays in this device’s browser. No sign-in needed.',
+    'settings.learning.title': 'Learning language',
+    'settings.learning.native': 'Native language',
+    'settings.learning.nativeHint': 'Language for the second subtitle line',
+    'settings.learning.chooseNative': 'Use {{name}} as the native language',
+    'settings.pro.title': 'Upgrade to Pro',
+    'settings.pro.heading': 'Unlock everything with AI',
+    'settings.pro.description':
+      'Subscriptions, cross-device sync, and usage stats are coming soon. Every shipped feature is free on this device for now.',
+    'settings.pro.comingSoon': 'Coming soon',
+    'settings.feedback.title': 'Feedback',
+    'settings.feedback.github': 'GitHub issues',
+    'settings.feedback.githubHint': 'Report bugs, ideas, or issues',
 
     // Transcription
 
@@ -505,6 +639,13 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': 'Microphone permission denied — enable it in browser settings',
     'watch.record.error.failed': 'Could not start recording — try again',
     'watch.record.error.unsupported': 'Recording is not supported in this browser',
+    'watch.controls.progress': 'Playback progress',
+    'watch.controls.play': 'Play',
+    'watch.controls.pause': 'Pause',
+    'watch.controls.speed': 'Playback speed',
+    'watch.controls.mute': 'Mute',
+    'watch.controls.unmute': 'Unmute',
+    'watch.controls.volume': 'Volume',
     'watch.rhythm.ahead': 'Rushed',
     'watch.rhythm.onTime': 'On beat',
     'watch.rhythm.late': 'Late',
@@ -523,10 +664,20 @@ export const translations: Record<string, TranslationKey> = {
     'online.tab.podcast': 'Podcast',
     'online.tab.podcastSoon': 'Coming soon',
 
+    // PWA
+    'pwa.updateAvailable': 'A new version is available. Restart to update.',
+    'pwa.update': 'Update',
+    'pwa.installPrompt': 'Install the Shadowing app for a better experience!',
+    'pwa.install': 'Install',
+    'pwa.installed': 'App installed successfully!',
+    'pwa.online': 'Connection restored!',
+    'pwa.offline': 'You are offline. Some features may be limited.',
+
     // Common
     'common.loading': 'Loading...',
     'common.error': 'Error',
     'common.retry': 'Retry',
+    'common.reload': 'Reload page',
     'common.cancel': 'Cancel',
     'common.save': 'Save',
     'common.delete': 'Delete',
@@ -553,12 +704,17 @@ export const translations: Record<string, TranslationKey> = {
     'player.error': '読み込み失敗',
     'player.back': '戻る',
     'player.retry': '再試行',
+    'player.errorTitle': 'プレイヤーで問題が発生しました',
+    'player.unknownError': '不明なエラーが発生しました',
+    'player.devDetails': 'エラー詳細（開発者モード）',
+    'error.title': 'ページでエラーが発生しました',
+    'error.description':
+      '申し訳ありません。ページの表示中に予期しないエラーが発生しました。再読み込みしてお試しください。',
 
     // Settings
     'settings.title': '設定',
     'settings.language': '言語設定',
     'settings.targetLanguage': '学習対象言語（音声言語）',
-    'settings.nativeLanguage': '母語（翻訳対象）',
     'settings.save': '保存',
     'settings.cancel': 'キャンセル',
     'settings.ai.title': 'AI エンジン',
@@ -578,6 +734,21 @@ export const translations: Record<string, TranslationKey> = {
     'settings.ai.defaultQuotaHint':
       '現在は無料枠を使用中です。翻訳は当社のサーバーで実行されるため、キーの設定は不要です。',
     'settings.ai.saved': '保存しました',
+    'account.title': 'アカウント',
+    'account.localUser': 'ローカルユーザー',
+    'account.localUserHint': 'データはこの端末のブラウザに保存されます。ログインは不要です。',
+    'settings.learning.title': '学習言語',
+    'settings.learning.native': '母語',
+    'settings.learning.nativeHint': '字幕2行目に使う言語',
+    'settings.learning.chooseNative': '{{name}}を母語として使う',
+    'settings.pro.title': 'Pro にアップグレード',
+    'settings.pro.heading': 'AI ですべての機能を解放',
+    'settings.pro.description':
+      'サブスク、デバイス間同期、利用統計は近日公開予定です。現時点で提供中の機能はすべてこの端末で無料で使えます。',
+    'settings.pro.comingSoon': '近日公開',
+    'settings.feedback.title': 'フィードバック',
+    'settings.feedback.github': 'GitHub Issues',
+    'settings.feedback.githubHint': '不具合や要望、問題を報告する',
 
     // Transcription
 
@@ -640,6 +811,13 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': 'マイクの権限が拒否されました。ブラウザ設定で許可してください',
     'watch.record.error.failed': '録音を開始できませんでした。再試行してください',
     'watch.record.error.unsupported': 'このブラウザは録音に対応していません',
+    'watch.controls.progress': '再生位置',
+    'watch.controls.play': '再生',
+    'watch.controls.pause': '一時停止',
+    'watch.controls.speed': '再生速度',
+    'watch.controls.mute': 'ミュート',
+    'watch.controls.unmute': 'ミュート解除',
+    'watch.controls.volume': '音量',
     'watch.rhythm.ahead': '走り気味',
     'watch.rhythm.onTime': 'ちょうど良い',
     'watch.rhythm.late': '遅れ気味',
@@ -658,10 +836,20 @@ export const translations: Record<string, TranslationKey> = {
     'online.tab.podcast': 'ポッドキャスト',
     'online.tab.podcastSoon': '近日公開',
 
+    // PWA
+    'pwa.updateAvailable': '新しいバージョンがあります。再起動して更新してください。',
+    'pwa.update': '更新',
+    'pwa.installPrompt': 'シャドーイングアプリをインストールして快適に使えます。',
+    'pwa.install': 'インストール',
+    'pwa.installed': 'アプリをインストールしました。',
+    'pwa.online': '接続が復旧しました。',
+    'pwa.offline': 'オフラインです。一部の機能が制限される場合があります。',
+
     // Common
     'common.loading': '読み込み中...',
     'common.error': 'エラー',
     'common.retry': '再試行',
+    'common.reload': 'ページを再読み込み',
     'common.cancel': 'キャンセル',
     'common.save': '保存',
     'common.delete': '削除',

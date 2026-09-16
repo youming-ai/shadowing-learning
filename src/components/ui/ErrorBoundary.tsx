@@ -1,6 +1,7 @@
 'use client'
 
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { translateStandalone } from '~/lib/i18n/standalone'
 
 interface Props {
   children: ReactNode
@@ -41,10 +42,10 @@ export class PageErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
           <h2 className="text-xl font-bold" style={{ color: 'var(--color-error)' }}>
-            页面出现错误
+            {translateStandalone('error.title')}
           </h2>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            抱歉，页面渲染时发生了意外错误。请尝试刷新页面。
+            {translateStandalone('error.description')}
           </p>
           {process.env.NODE_ENV === 'development' && this.state.error && (
             <pre
@@ -68,7 +69,7 @@ export class PageErrorBoundary extends Component<Props, State> {
                 border: '1px solid var(--border-default)',
               }}
             >
-              重试
+              {translateStandalone('common.retry')}
             </button>
             <button
               type="button"
@@ -76,7 +77,7 @@ export class PageErrorBoundary extends Component<Props, State> {
               className="rounded-lg px-4 py-2 text-sm font-medium text-white"
               style={{ backgroundColor: 'var(--color-primary)' }}
             >
-              刷新页面
+              {translateStandalone('common.reload')}
             </button>
           </div>
         </div>
