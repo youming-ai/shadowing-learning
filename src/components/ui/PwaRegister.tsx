@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { translateStandalone } from '~/lib/i18n/standalone'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): void
@@ -41,8 +42,11 @@ export default function PWARegister() {
           if (!newWorker) return
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              toast.info('New version available! Restart to update.', {
-                action: { label: 'Update', onClick: () => window.location.reload() },
+              toast.info(translateStandalone('pwa.updateAvailable'), {
+                action: {
+                  label: translateStandalone('pwa.update'),
+                  onClick: () => window.location.reload(),
+                },
                 duration: 10000,
               })
             }
@@ -59,23 +63,23 @@ export default function PWARegister() {
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      toast.info('安装影子跟读应用以获得更好的体验！', {
-        action: { label: 'Install', onClick: () => handleInstallClick() },
+      toast.info(translateStandalone('pwa.installPrompt'), {
+        action: { label: translateStandalone('pwa.install'), onClick: () => handleInstallClick() },
         duration: 8000,
       })
     }
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null)
-      toast.success('App installed successfully!')
+      toast.success(translateStandalone('pwa.installed'))
     }
 
     const handleOnline = () => {
-      toast.success('Connection restored!', { duration: 3000 })
+      toast.success(translateStandalone('pwa.online'), { duration: 3000 })
     }
 
     const handleOffline = () => {
-      toast.warning('You are now offline. Some features may be limited.', {
+      toast.warning(translateStandalone('pwa.offline'), {
         duration: 5000,
       })
     }

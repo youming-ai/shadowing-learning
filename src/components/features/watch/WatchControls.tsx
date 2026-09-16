@@ -106,7 +106,7 @@ export function WatchControls({
             value={currentTime}
             onChange={(e) => onSeek(parseFloat(e.target.value))}
             className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
-            aria-label="播放进度"
+            aria-label={t('watch.controls.progress')}
           />
         </div>
         <span className="min-w-[3rem] text-right font-mono text-sm tabular-nums text-[var(--text-secondary)]">
@@ -129,7 +129,7 @@ export function WatchControls({
             type="button"
             onClick={onTogglePlay}
             className="btn-primary !h-12 !w-12 !rounded-full !p-0"
-            aria-label={isPlaying ? '暂停' : '播放'}
+            aria-label={isPlaying ? t('watch.controls.pause') : t('watch.controls.play')}
           >
             <span className="material-symbols-outlined text-2xl">
               {isPlaying ? 'pause' : 'play_arrow'}
@@ -196,7 +196,7 @@ export function WatchControls({
             onChange={(e) => onRateChange(parseFloat(e.target.value))}
             disabled={shadowingEnabled && shadowingState.phase === 'listening'}
             className="h-8 rounded-md border border-[var(--border-primary)] bg-[var(--surface-card)] px-2 text-xs text-[var(--text-primary)] disabled:opacity-50"
-            aria-label="播放速度"
+            aria-label={t('watch.controls.speed')}
           >
             {availableRates.map((rate) => (
               <option key={rate} value={rate}>
@@ -208,7 +208,7 @@ export function WatchControls({
             type="button"
             onClick={() => onVolumeChange(volume === 0 ? 1 : 0)}
             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]"
-            aria-label={volume === 0 ? '取消静音' : '静音'}
+            aria-label={volume === 0 ? t('watch.controls.unmute') : t('watch.controls.mute')}
           >
             <span className="material-symbols-outlined text-xl">
               {volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
@@ -229,7 +229,7 @@ export function WatchControls({
               value={volume}
               onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
               className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
-              aria-label="音量"
+              aria-label={t('watch.controls.volume')}
             />
           </div>
         </div>

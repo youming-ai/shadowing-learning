@@ -3,6 +3,7 @@
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { Component, type ReactNode } from 'react'
 import { Button } from '~/components/ui/button'
+import { translateStandalone } from '~/lib/i18n/standalone'
 
 interface ErrorInfo {
   componentStack: string
@@ -61,9 +62,11 @@ export default class PlayerErrorBoundary extends Component<
           <div className="w-full max-w-md text-center">
             <div className="mb-6">
               <div className="mb-4 text-6xl">😵</div>
-              <h1 className="mb-2 font-bold text-2xl text-foreground">播放器遇到了问题</h1>
+              <h1 className="mb-2 font-bold text-2xl text-foreground">
+                {translateStandalone('player.errorTitle')}
+              </h1>
               <p className="mb-6 text-muted-foreground">
-                {this.state.error?.message || '发生了未知错误'}
+                {this.state.error?.message || translateStandalone('player.unknownError')}
               </p>
             </div>
 
@@ -74,18 +77,18 @@ export default class PlayerErrorBoundary extends Component<
                 className="flex items-center gap-2"
               >
                 <RefreshCw className="h-4 w-4" />
-                刷新页面
+                {translateStandalone('common.reload')}
               </Button>
               <Button onClick={() => window.history.back()} className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                返回上一页
+                {translateStandalone('player.back')}
               </Button>
             </div>
 
             {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
               <details className="mt-6 text-left">
                 <summary className="cursor-pointer text-muted-foreground text-sm hover:text-foreground">
-                  错误详情 (开发者模式)
+                  {translateStandalone('player.devDetails')}
                 </summary>
                 <pre className="mt-2 max-h-60 overflow-auto rounded bg-muted p-4 text-xs">
                   {this.state.error?.stack}

@@ -8,9 +8,11 @@ import {
   SettingsRowContent,
   SettingsSection,
 } from '~/components/features/settings/SettingsCard'
+import { useI18n } from '~/components/layout/contexts/I18nContext'
 import { useTranscriptionLanguage } from '~/components/layout/contexts/TranscriptionLanguageContext'
 
 export function LearningLanguageSection() {
+  const { t } = useI18n()
   const { learningLanguage, setLearningLanguage, getSupportedLanguages } =
     useTranscriptionLanguage()
   const supportedLanguages = getSupportedLanguages()
@@ -20,10 +22,13 @@ export function LearningLanguageSection() {
   }
 
   return (
-    <SettingsSection title="学习语言">
+    <SettingsSection title={t('settings.learning.title')}>
       <SettingsCard>
         <SettingsRow>
-          <SettingsRowContent title="母语" description="字幕第二行翻译要使用的语言" />
+          <SettingsRowContent
+            title={t('settings.learning.native')}
+            description={t('settings.learning.nativeHint')}
+          />
           <div className="flex items-center gap-2">
             {Object.entries(supportedLanguages).map(([code, config]) => (
               <button
@@ -40,7 +45,7 @@ export function LearningLanguageSection() {
                   }
                 `}
                 title={config.name}
-                aria-label={`选择${config.name}作为母语`}
+                aria-label={t('settings.learning.chooseNative', { name: config.name })}
                 aria-pressed={learningLanguage.nativeLanguage === code}
               >
                 {config.flag}
