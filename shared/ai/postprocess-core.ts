@@ -183,7 +183,8 @@ export function fallbackResult(seg: PostProcessSegmentInput): PostProcessResult 
  * 若在这里降级成"保留原文"，上层会把空翻译当成功写库并标 completed ——
  * 用户看不到任何错误、改了 key 也不会自动重试，等于静默产出损坏结果。
  *
- * 与之相对，普通的单次调用失败（如 5xx、超时）仍可就地降级，保留服务器路径原有的韧性。
+ * 与之相对，**可重试**失败（429 / 408 / 5xx）抛 `RetryableEngineError` 交给编排退避重试；
+ * 只有既非系统性、也非可重试的失败（例如某条内容解析不出来）才就地降级。
  */
 export class FatalEngineError extends Error {
   readonly code: string
@@ -200,13 +201,40 @@ export function isFatalEngineError(error: unknown): error is FatalEngineError {
 }
 
 /**
+ * 标记**可重试**失败：限流（429）、临时性服务端错误（5xx / 408）。
+ * 与 `FatalEngineError` 的区别是"再试一次可能就成功"。
+ *
+ * 同样由传输层声明（只有它知道 HTTP 语义），内核负责不吞掉它，
+ * 由分片编排做退避重试。`retryAfterSec` 来自服务端的 `Retry-After` 头，
+ * 有它时必须听服务端的，而不是用我们自己的退避曲线。
+ *
+ * 为什么不就地降级：这类失败是**整片**的（限流是按请求计的），
+ * 降级会把一片空翻译写成"成功"，正是我们要避免的静默损坏。
+ */
+export class RetryableEngineError extends Error {
+  /** 服务端要求的等待秒数；无该信息时为 null。 */
+  readonly retryAfterSec: number | null
+
+  constructor(message: string, retryAfterSec: number | null = null) {
+    super(message)
+    this.name = 'RetryableEngineError'
+    this.retryAfterSec = retryAfterSec
+  }
+}
+
+export function isRetryableEngineError(error: unknown): error is RetryableEngineError {
+  return error instanceof RetryableEngineError
+}
+
+/**
  * 降级规则：
  * - `FatalEngineError`（系统性）→ 冒泡
  * - 其它错误（单次调用失败）→ 就地降级为"保留原文"
  */
 function degradeOrRethrow(error: unknown): boolean {
-  if (isFatalEngineError(error)) throw error
-  return true // 允许降级
+  // 系统性失败与可重试失败都必须冒泡：前者要让用户看到，后者要交给编排重试。
+  if (isFatalEngineError(error) || isRetryableEngineError(error)) throw error
+  return true // 允许就地降级
 }
 
 /**

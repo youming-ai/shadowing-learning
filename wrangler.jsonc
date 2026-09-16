@@ -17,11 +17,19 @@
       "head_sampling_rate": 1
     }
   },
-  // Rate limiting is OPTIONAL. The Worker runs fine without a KV namespace
-  // (rate-limit middleware no-ops when RATE_LIMIT_KV is unbound). To enable
-  // rate limiting, create a namespace and re-add the binding below:
-  //   bunx wrangler kv namespace create RATE_LIMIT_KV
-  //   "kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "<returned id>" }]
+  // Rate limiting 是**已启用**的：/api/postprocess 走的是我们自己的 Groq 额度，
+  // 没有这层护栏时任何人对公网 URL 循环调用都能把额度烧掉。
+  //
+  // 历史上它是可选的（未绑定时中间件直接放行），现在绑定已就位。
+  // 注意：限流与客户端的分片退避重试是**配套**的 —— /api/postprocess 限 20 req/60s，
+  // 而客户端按 100 段/片计请求，长视频必然超过 20 片。若撤掉重试，长视频会被打成
+  // 部分翻译（见 src/lib/subtitles/chunk-postprocess.ts 的 RETRY_POLICY）。
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "b5e3410e705d4aa99689c37dbd32effb"
+    }
+  ],
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",

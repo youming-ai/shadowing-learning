@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { Innertube } from 'youtubei.js'
 import z from 'zod'
 import { apiError, apiSuccess } from '../lib/api-response'
+import { readBodyTextWithLimit } from '../lib/body-guard'
 import type { Env } from '../lib/types'
 import { fetchTimedtextSubtitles, mergeShortCues, msCuesToSeconds } from '../lib/youtube-captions'
 
@@ -113,7 +114,16 @@ const captionsBody = z.object({
 
 youtubeRoute.post('/resolve', async (c) => {
   try {
-    const body = await c.req.json().catch(() => null)
+    // 体积封顶（youtube 的 body 很小，这里防的是滥用而非正常流量）。
+    // 坏 JSON 仍按既有契约视为 null，由 schema 报 INVALID_URL。
+    const read = await readBodyTextWithLimit(c)
+    if (!read.ok) return read.response
+    let body: unknown = null
+    try {
+      body = JSON.parse(read.text)
+    } catch {
+      body = null
+    }
     const parsed = resolveBody.safeParse(body)
     if (!parsed.success) {
       return apiError({ code: 'INVALID_URL', message: '请求体无效', statusCode: 400 })
@@ -140,7 +150,16 @@ youtubeRoute.post('/resolve', async (c) => {
 
 youtubeRoute.post('/captions', async (c) => {
   try {
-    const body = await c.req.json().catch(() => null)
+    // 体积封顶（youtube 的 body 很小，这里防的是滥用而非正常流量）。
+    // 坏 JSON 仍按既有契约视为 null，由 schema 报 INVALID_URL。
+    const read = await readBodyTextWithLimit(c)
+    if (!read.ok) return read.response
+    let body: unknown = null
+    try {
+      body = JSON.parse(read.text)
+    } catch {
+      body = null
+    }
     const parsed = captionsBody.safeParse(body)
     if (!parsed.success || !/^[a-zA-Z0-9_-]{11}$/.test(parsed.data.videoId)) {
       return apiError({ code: 'INVALID_URL', message: '无效的 videoId', statusCode: 400 })

@@ -19,13 +19,15 @@ import {
   type PostProcessResult,
   type PostProcessSegmentInput,
   processSegmentsWithChat,
+  RetryableEngineError,
 } from '~shared/ai/postprocess-core'
 import { AI_PROVIDERS, findProvider, SERVER_ENGINE_ID } from './catalog'
 import { getSelectedEngineId, getStoredKey, getStoredModel } from './keys'
 import {
   buildWireRequest,
+  classifyWireStatus,
   describeWireError,
-  isFatalWireStatus,
+  parseRetryAfter,
   parseWireResponse,
 } from './protocol'
 
@@ -55,14 +57,24 @@ export function createServerTransport(fetchImpl: typeof fetch = fetch): PostProc
         }),
       })
       if (!response.ok) {
-        throw new Error(`postprocess HTTP ${response.status}`)
+        // 归类与 BYOK 直连同一套判据：限流/5xx 可重试（并听 Retry-After），其余立即失败。
+        // 这条路径最常撞的就是 429 —— 本项目的限流是 20 req/60s，而分片是按片计请求的。
+        const described = `postprocess HTTP ${response.status}`
+        if (classifyWireStatus(response.status) === 'retryable') {
+          throw new RetryableEngineError(
+            described,
+            parseRetryAfter(response.headers.get('retry-after')),
+          )
+        }
+        throw new FatalEngineError(described, 'SERVER_REJECTED')
       }
       const json = (await response.json()) as {
         success?: boolean
         data?: { segments?: PostProcessResult[] }
       }
       if (!json.success || !json.data?.segments) {
-        throw new Error('postprocess invalid response')
+        // 信封形状不对 = 部署/契约问题，重试无用
+        throw new FatalEngineError('postprocess invalid response', 'BAD_RESPONSE_SHAPE')
       }
       return json.data.segments
     },
@@ -107,10 +119,15 @@ function createDirectChat(providerId: string, apiKey: string, model: string): Ch
 
     if (!response.ok) {
       const described = describeWireError(response.status, payload)
-      if (isFatalWireStatus(response.status)) {
-        throw new FatalEngineError(described, 'ENGINE_UNAVAILABLE')
+      const kind = classifyWireStatus(response.status)
+      if (kind === 'retryable') {
+        // 429/5xx：交给分片编排退避重试，并尊重服务端的 Retry-After
+        throw new RetryableEngineError(
+          described,
+          parseRetryAfter(response.headers.get('retry-after')),
+        )
       }
-      throw new Error(described)
+      throw new FatalEngineError(described, 'ENGINE_UNAVAILABLE')
     }
 
     try {

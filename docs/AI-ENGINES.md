@@ -92,7 +92,8 @@ wrangler 不认识别名，这点在 `shared/ai/postprocess-core.ts` 的注释�
 
 | 失败类型 | 例子 | 行为 |
 |---|---|---|
-| **系统性失败** | 401/403 无效 key、429 配额耗尽、404 端点或模型不对、网络/CORS 不可达、响应形状始终不符 | 抛 `FatalEngineError` → **冒泡** → 分片判定失败 → `postProcessStatus: 'failed'`，用户看到错误并可在改完 key 后重试 |
+| **系统性失败** | 401/403 无效 key、404 端点或模型不对、网络/CORS 不可达、响应形状始终不符 | 抛 `FatalEngineError` → **冒泡** → 立即失败（重试无意义），用户看到错误并可在改完 key 后重试 |
+| **可重试失败** | 429 配额耗尽/被限流、408 超时、5xx | 抛 `RetryableEngineError` → 分片编排**退避重试**（尊重 `Retry-After`）；重试耗尽后如实报错 |
 | **单次调用失败** | 5xx、超时 | 就地降级为"保留原文"，分片继续 —— 不让一次抖动废掉整条字幕 |
 | **内容级失败** | 模型返回的不是合法 JSON | 降级为"保留原文"（批处理整批降级） |
 
@@ -100,8 +101,7 @@ wrangler 不认识别名，这点在 `shared/ai/postprocess-core.ts` 的注释�
 上层会把空翻译写库并把状态标成 `completed` —— 用户既不知道 key 有问题，改完也不会重试，
 等于静默产出一份损坏的字幕。这个缺陷在 code review 中被指出（P1）后修正。
 
-**谁来决定什么算系统性**：传输层。只有它知道自己的语义（见 `createDirectChat` 的
-`isFatalWireStatus` 判据与网络/形状失败的归类），内核只负责不吞掉 `FatalEngineError`。
+**谁来分类**：传输层。只有它知道 HTTP 语义 —— 判据集中在一个纯函数 `classifyWireStatus`（`src/lib/ai/protocol.ts`）：401/403/404 → 致命，408/429/5xx → 可重试，其余 4xx → 致命。内核只负责不吞掉 `FatalEngineError` 与 `RetryableEngineError`。
 
 ## 测试
 

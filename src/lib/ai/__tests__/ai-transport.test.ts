@@ -15,6 +15,7 @@ import {
 } from '~/lib/ai/keys'
 import { buildWireRequest, describeWireError, parseWireResponse } from '~/lib/ai/protocol'
 import { createDirectTransport, createServerTransport, resolveEngine } from '~/lib/ai/transports'
+import { RetryableEngineError } from '~shared/ai/postprocess-core'
 
 /** 目录里必然存在；缺失就让测试直接失败（比非空断言更明确）。*/
 function provider(id: string): AiProvider {
@@ -229,10 +230,26 @@ describe('BYOK 直连的系统性失败必须暴露出来', () => {
     })
   })
 
-  it('5xx 属单次调用失败 → 不抛，交给内核降级', async () => {
+  it('5xx 属可重试失败 → 抛出 RetryableEngineError（交给编排退避重试，而不是静默降级）', async () => {
     await withFetch(stubFetch(503, null), async () => {
-      const out = await createDirectTransport('groq', 'k', 'm').run(seg, opts)
-      expect(out[0].normalizedText).toBe('a')
+      await expect(createDirectTransport('groq', 'k', 'm').run(seg, opts)).rejects.toThrow(
+        RetryableEngineError,
+      )
+    })
+  })
+
+  it('429 也可重试（限流会恢复），并带上 Retry-After 秒数', async () => {
+    const withRetryAfter = (async () =>
+      new Response('', {
+        status: 429,
+        headers: { 'retry-after': '5' },
+      })) as unknown as typeof fetch
+    await withFetch(withRetryAfter, async () => {
+      const err = await createDirectTransport('groq', 'k', 'm')
+        .run(seg, opts)
+        .catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(RetryableEngineError)
+      expect((err as RetryableEngineError).retryAfterSec).toBe(5)
     })
   })
 })

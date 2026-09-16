@@ -122,16 +122,33 @@ export function describeWireError(status: number, payload: unknown): string {
 }
 
 /**
- * 该 HTTP 状态是否属于**系统性失败**（整个引擎不可用，必须让用户看见）。
+ * HTTP 状态 → 失败归类的**唯一判据**（纯函数，可单测）。
  *
- * 判据：配置或额度问题 —— 换一段文本重试也没用。
- * - 401 / 403：key 无效或无权限
- * - 404：端点或模型名不存在（配置错误）
- * - 429：配额耗尽 / 被限流
+ * | 归类 | 状态 | 含义 | 上层行为 |
+ * |---|---|---|---|
+ * | `fatal` | 401 / 403 / 404 | key 无效、无权限、端点或模型不存在 | 立即失败并让用户看到（重试无用） |
+ * | `retryable` | 408 / 429 / 5xx | 超时、限流/配额、临时服务端故障 | 退避重试；仍失败则如实报错 |
  *
- * 与之相对，5xx 与超时视为**单次调用失败**：保留内核既有的降级行为（服务器路径有意为之的
- * 韧性），不让一次抖动废掉整条字幕。
+ * 为什么 429 是"可重试"而不是"致命"：限流会随时间恢复，退避重试能救；
+ * 而**不能**降级 —— 限流是按请求计的，降级会把整片空翻译写成"成功"。
  */
-export function isFatalWireStatus(status: number): boolean {
-  return status === 401 || status === 403 || status === 404 || status === 429
+export type WireStatusClass = 'fatal' | 'retryable' | 'ok'
+
+export function classifyWireStatus(status: number): WireStatusClass {
+  if (status >= 200 && status < 300) return 'ok'
+  if (status === 401 || status === 403 || status === 404) return 'fatal'
+  if (status === 408 || status === 429 || status >= 500) return 'retryable'
+  // 其余 4xx（如 400 请求体不合法）重试也没用
+  return 'fatal'
+}
+
+/**
+ * 解析 `Retry-After` 头。只支持秒数形式（HTTP-date 形式罕见，返回 null 让调用方退回自身退避）。
+ * 上限夹在 60s：服务端给一个离谱的值时不该让用户干等。
+ */
+export function parseRetryAfter(headerValue: string | null): number | null {
+  if (!headerValue) return null
+  const seconds = Number(headerValue.trim())
+  if (!Number.isFinite(seconds) || seconds < 0) return null
+  return Math.min(seconds, 60)
 }
