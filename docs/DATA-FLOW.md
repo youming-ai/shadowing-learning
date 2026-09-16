@@ -2,16 +2,17 @@
 
 ## Overview
 
-Shadowing Learning is an offline-first language learning application. Media, subtitles, and time-coded segments are stored locally in IndexedDB. The only network calls are to a single Cloudflare Worker (Hono) that fronts Groq for text enhancement, plus YouTube for caption resolution.
+Shadowing Learning is an offline-first language learning application. Media, subtitles, and time-coded segments are stored locally in IndexedDB. Network calls go to a single Cloudflare Worker (Hono) that fronts Groq for text enhancement, plus YouTube for caption resolution — **except when the user brings their own API key**, in which case the browser calls the AI provider directly and our Worker never sees the request or the key (see [AI-ENGINES.md](./AI-ENGINES.md)).
 
 > The full API surface (request/response shapes, envelopes, error codes) is documented in [ARCHITECTURE.md](./ARCHITECTURE.md). This doc focuses on **data movement**: what is stored, where, and how it flows between IndexedDB, the hooks, and the Worker.
 
 **Data Layer Stack:**
 
-- **Dexie 4** (`src/lib/db/db.ts`): IndexedDB wrapper for local persistence
+- **Dexie** (library v4; **schema v5**) (`src/lib/db/db.ts`): IndexedDB wrapper for local persistence
 - **TanStack Query**: client-side query cache, mutations, and invalidation
 - **Cloudflare Worker / Hono** (`worker/index.ts`): the only backend; serves `/api/*` and the built SPA assets
-- **Groq**: chat-based enhancement (`/api/postprocess`, model `openai/gpt-oss-120b`)
+- **Groq**: chat-based enhancement on our quota (`/api/postprocess`, model `openai/gpt-oss-120b`)
+- **Provider direct**: the BYOK path — same prompt, no Worker in between
 
 ---
 
@@ -187,12 +188,13 @@ sequenceDiagram
 
 ## Chunked Post-Processing
 
-The YouTube path runs `runChunkedPostProcess` (`src/lib/subtitles/chunk-postprocess.ts`). The only cap `/api/postprocess` actually enforces is **`segments.length`**: empty → 400 `NO_SEGMENTS`, more than 100 → 400 `TOO_MANY_SEGMENTS` (`worker/routes/postprocess.ts`). So chunking, serial execution, and per-chunk write-back all happen client-side.
+The YouTube path runs `runChunkedPostProcess` (`src/lib/subtitles/chunk-postprocess.ts`). It only **chunks and writes back** — *who* translates is an injected `PostProcessTransport` (our Worker, or a BYOK direct call). The only cap `/api/postprocess` actually enforces is **`segments.length`**: empty → 400 `NO_SEGMENTS`, more than 100 → 400 `TOO_MANY_SEGMENTS` (`worker/routes/postprocess.ts`). So chunking, serial execution, and per-chunk write-back all happen client-side.
 
 - `MAX_SEGMENTS_PER_CHUNK = 100` mirrors the server's real limit. `MAX_CHARS_PER_CHUNK = 10_000` is **client policy only** — the endpoint validates no character budget, so that number is a self-imposed payload/latency guard, not a server rule.
 - Chunks run **serially**, which avoids concurrent requests but is *not* a rate-limit guarantee: `/api/postprocess` allows 20 req / 60s, and a job with more than 20 chunks whose responses return quickly can still hit `429`. There is no delay, backoff, or retry in the loop — a non-OK response (including `429`) returns `failed: true` with `postprocess HTTP <status>` and abandons every remaining chunk.
 - Each `onChunkDone` writes results back to `segments` by matching `segmentIndex` (`translation`, `furigana`) and invalidates `subtitleKeys.forMedia`, so enhanced text appears progressively.
 - If `sourceLanguage` and `targetLanguage` share a base language, post-processing is skipped and `postProcessStatus` is set to `completed` directly.
+- **Failure semantics differ by kind.** A *systemic* failure (invalid key, wrong endpoint/model, quota exhausted, network/CORS, unexpected response shape) is thrown as `FatalEngineError` and propagates: the chunk is marked failed and `postProcessStatus` becomes `failed`, so a bad BYOK key is surfaced and retrying after fixing it works. A *single-call* failure (5xx, timeout) degrades in place to the original text so one hiccup does not ruin the whole subtitle. A *content-level* failure (model returned non-JSON) also degrades. The distinction is declared by the transport, not guessed by the core — see [AI-ENGINES.md](./AI-ENGINES.md).
 
 ---
 
