@@ -8,13 +8,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '~': resolve(__dirname, './src'),
+      '~shared': resolve(__dirname, './shared'),
     },
   },
   test: {
     globals: true,
     environment: 'happy-dom',
     setupFiles: ['./src/__tests__/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'shared/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

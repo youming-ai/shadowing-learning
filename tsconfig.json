@@ -17,7 +17,8 @@
     "types": ["node", "vitest/globals", "@testing-library/jest-dom"],
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "~shared/*": ["./shared/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

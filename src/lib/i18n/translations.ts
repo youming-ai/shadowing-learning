@@ -23,6 +23,21 @@ export interface TranslationKey {
   'settings.nativeLanguage': string
   'settings.save': string
   'settings.cancel': string
+  'settings.ai.title': string
+  'settings.ai.engine': string
+  'settings.ai.engineHint': string
+  'settings.ai.engineDefault': string
+  'settings.ai.apiKey': string
+  'settings.ai.apiKeyHint': string
+  'settings.ai.apiKeyPlaceholder': string
+  'settings.ai.model': string
+  'settings.ai.modelHint': string
+  'settings.ai.save': string
+  'settings.ai.clear': string
+  'settings.ai.getKey': string
+  'settings.ai.privacy': string
+  'settings.ai.defaultQuotaHint': string
+  'settings.ai.saved': string
 
   // Transcription
 
@@ -137,6 +152,23 @@ export const translations: Record<string, TranslationKey> = {
     'settings.nativeLanguage': '母语（翻译目标）',
     'settings.save': '保存',
     'settings.cancel': '取消',
+    'settings.ai.title': 'AI 引擎',
+    'settings.ai.engine': '翻译引擎',
+    'settings.ai.engineHint': '默认用免费额度；也可以填自己的 API Key 直连供应商',
+    'settings.ai.engineDefault': '默认（免费额度）',
+    'settings.ai.apiKey': 'API Key',
+    'settings.ai.apiKeyHint': '未配置。填入你自己的 {{provider}} Key 即可直连',
+    'settings.ai.apiKeyPlaceholder': '粘贴你的 API Key',
+    'settings.ai.model': '模型',
+    'settings.ai.modelHint': '可直接填写任意模型 ID；下面的建议只是预填',
+    'settings.ai.save': '保存',
+    'settings.ai.clear': '清除 Key',
+    'settings.ai.getKey': '获取 {{provider}} Key',
+    'settings.ai.privacy':
+      'Key 只保存在这台设备的浏览器里，只会发送给你选择的供应商，不会经过我们的服务器。但请知悉：与本站同源的任何脚本都能读到它，请自行评估风险。',
+    'settings.ai.defaultQuotaHint':
+      '当前使用免费额度：翻译由我们的服务器调用，你无需配置任何密钥。',
+    'settings.ai.saved': '已保存',
 
     // Transcription
 
@@ -245,6 +277,23 @@ export const translations: Record<string, TranslationKey> = {
     'settings.nativeLanguage': '母語（翻譯目標）',
     'settings.save': '儲存',
     'settings.cancel': '取消',
+    'settings.ai.title': 'AI 引擎',
+    'settings.ai.engine': '翻譯引擎',
+    'settings.ai.engineHint': '預設使用免費額度；也可以填入自己的 API Key 直連供應商',
+    'settings.ai.engineDefault': '預設（免費額度）',
+    'settings.ai.apiKey': 'API Key',
+    'settings.ai.apiKeyHint': '尚未設定。填入你自己的 {{provider}} Key 即可直連',
+    'settings.ai.apiKeyPlaceholder': '貼上你的 API Key',
+    'settings.ai.model': '模型',
+    'settings.ai.modelHint': '可直接填寫任意模型 ID；下方建議只是預填',
+    'settings.ai.save': '儲存',
+    'settings.ai.clear': '清除 Key',
+    'settings.ai.getKey': '取得 {{provider}} Key',
+    'settings.ai.privacy':
+      'Key 只保存在這台裝置的瀏覽器裡，只會傳送給你選擇的供應商，不會經過我們的伺服器。但請知悉：與本站同源的任何腳本都能讀取它，請自行評估風險。',
+    'settings.ai.defaultQuotaHint':
+      '目前使用免費額度：翻譯由我們的伺服器呼叫，你不需要設定任何金鑰。',
+    'settings.ai.saved': '已儲存',
 
     // Transcription
 
@@ -353,6 +402,24 @@ export const translations: Record<string, TranslationKey> = {
     'settings.nativeLanguage': 'Native Language (Translation Target)',
     'settings.save': 'Save',
     'settings.cancel': 'Cancel',
+    'settings.ai.title': 'AI Engine',
+    'settings.ai.engine': 'Translation engine',
+    'settings.ai.engineHint':
+      'Default uses the free quota; you can also connect directly with your own API key',
+    'settings.ai.engineDefault': 'Default (free quota)',
+    'settings.ai.apiKey': 'API Key',
+    'settings.ai.apiKeyHint': 'Not set. Add your own {{provider}} key to connect directly',
+    'settings.ai.apiKeyPlaceholder': 'Paste your API key',
+    'settings.ai.model': 'Model',
+    'settings.ai.modelHint': 'Any model ID works; the suggestions below are just prefill',
+    'settings.ai.save': 'Save',
+    'settings.ai.clear': 'Clear key',
+    'settings.ai.getKey': 'Get a {{provider}} key',
+    'settings.ai.privacy':
+      'The key stays in this browser on this device and is sent only to the provider you pick, never through our servers. Be aware, though: any script running on this origin could read it, so weigh that risk yourself.',
+    'settings.ai.defaultQuotaHint':
+      'Using the free quota: translation runs on our servers, so you do not need to configure any key.',
+    'settings.ai.saved': 'Saved',
 
     // Transcription
 
@@ -462,6 +529,23 @@ export const translations: Record<string, TranslationKey> = {
     'settings.nativeLanguage': '母語（翻訳対象）',
     'settings.save': '保存',
     'settings.cancel': 'キャンセル',
+    'settings.ai.title': 'AI エンジン',
+    'settings.ai.engine': '翻訳エンジン',
+    'settings.ai.engineHint': '既定は無料枠。自分の API キーでプロバイダに直結することもできます',
+    'settings.ai.engineDefault': '既定（無料枠）',
+    'settings.ai.apiKey': 'API キー',
+    'settings.ai.apiKeyHint': '未設定。{{provider}} のキーを入れると直結できます',
+    'settings.ai.apiKeyPlaceholder': 'API キーを貼り付け',
+    'settings.ai.model': 'モデル',
+    'settings.ai.modelHint': '任意のモデル ID を入力できます。候補は入力補助です',
+    'settings.ai.save': '保存',
+    'settings.ai.clear': 'キーを削除',
+    'settings.ai.getKey': '{{provider}} のキーを取得',
+    'settings.ai.privacy':
+      'キーはこの端末のブラウザにのみ保存され、選択したプロバイダにのみ送信されます。当社のサーバーは経由しません。ただし、このオリジンで動く任意のスクリプトが読み取れる点はご承知おきください。',
+    'settings.ai.defaultQuotaHint':
+      '現在は無料枠を使用中です。翻訳は当社のサーバーで実行されるため、キーの設定は不要です。',
+    'settings.ai.saved': '保存しました',
 
     // Transcription
 
