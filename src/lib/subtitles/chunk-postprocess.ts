@@ -7,12 +7,53 @@
  *
  * 服务端 /api/postprocess 实际只校验段数：0 段报 NO_SEGMENTS，>100 段报 TOO_MANY_SEGMENTS。
  * 下面的 10000 字符上限是客户端自定策略（控制单次请求体与延迟），服务端并不校验字符数。
- * 注意：串行只是避免并发，并不构成限流保护。/api/postprocess 限 20 次/分钟，
- * 分片数超过 20 且响应够快时仍会撞 429；而任何非 2xx（含 429）都会直接终止剩余分片，无重试。
+ * 注意：串行只是避免并发，并不构成限流保护。服务端 `/api/postprocess` 限 20 次/分钟，
+ * 分片数超过 20 时必然撞 429 —— 因此这里对**可重试**失败做退避重试（见 `RETRY_POLICY`），
+ * 并尊重服务端的 `Retry-After`。没有这层重试就不能开启限流：长视频会被打成部分翻译。
  */
 
 import type { PostProcessTransport } from '~/lib/ai/transports'
-import type { PostProcessOptions, PostProcessResult } from '~shared/ai/postprocess-core'
+import {
+  isRetryableEngineError,
+  type PostProcessOptions,
+  type PostProcessResult,
+} from '~shared/ai/postprocess-core'
+
+/**
+ * 可重试失败的退避策略。
+ *
+ * 只对 `RetryableEngineError`（429 / 408 / 5xx）生效；系统性失败（无效 key、端点错）
+ * 立即放弃，因为重试没有意义。
+ *
+ * 为什么必须有它：服务端限流是 20 req/60s，而分片按片计请求。一个 2000 段以上的视频
+ * 会产生 >20 片，没有退避就必然中途 429 并丢掉剩余分片。**重试与开启限流必须同时上线。**
+ */
+export const RETRY_POLICY = {
+  /** 单片最多尝试次数（含首次） */
+  maxAttempts: 4,
+  /** 首次退避基准（毫秒） */
+  baseDelayMs: 1500,
+  /** 单次退避上限（毫秒） */
+  maxDelayMs: 20_000,
+} as const
+
+export interface RetryPolicy {
+  maxAttempts: number
+  baseDelayMs: number
+  maxDelayMs: number
+}
+
+/** 带 jitter 的指数退避；服务端给了 Retry-After 就听服务端的。 */
+function nextDelayMs(attempt: number, retryAfterSec: number | null, policy: RetryPolicy): number {
+  if (retryAfterSec !== null) return Math.min(retryAfterSec * 1000, policy.maxDelayMs)
+  const exponential = policy.baseDelayMs * 2 ** (attempt - 1)
+  // jitter：避免多个客户端在同一时刻一起重试
+  const jitter = exponential * 0.25 * Math.random()
+  return Math.min(exponential + jitter, policy.maxDelayMs)
+}
+
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 export interface ChunkSegment {
   segmentIndex: number // 全局 index，跨片保持，回写靠它
@@ -60,6 +101,10 @@ export interface RunChunkedOptions {
     chunkIndex: number,
     totalChunks: number,
   ) => Promise<void> | void
+  /** 覆盖重试策略（测试用） */
+  retryPolicy?: Partial<RetryPolicy>
+  /** 注入 sleep（测试用，避免真等） */
+  sleep?: (ms: number) => Promise<void>
 }
 
 export interface RunChunkedResult {
@@ -79,19 +124,36 @@ export async function runChunkedPostProcess(opts: RunChunkedOptions): Promise<Ru
     enableAnnotations: true,
     enableFurigana,
   }
+  const policy: RetryPolicy = { ...RETRY_POLICY, ...opts.retryPolicy }
+  const sleep = opts.sleep ?? defaultSleep
   let completed = 0
 
   for (let i = completed; i < chunks.length; i++) {
-    try {
-      const processed = await transport.run(chunks[i], processOptions)
-      await onChunkDone(processed, i, chunks.length)
-      completed = i + 1
-    } catch (error) {
+    let lastError: unknown = null
+
+    for (let attempt = 1; attempt <= policy.maxAttempts; attempt++) {
+      try {
+        const processed = await transport.run(chunks[i], processOptions)
+        await onChunkDone(processed, i, chunks.length)
+        completed = i + 1
+        lastError = null
+        break
+      } catch (error) {
+        lastError = error
+        // 只有可重试失败才继续；系统性失败（无效 key / 端点错）立即放弃
+        if (!isRetryableEngineError(error) || attempt === policy.maxAttempts) break
+        await sleep(nextDelayMs(attempt, error.retryAfterSec, policy))
+      }
+    }
+
+    if (lastError) {
+      const message = lastError instanceof Error ? lastError.message : String(lastError)
+      const tried = isRetryableEngineError(lastError) ? `（已重试 ${policy.maxAttempts} 次）` : ''
       return {
         completedChunks: completed,
         totalChunks: chunks.length,
         failed: true,
-        error: error instanceof Error ? error.message : String(error),
+        error: `${message}${tried}`,
       }
     }
   }

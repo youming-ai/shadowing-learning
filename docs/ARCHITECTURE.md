@@ -234,10 +234,10 @@ YouTube URL → POST /api/youtube/resolve  → video metadata (youtubei.js)
 | Name | Kind | Required | Used By |
 |------|------|----------|---------|
 | GROQ_API_KEY | Worker secret | Yes | `/api/postprocess` |
-| RATE_LIMIT_KV | KV namespace binding | No | `rate-limit` middleware — no-ops when unbound |
+| RATE_LIMIT_KV | KV namespace binding | **Yes (bound)** | `rate-limit` middleware; still no-ops in code if unbound, but removing it exposes `/api/postprocess` as a free proxy to our Groq quota |
 | ASSETS | Assets binding (`dist/`) | Yes | SPA fallback in `worker/index.ts` |
 
-Set the secret with `wrangler secret put GROQ_API_KEY`. For local dev, copy [`.dev.vars.example`](../.dev.vars.example) to `.dev.vars` and fill in the key; `.dev.vars` is gitignored. The `RATE_LIMIT_KV` binding is absent by default — re-add it per the comment in `wrangler.jsonc` to turn rate limiting on.
+Set the secret with `wrangler secret put GROQ_API_KEY`. For local dev, copy [`.dev.vars.example`](../.dev.vars.example) to `.dev.vars` and fill in the key; `.dev.vars` is gitignored. The `RATE_LIMIT_KV` binding is present, so rate limiting is active. It is a **matched pair with the client's chunk retry**: the client posts one request per chunk and the limiter allows 20/min, so the retry/backoff in `subtitles/chunk-postprocess.ts` is what keeps long videos from being truncated.
 
 ## Performance Notes
 

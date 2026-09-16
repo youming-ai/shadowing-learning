@@ -74,6 +74,8 @@ See [docs/AI-ENGINES.md](docs/AI-ENGINES.md) for the full picture and the securi
 - Providers are **declarative data** in [src/lib/ai/catalog.ts](src/lib/ai/catalog.ts). Only add one after probing its CORS preflight — every entry there was verified to allow browser-direct calls, and an unverified entry is an option that fails the moment it is used.
 - Keys live in `localStorage` (`shadowing.ai.*`) and are sent **only** to the chosen provider; a test guards the invariant that a server request body never contains a key. Stay honest in the UI about the residual risk — same-origin scripts can read the key.
 - `resolveEngine()` falls back to the server quota when a BYOK engine is selected without a key, and reports `fellBackToServer` so the UI can explain itself.
+- **Retry is coupled to rate limiting.** `/api/postprocess` allows 20 req/60s while the client posts one request per ≤100-segment chunk, so any long video exceeds 20 chunks. The chunk loop therefore retries `RetryableEngineError` (429/408/5xx) with exponential backoff + jitter, honouring the server's `Retry-After` (see `RETRY_POLICY` in [src/lib/subtitles/chunk-postprocess.ts](src/lib/subtitles/chunk-postprocess.ts)). Removing that retry while rate limiting is on will silently truncate long videos, so they must ship together.
+- **Request bodies are bounded before parsing** ([worker/lib/body-guard.ts](worker/lib/body-guard.ts)): a `Content-Length` fast-reject plus a streaming cap, because `c.req.json()` would otherwise buffer an unbounded body before any validation runs.
 
 ### Routing (client) & API (Cloudflare Worker)
 
@@ -95,7 +97,7 @@ youtubeRoute.post('/resolve', async (c) => { /* ... */ })
 
 There is **no `/api/transcribe` route** — the audio-upload / Groq Whisper path was removed along with `worker/routes/transcribe.ts` and `worker/lib/groq-whisper.ts`.
 
-Use `apiSuccess` / `apiError` from [worker/lib/api-response.ts](worker/lib/api-response.ts) for consistent envelopes, and the `rateLimit` middleware from [worker/middleware/rate-limit.ts](worker/middleware/rate-limit.ts) on any new public route (mount it in [worker/index.ts](worker/index.ts)). The rate limiter is **KV-backed** via `RATE_LIMIT_KV` — a sliding-window count keyed by `cf-connecting-ip` (falling back to `x-forwarded-for`, then Cloudflare's `colo` datacenter code, then a UA/Accept-Language fingerprint) so it survives across Worker invocations/isolates. Always identify clients by IP first — keying primarily on `colo` buckets every user in a datacenter together. That binding is currently **not** present in [wrangler.jsonc](wrangler.jsonc): the middleware no-ops without it (so the Worker still deploys and serves requests) and `wrangler.jsonc` carries the commented-out instructions to re-add it.
+Use `apiSuccess` / `apiError` from [worker/lib/api-response.ts](worker/lib/api-response.ts) for consistent envelopes, and the `rateLimit` middleware from [worker/middleware/rate-limit.ts](worker/middleware/rate-limit.ts) on any new public route (mount it in [worker/index.ts](worker/index.ts)). The rate limiter is **KV-backed** via `RATE_LIMIT_KV` — a sliding-window count keyed by `cf-connecting-ip` (falling back to `x-forwarded-for`, then Cloudflare's `colo` datacenter code, then a UA/Accept-Language fingerprint) so it survives across Worker invocations/isolates. Always identify clients by IP first — keying primarily on `colo` buckets every user in a datacenter together. **That binding is now present in [wrangler.jsonc](wrangler.jsonc), so rate limiting is live in production** and `/api/health` should carry `X-RateLimit-*`. It stays optional in code (the middleware no-ops when unbound, so a bare deploy still works), but do not remove it: `/api/postprocess` spends our own Groq quota, so without this guard anyone can burn it. Rate limiting and the client's chunk retry are a matched pair — see below.
 
 ### State layering
 
@@ -175,7 +177,7 @@ The verdict is a hint, never a score: no grades, no stars, no streaks, and no er
 
 Uses **Vitest** (not Bun's native `bun test`). DOM environment is **happy-dom** and IndexedDB is **fake-indexeddb**.
 
-- Config: [vitest.config.ts](vitest.config.ts) — sets `environment: 'happy-dom'` and `setupFiles: ['./src/__tests__/setup.ts']`. Its `include` covers both `src/**` and `shared/**` (the runtime-neutral code shared with the Worker also has tests).
+- Config: [vitest.config.ts](vitest.config.ts) — sets `environment: 'happy-dom'` and `setupFiles: ['./src/__tests__/setup.ts']`. Its `include` covers `src/**`, `shared/**` and `worker/**` (the Worker's request validation and response envelope now have tests too).
 - Setup file [src/__tests__/setup.ts](src/__tests__/setup.ts) wires up `fake-indexeddb/auto`, jest-dom matchers (`@testing-library/jest-dom/vitest`), and mocks `@tanstack/react-router` hooks (`useNavigate`/`useLocation`/`useSearch`/`useParams`) and `sonner`.
 - Tests are colocated in `__tests__/` next to the code they cover.
 - When mocking router navigation or toasts in a new test, rely on the global mocks in setup rather than re-mocking.
@@ -196,7 +198,7 @@ Four themes (dark, light, system, high-contrast) implemented via CSS custom prop
 
 ## Deployment (Cloudflare Workers)
 
-Deployed as a Cloudflare Worker, not a container. `bun run deploy` (`vite build && wrangler deploy`) builds the client SPA into `dist/` and ships it as Worker Assets alongside the Hono API bundled from [worker/index.ts](worker/index.ts). Config lives in [wrangler.jsonc](wrangler.jsonc): the `ASSETS` binding (`directory: dist`, SPA fallback via `not_found_handling: single-page-application`), and observability/logs/traces. The `RATE_LIMIT_KV` binding is optional and currently absent (its re-add instructions are commented in place). Secrets (`GROQ_API_KEY`) are set via `wrangler secret put`, not committed or put in `vars`.
+Deployed as a Cloudflare Worker, not a container. `bun run deploy` (`vite build && wrangler deploy`) builds the client SPA into `dist/` and ships it as Worker Assets alongside the Hono API bundled from [worker/index.ts](worker/index.ts). Config lives in [wrangler.jsonc](wrangler.jsonc): the `ASSETS` binding (`directory: dist`, SPA fallback via `not_found_handling: single-page-application`), and observability/logs/traces. The `RATE_LIMIT_KV` binding is present and **rate limiting is enabled** (the middleware still no-ops if the binding is removed, so a bare deploy keeps working). Secrets (`GROQ_API_KEY`) are set via `wrangler secret put`, not committed or put in `vars`.
 
 There is **no Docker/Dokploy path** — the Dockerfile, compose file, and `docs/DOKPLOY.md` that targeted a TanStack Start server bundle were removed along with that deployment model.
 
@@ -206,7 +208,7 @@ There is **no Docker/Dokploy path** — the Dockerfile, compose file, and `docs/
 GROQ_API_KEY=                  # Required — Groq LLM post-processing. Set as a Worker secret (wrangler secret put GROQ_API_KEY); locally put it in .dev.vars, NOT .env.
 ```
 
-`RATE_LIMIT_KV` is a KV namespace binding read by the rate-limit middleware; it is optional and currently unbound (see the comment in [wrangler.jsonc](wrangler.jsonc)), and `ASSETS` is the `dist/` assets binding.
+`RATE_LIMIT_KV` is a KV namespace binding read by the rate-limit middleware — it is currently **bound**, so rate limiting is active. `ASSETS` is the `dist/` assets binding.
 
 Local dev reads `GROQ_API_KEY` from `.dev.vars` — copy [.dev.vars.example](.dev.vars.example) and fill it in. There is no `.env` in this project any more.
 

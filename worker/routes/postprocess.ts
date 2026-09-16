@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import z from 'zod'
 import { DEFAULT_CHAT_MODEL, processSegmentsWithChat } from '../../shared/ai/postprocess-core'
 import { apiError, apiSuccess } from '../lib/api-response'
+import { readJsonBody } from '../lib/body-guard'
 import { getGroqClient } from '../lib/groq-client'
 import type { Env } from '../lib/types'
 
@@ -38,8 +39,11 @@ postprocessRoute.post('/', async (c) => {
       return apiError({ code: 'CONFIG_ERROR', message: 'GROQ_API_KEY 未配置', statusCode: 500 })
     }
 
-    const body = await c.req.json()
-    const validation = postProcessSchema.safeParse(body)
+    // 带体积上限地读取并解析：超限 413、非法 JSON 400，都不进入业务逻辑
+    const parsedBody = await readJsonBody(c)
+    if (!parsedBody.ok) return parsedBody.response
+
+    const validation = postProcessSchema.safeParse(parsedBody.body)
     if (!validation.success) {
       return apiError({
         code: 'VALIDATION_ERROR',
