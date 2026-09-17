@@ -1,0 +1,113 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import { db } from '~/lib/db/db'
+import type { ProcessedSegment } from '~/lib/subtitles/chunk-postprocess'
+import { writeChunkResults, writeSegments } from '~/lib/subtitles/segment-writeback'
+
+afterEach(async () => {
+  await db.segments.clear()
+})
+
+function processed(
+  segmentIndex: number,
+  overrides: Partial<ProcessedSegment> = {},
+): ProcessedSegment {
+  return {
+    originalText: `src-${segmentIndex}`,
+    normalizedText: `norm-${segmentIndex}`,
+    translation: `trans-${segmentIndex}`,
+    annotations: [`note-${segmentIndex}`],
+    furigana: `furigana-${segmentIndex}`,
+    start: segmentIndex,
+    end: segmentIndex + 1,
+    segmentIndex,
+    ...overrides,
+  }
+}
+
+describe('writeChunkResults', () => {
+  /**
+   * 回归测试：`normalizedText` 与 `annotations` 曾在这里被漏掉 ——
+   * AI 每片都返回它们、每次都付了 token 钱，却在入库时丢掉，
+   * 于是读这两个字段的 UI（SubtitlePanel / CurrentSentence）永远是空的。
+   */
+  it('落库 AI 返回的全部字段，而不是只写 translation', async () => {
+    await writeSegments(1, [{ start: 0, end: 1, text: 'こんにちは' }])
+
+    await writeChunkResults(1, [processed(0)])
+
+    const [row] = await db.segments.toArray()
+    expect(row.normalizedText).toBe('norm-0')
+    expect(row.translation).toBe('trans-0')
+    expect(row.annotations).toEqual(['note-0'])
+    expect(row.furigana).toBe('furigana-0')
+    expect(row.text).toBe('こんにちは') // 原文不被改写
+  })
+
+  it('按 segmentIndex 对齐，不依赖数组顺序', async () => {
+    await writeSegments(1, [
+      { start: 0, end: 1, text: 'a' },
+      { start: 1, end: 2, text: 'b' },
+    ])
+
+    // 故意乱序：结果必须各自归位，而不是按数组位置写
+    await writeChunkResults(1, [processed(1), processed(0)])
+
+    const rows = (await db.segments.toArray()).sort(
+      (a, b) => (a.segmentIndex ?? 0) - (b.segmentIndex ?? 0),
+    )
+    expect(rows.map((r) => r.translation)).toEqual(['trans-0', 'trans-1'])
+  })
+
+  it('只改属于该字幕的行', async () => {
+    await writeSegments(1, [{ start: 0, end: 1, text: 'a' }])
+    await writeSegments(2, [{ start: 0, end: 1, text: 'b' }])
+
+    await writeChunkResults(1, [processed(0)])
+
+    const other = await db.segments.where('transcriptId').equals(2).first()
+    expect(other?.translation).toBeUndefined()
+  })
+
+  /**
+   * 空值必须显式兜底：否则行形状会随模型返回的字段有无而变，
+   * 读侧（`annotations && length > 0`）也就得分不清「缺失」与「空」。
+   */
+  it('缺省字段兜底为空值而不是留 undefined', async () => {
+    await writeSegments(1, [{ start: 0, end: 1, text: 'a' }])
+
+    await writeChunkResults(1, [
+      processed(0, { translation: undefined, annotations: undefined, furigana: undefined }),
+    ])
+
+    const [row] = await db.segments.toArray()
+    expect(row.translation).toBe('')
+    expect(row.annotations).toEqual([])
+    expect(row.furigana).toBe('')
+    expect('annotations' in row).toBe(true)
+  })
+
+  it('整片（100 段，与服务端上限一致）一次写完', async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => ({ start: i, end: i + 1, text: `s${i}` }))
+    await writeSegments(1, rows)
+
+    await writeChunkResults(
+      1,
+      rows.map((_, i) => processed(i)),
+    )
+
+    const stored = await db.segments.where('transcriptId').equals(1).toArray()
+    expect(stored).toHaveLength(100)
+    expect(stored.every((r) => r.translation === `trans-${r.segmentIndex}`)).toBe(true)
+  })
+
+  it('重译覆盖旧值', async () => {
+    await writeSegments(1, [{ start: 0, end: 1, text: 'a' }])
+
+    await writeChunkResults(1, [processed(0, { translation: 'first', annotations: ['old'] })])
+    await writeChunkResults(1, [processed(0, { translation: 'second', annotations: ['new'] })])
+
+    const [row] = await db.segments.toArray()
+    expect(row.translation).toBe('second')
+    expect(row.annotations).toEqual(['new'])
+  })
+})
