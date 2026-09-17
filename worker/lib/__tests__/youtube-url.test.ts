@@ -19,6 +19,12 @@ describe('extractVideoId', () => {
     [`https://www.youtube-nocookie.com/embed/${ID}`, '无 cookie 嵌入域名'],
     [`  https://youtu.be/${ID}  `, '首尾空白'],
     [`${ID} `, '裸 id 带尾部空白'],
+    // 地区域名：旧实现是 hostname.includes('youtube.com')，这些原本可用；
+    // 收紧成只认 .com 会把它们变成 INVALID_URL —— 那是回归，用这些用例钉住。
+    [`https://www.youtube.com.au/watch?v=${ID}`, '澳洲地区域名'],
+    [`https://www.youtube.co.uk/watch?v=${ID}`, '英国地区域名'],
+    [`https://youtube.de/watch?v=${ID}`, '德国地区域名'],
+    [`http://youtube.com/watch?v=${ID}`, 'http 明文链接'],
   ])('解析 %s（%s）', (input) => {
     expect(extractVideoId(input)).toBe(ID)
   })
@@ -29,7 +35,10 @@ describe('extractVideoId', () => {
     [`https://youtu.be/${ID}x`, '短链 id 多一位'],
     [`https://youtu.be/`, '短链没有 id'],
     [`https://example.com/watch?v=${ID}`, '非 YouTube 域名'],
-    [`https://notyoutube.com/watch?v=${ID}`, '域名后缀伪装（不能只看 includes）'],
+    [`https://notyoutube.com/watch?v=${ID}`, '域名前缀伪装（不能只看 includes）'],
+    [`https://evil-youtube.com/watch?v=${ID}`, '以横线拼接的伪装域名'],
+    [`ftp://youtu.be/${ID}`, '非 http(s) 协议'],
+    [`file:///tmp/watch?v=${ID}`, 'file 协议'],
     ['', '空串'],
     ['not a url', '非 URL'],
   ])('拒绝 %s（%s）', (input) => {

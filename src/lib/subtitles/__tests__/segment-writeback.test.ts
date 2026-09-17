@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { db } from '~/lib/db/db'
 import type { ProcessedSegment } from '~/lib/subtitles/chunk-postprocess'
 import { writeChunkResults, writeSegments } from '~/lib/subtitles/segment-writeback'
@@ -98,6 +98,44 @@ describe('writeChunkResults', () => {
     const stored = await db.segments.where('transcriptId').equals(1).toArray()
     expect(stored).toHaveLength(100)
     expect(stored.every((r) => r.translation === `trans-${r.segmentIndex}`)).toBe(true)
+  })
+
+  /**
+   * 「一片一次写」是这次改动的性能主张，只看结果数据验证不了它 ——
+   * 退回逐段写、数据同样正确。所以这里直接盯住批量调用的次数。
+   */
+  it('整片只发起一次批量写入，而不是每段一次', async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => ({ start: i, end: i + 1, text: `s${i}` }))
+    await writeSegments(1, rows)
+
+    const spy = vi.spyOn(db.segments, 'bulkPut')
+    try {
+      await writeChunkResults(
+        1,
+        rows.map((_, i) => processed(i)),
+      )
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(spy.mock.calls[0]?.[0]).toHaveLength(100)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  /**
+   * 回归：不是每个写入方都会写 `segmentIndex`（`DBUtils.addSegments` 就不写），
+   * 而回写曾只按它匹配 —— 缺这个字段的行会让整片翻译静默写不进去。
+   */
+  it('行缺 segmentIndex 时按 start 兜底写入，而不是静默丢弃', async () => {
+    const now = new Date()
+    await db.segments.bulkAdd([
+      { transcriptId: 1, start: 0, end: 1, text: 'a', createdAt: now, updatedAt: now },
+      { transcriptId: 1, start: 1, end: 2, text: 'b', createdAt: now, updatedAt: now },
+    ])
+
+    await writeChunkResults(1, [processed(0), processed(1)])
+
+    const stored = (await db.segments.toArray()).sort((a, b) => a.start - b.start)
+    expect(stored.map((r) => r.translation)).toEqual(['trans-0', 'trans-1'])
   })
 
   it('重译覆盖旧值', async () => {

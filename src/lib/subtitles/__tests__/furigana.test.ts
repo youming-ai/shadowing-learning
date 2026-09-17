@@ -73,6 +73,35 @@ describe('buildFuriganaTokens', () => {
     expect(joined(tokens)).toBe('猫が好き')
   })
 
+  /**
+   * 回归：模型顺手改写了句子、在 furigana 串里多注了原文没有的汉字时，
+   * 那个多出来的注音对曾把对齐指针**永久钉住**，后面本来正确的读音也一并丢掉。
+   */
+  it('跳过模型自造、原文里没有的注音对，而不是被它钉住', () => {
+    const tokens = buildFuriganaTokens('猫が好き', '私(わたし)は猫(ねこ)が好(すき)です')
+
+    expect(ruby(tokens)).toEqual(['猫(ねこ)', '好(すき)'])
+    expect(joined(tokens)).toBe('猫が好き')
+  })
+
+  it('首个注音对属于后一段时，不消费它，留给后面匹配', () => {
+    const tokens = buildFuriganaTokens('猫犬', '犬(いぬ)')
+
+    expect(tokens).toEqual([{ text: '猫' }, { text: '犬', reading: 'いぬ' }])
+  })
+
+  /** 回归：「々」「ヶ」等记号曾被排除在汉字段之外，`時々` 这类常见词因此完全没有注音。 */
+  it.each([
+    ['時々', 'ときどき'],
+    ['人々', 'ひとびと'],
+    ['三ヶ月', 'さんかげつ'],
+  ])('叠字/构词记号参与匹配：%s', (original, reading) => {
+    const tokens = buildFuriganaTokens(original, `${original}(${reading})`)
+
+    expect(ruby(tokens)).toEqual([`${original}(${reading})`])
+    expect(joined(tokens)).toBe(original)
+  })
+
   it.each([
     ['日本（にほん）', '全角圆括号'],
     ['日本[にほん]', '方括号'],

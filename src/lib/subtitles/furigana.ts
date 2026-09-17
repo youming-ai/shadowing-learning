@@ -27,8 +27,13 @@ interface ReadingPair {
   reading: string
 }
 
-/** 汉字连续段（含扩展 A 区）的字符类片段。*/
-const KANJI_CLASS = '[\\u4e00-\\u9fff\\u3400-\\u4dbf]+'
+/**
+ * 汉字连续段（含扩展 A 区，以及「々」「〆」「ヶ」这类参与构词的记号）的字符类片段。
+ *
+ * 把 `々` / `〆` / `ヶ` 也算进来是必须的：`時々(ときどき)`、`人々(ひとびと)`、`三ヶ月(さんかげつ)`
+ * 这类常见词一旦把它们排除在「段」之外，注音对的 run 就与原文的段对不上，整个词静默失去注音。
+ */
+const KANJI_CLASS = '[\\u4e00-\\u9fff\\u3400-\\u4dbf\\u3005\\u3006\\u30f6]+'
 
 /** `漢字(かな)` 注音对（组 1 = 汉字段，组 2 = 读音），兼容半角/全角圆括号与方括号。*/
 const READING_PAIR_SOURCE = `(${KANJI_CLASS})\\s*[（(\\[]([ぁ-んァ-ンー・]+)[）)\\]]`
@@ -45,41 +50,74 @@ function parseReadingPairs(furiganaText: string): ReadingPair[] {
 /**
  * 一个汉字段该挂哪些读音。
  *
- * 不能只做「整段精确匹配」：原文里连续汉字是**一段**（「日本語」），而模型常常按词
- * 注音成 `日本(にほん)語(ご)` —— 此时段与对不是一对一。所以这里按顺序把若干注音对
- * **拼**起来对齐到这一段：
+ * 不能只做「整段精确匹配」：原文里连续汉字是**一段**（「日本語」），而模型常常按词注音，
+ * 段与对不是一对一。所以这里按顺序把注音对对到这一段上：
  *
  * - `日本(にほん)語(ご)` + 原文「日本語」→ 日本(にほん) + 語(ご)
  * - `日本語(にほんご)` + 原文「日本語」→ 日本語(にほんご)
  * - `日(にち)曜日(び)` + 原文「日曜日」→ 日(にち) + 曜日(び)
- * - 只注了一半（`日(にち)` + 「日曜日」）→ 日(にち) + 曜日（余下部分保持原文）
+ * - 只注了一半（`日(にち)` + 「日曜日」）→ 日(にち) + 曜日（余下保持原文）
+ * - 只注了后半（`犬(いぬ)` + 「猫犬」）→ 猫 + 犬(いぬ)
  *
- * 每一步都用 `startsWith` 校验拼接结果确实对应本段的前缀，因此读音不会错位到别的字上；
- * 首对就对不上时**不消费**任何注音对，留给后面的汉字段去匹配。
+ * 每消费一对都用 `startsWith(..., cursor)` 校验它确实落在本段的当前位置，因此读音不会
+ * 错位到别的字上。对齐时有三种「对不上」，处理方式各不相同：
+ *
+ * 1. **这一对属于后面的段**（模型按顺序注音，只是当前段没被注）→ 放到后面再用。
+ * 2. **这一对属于原文里根本没有的字** —— 模型顺手改写了句子，例如原文「猫が好き」而
+ *    furigana 串是 `私(わたし)は猫(ねこ)が好(すき)です`，多出来的 `私` 曾把指针**永久钉住**，
+ *    后面本来正确的读音也一并丢掉。所以要**跳过**它。
+ * 3. **本段当前位置没有被注音**（如上面「猫犬」）→ 该字符按原文输出，往后挪一格。
+ *
+ * 实现上就是「按 cursor 逐位前进 + 找第一个能落在 cursor 上的对」：位置只前进不后退，
+ * 所以不会把对错配到已经处理过的文字上；一段都没消费成功时退回原指针，别把可能属于
+ * 后续汉字段的注音对白白吃掉。
  */
 function matchRunReadings(
   run: string,
   pairs: ReadingPair[],
   startIndex: number,
 ): { tokens: FuriganaToken[]; nextIndex: number } {
-  const consumed: FuriganaToken[] = []
-  let acc = ''
+  const tokens: FuriganaToken[] = []
+  let plain = ''
   let index = startIndex
+  let cursor = 0
+  let consumed = 0
 
-  while (index < pairs.length && acc.length < run.length) {
-    const next = acc + pairs[index].run
-    // 拼接结果必须是本段的前缀，否则这一对不属于本段，就此打住
-    if (!run.startsWith(next)) break
-    acc = next
-    consumed.push({ text: pairs[index].run, reading: pairs[index].reading })
-    index += 1
+  const flushPlain = () => {
+    if (plain) {
+      tokens.push({ text: plain })
+      plain = ''
+    }
   }
 
-  if (consumed.length === 0) return { tokens: [{ text: run }], nextIndex: startIndex }
+  while (cursor < run.length && index < pairs.length) {
+    // 跳过那些落不到本段当前位置上的对（成因 2：模型自造的文字）
+    let probe = index
+    while (probe < pairs.length && !run.startsWith(pairs[probe].run, cursor)) probe += 1
 
-  const remainder = run.slice(acc.length)
-  if (remainder) consumed.push({ text: remainder })
-  return { tokens: consumed, nextIndex: index }
+    if (probe >= pairs.length) {
+      // 成因 3：剩下的对都不落在当前字符上，先把这个字按原文输出，再往后看一格
+      plain += run[cursor]
+      cursor += 1
+      continue
+    }
+
+    index = probe
+    // 连续消费能一路拼下去的对（成因 1 的「按词拆开注音」就靠这里）
+    while (index < pairs.length && run.startsWith(pairs[index].run, cursor)) {
+      flushPlain()
+      tokens.push({ text: pairs[index].run, reading: pairs[index].reading })
+      cursor += pairs[index].run.length
+      index += 1
+      consumed += 1
+    }
+  }
+
+  if (consumed === 0) return { tokens: [{ text: run }], nextIndex: startIndex }
+
+  if (cursor < run.length) plain += run.slice(cursor)
+  flushPlain()
+  return { tokens, nextIndex: index }
 }
 
 /**
