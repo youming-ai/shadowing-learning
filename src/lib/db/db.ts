@@ -66,6 +66,9 @@ export class AppDatabase extends Dexie {
         // 以下三表与 v3 逐字一致：不重写行数据、不删旧表（恢复窗口，v5 再删）
         files: '++id, name, size, type, uploadedAt, [name+type]',
         transcripts: '++id, fileId, status, language, createdAt, updatedAt',
+        // `wordTimestamps` 这个索引是**遗留**：全仓库从无写入方（依赖它的逐词高亮是不可达
+        // 代码，已删）。已发布的 stores() 不可回改，而它只是个永远为空的索引，留着无害；
+        // 也刻意不为它加一版迁移 —— 收益为零，代价是一次真实的 schema 升级。
         segments:
           '++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]',
       })

@@ -227,7 +227,6 @@ describe('DBUtils', () => {
         start: 0,
         end: 3,
         text: 'Hello world',
-        wordTimestamps: [],
         normalizedText: 'Hello world',
         translation: '你好世界',
         annotations: [],

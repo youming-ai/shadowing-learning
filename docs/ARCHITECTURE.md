@@ -90,7 +90,7 @@ src/                        # Vite SPA (client)
     db/                     # useFiles
   lib/
     db/db.ts                # Dexie schema (v5) + DBUtils
-    player/                 # shadowing-machine, rhythm, active-segment, active-word  ← pure, unit-tested
+    player/                 # shadowing-machine, rhythm, active-segment  ← pure, unit-tested
     audio/decode.ts         # the ONLY place Web Audio appears (recording Blob -> mono PCM)
     ai/                     # BYOK: catalog (declarative providers), protocol, keys, transports
     subtitles/              # chunk-postprocess (chunking + write-back; transport injected)
@@ -183,7 +183,7 @@ Database version: 5 (v3 → v4 unified the media model; v5 dropped the legacy `f
 |-------|------------|
 | media | id, kind (`'youtube'`), externalId (unique), title, durationSec, channelName, thumbnailUrl, sourceUrl, addedAt, updatedAt |
 | subtitles | id, mediaId, source, status, sourceLanguage, targetLanguage, rawText, error, createdAt, updatedAt |
-| segments | id, transcriptId (`→ subtitles.id`), segmentIndex, start, end, text, normalizedText, translation, annotations, furigana, wordTimestamps, createdAt, updatedAt |
+| segments | id, transcriptId (`→ subtitles.id`), segmentIndex, start, end, text, normalizedText, translation, annotations, furigana, createdAt, updatedAt |
 
 `subtitles.status` is the source of truth for subtitle processing state. `segments.transcriptId` references `subtitles.id` (field name retained for backwards compatibility).
 
@@ -283,7 +283,7 @@ Design rationale, colour semantics and known limits: [DESIGN-LANGUAGE.md](./DESI
 ## Player / Shadowing
 
 - `usePlayerAdapter` mounts the YouTube IFrame adapter and exposes a uniform transport (play/pause/seek/rate).
-- `lib/player/shadowing-machine.ts` is the shadowing state machine; `active-segment` / `active-word` compute the current segment/word from playback time.
+- `lib/player/shadowing-machine.ts` is the shadowing state machine; `active-segment` computes the current segment from playback time.
 - `useShadowingPractice`, `useSegmentLoop`, and `useSegmentNavigation` drive per-sentence looping and navigation.
 - `useSentenceRecorder` captures microphone audio for record-and-compare shadowing.
 - `useWatchKeyboard` binds keyboard shortcuts.

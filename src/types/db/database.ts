@@ -5,13 +5,14 @@
 
 export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
-export interface WordTimestamp {
-  word: string
-  start: number
-  end: number
-  confidence?: number
-}
-
+/**
+ * segments 行。
+ *
+ * 注意**没有** `wordTimestamps`：那个字段全仓库从无写入方，依赖它的「逐词高亮」因此是
+ * 不可达代码，已连同 `lib/player/active-word.ts` 一起删除。Dexie 的 v1–v4 `stores()`
+ * 里仍留着该字段的索引声明 —— 已发布的迁移不可回改，而那只是个空索引，留着无害。
+ * 详见 `src/lib/db/db.ts` 中 v4 附近的说明。
+ */
 export interface Segment {
   id?: number
   /** v4 起指向 subtitles.id（历史字段名保留，避免重写最大的表） */
@@ -24,7 +25,6 @@ export interface Segment {
   translation?: string
   annotations?: string[]
   furigana?: string
-  wordTimestamps?: WordTimestamp[]
   createdAt: Date
   updatedAt: Date
 }

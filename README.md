@@ -170,7 +170,7 @@ src/
 │   └── db/                    # IndexedDB 读写
 ├── lib/
 │   ├── db/                    # Dexie schema 与 DBUtils
-│   ├── player/                # shadowing-machine / active-segment / active-word
+│   ├── player/                # shadowing-machine / active-segment
 │   ├── subtitles/             # 分块后处理
 │   ├── youtube/               # error-messages
 │   ├── config/                # 路由常量

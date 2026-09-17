@@ -308,11 +308,7 @@ export default function WatchPage({ mediaId }: { mediaId: string }) {
             containerRef={player.containerRef}
             embedBlocked={player.embedBlocked}
           />
-          <CurrentSentence
-            segment={activeSegment}
-            showOriginalOnly={Boolean(showOriginalOnly)}
-            currentTime={player.currentTime}
-          />
+          <CurrentSentence segment={activeSegment} showOriginalOnly={Boolean(showOriginalOnly)} />
           <RecordingBar
             disabled={!activeSegment}
             status={recorder.status}

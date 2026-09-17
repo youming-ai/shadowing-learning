@@ -76,11 +76,17 @@ Time-coded segments and enhanced learning data. `transcriptId` is a foreign key 
 | translation | string? | Translated text |
 | annotations | string[]? | Learning annotations |
 | furigana | string? | Japanese reading aid |
-| wordTimestamps | `WordTimestamp[]`? | Per-word timing (`{ word, start, end, confidence? }`) |
 | createdAt | Date | Creation timestamp |
 | updatedAt | Date | Last update timestamp |
 
 **Indexes:** `++id, transcriptId, start, end, text, wordTimestamps, normalizedText, translation, annotations, furigana, [transcriptId+start], [transcriptId+end]`.
+
+> The `wordTimestamps` index is **vestigial**. There is no `wordTimestamps` field on `Segment` and
+> nothing ever wrote it, so the per-word "karaoke" highlighting that depended on it was unreachable
+> code and has been deleted (`lib/player/active-word.ts` + its spec). The index declaration stays in
+> the shipped v1–v4 `stores()` blocks because shipped migrations must not be edited, and it is simply
+> an empty index. Re-adding word-level highlighting requires a real source of word timings — YouTube
+> caption cues we fetch carry no word-level data.
 
 ### Legacy v3 tables (dropped in v5)
 
