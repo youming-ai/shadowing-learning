@@ -36,6 +36,16 @@ export function SubtitlePanel({
   const { t } = useI18n()
   const activeRowRef = useRef<HTMLButtonElement | null>(null)
   const showOriginalOnly = subtitle?.source === 'official'
+  /**
+   * 无字幕视频**不给**重试入口。
+   *
+   * `NO_CAPTIONS` 是确定性的：服务端每次都会返回同一个结果（没有 yt-dlp / ASR 兜底路径），
+   * 而 `retry()` 会删掉字幕行并重跑整条抓取链路 —— 用户点一次就白等一次，结果完全一样。
+   * 这种情况下文案本身已经说清原因（「该视频没有可用字幕」），按钮只会误导。
+   *
+   * 其它失败（网络抖动、上游故障）仍然是可重试的，照常给出按钮。
+   */
+  const retryable = subtitle?.error !== 'NO_CAPTIONS'
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeIndex triggers scroll; ref mutation is intentional
   useEffect(() => {
@@ -86,9 +96,11 @@ export function SubtitlePanel({
                   经 youtubeErrorMessageKey 本地化，未知值回落到通用文案 */}
               {t(youtubeErrorMessageKey(subtitle?.error))}
             </p>
-            <button type="button" onClick={onRetry} className="btn-primary !h-9 !px-4 text-sm">
-              {t('watch.retryPipeline')}
-            </button>
+            {retryable && (
+              <button type="button" onClick={onRetry} className="btn-primary !h-9 !px-4 text-sm">
+                {t('watch.retryPipeline')}
+              </button>
+            )}
           </div>
         ) : (
           segments.map((segment, index) => {

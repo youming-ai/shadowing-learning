@@ -203,6 +203,11 @@ export function useSubtitlePipeline(media: MediaRow | null) {
 
   const retry = useCallback(async () => {
     const subtitle = query.data?.subtitle
+    /**
+     * `NO_CAPTIONS` 再挡一层：UI 已经不给出重试入口（见 `SubtitlePanel`），但这条不变量
+     * 属于数据层 —— 结果无论如何都不会变（没有 ASR 兜底），重跑一遍只会白等。
+     */
+    if (subtitle?.error === 'NO_CAPTIONS') return
     if (subtitle?.id && subtitle.status === 'failed') {
       await DBUtils.deleteSubtitleWithSegments(subtitle.id)
       invalidate()
