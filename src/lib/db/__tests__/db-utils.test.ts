@@ -97,6 +97,31 @@ describe('DBUtils', () => {
       expect(mockUpdate).toHaveBeenCalledTimes(2)
       expect(result).toEqual([1, 1])
     })
+
+    it('should bulk put rows that carry an id', async () => {
+      const mockBulkPut = vi.fn().mockResolvedValue(undefined)
+      db.media.bulkPut = mockBulkPut
+
+      const rows: MediaRow[] = [
+        { ...makeMedia('a'), id: 1 },
+        { ...makeMedia('b'), id: 2 },
+      ]
+      await DBUtils.bulkPut(db.media, rows)
+
+      expect(mockBulkPut).toHaveBeenCalledWith(rows)
+    })
+
+    /**
+     * Dexie 的 `bulkPut` 遇到没有 `id` 的行会**静默插入新行**（自增主键），
+     * 于是「更新」变成「写重复数据」且不报错 —— 必须在这里拦掉。
+     */
+    it('should reject bulk put rows without a numeric id', async () => {
+      const mockBulkPut = vi.fn().mockResolvedValue(undefined)
+      db.media.bulkPut = mockBulkPut
+
+      await expect(DBUtils.bulkPut(db.media, [makeMedia('no-id') as MediaRow])).rejects.toThrow()
+      expect(mockBulkPut).not.toHaveBeenCalled()
+    })
   })
 
   describe('Media-specific operations', () => {

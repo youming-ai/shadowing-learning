@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { db } from '~/lib/db/db'
+import { DBUtils, db } from '~/lib/db/db'
 import type { ProcessedSegment } from '~/lib/subtitles/chunk-postprocess'
 import { writeChunkResults, writeSegments } from '~/lib/subtitles/segment-writeback'
 
@@ -124,10 +124,11 @@ describe('writeChunkResults', () => {
   /**
    * 回归：不是每个写入方都会写 `segmentIndex`（`DBUtils.addSegments` 就不写），
    * 而回写曾只按它匹配 —— 缺这个字段的行会让整片翻译静默写不进去。
+   * 这里刻意用 `DBUtils.addSegments` 造数据，正是因为它就是那个不写 segmentIndex 的写入方。
    */
   it('行缺 segmentIndex 时按 start 兜底写入，而不是静默丢弃', async () => {
     const now = new Date()
-    await db.segments.bulkAdd([
+    await DBUtils.addSegments([
       { transcriptId: 1, start: 0, end: 1, text: 'a', createdAt: now, updatedAt: now },
       { transcriptId: 1, start: 1, end: 2, text: 'b', createdAt: now, updatedAt: now },
     ])
@@ -136,6 +137,26 @@ describe('writeChunkResults', () => {
 
     const stored = (await db.segments.toArray()).sort((a, b) => a.start - b.start)
     expect(stored.map((r) => r.translation)).toEqual(['trans-0', 'trans-1'])
+  })
+
+  /**
+   * 回归：兜底映射曾按 `start` 存单值，两条同时开始的行会塌成同一行 ——
+   * 结果全部写到后一行，另一行永远没有翻译。
+   */
+  it('同 start 的多行各自拿到结果，而不是塌到同一行', async () => {
+    const now = new Date()
+    await DBUtils.addSegments([
+      { transcriptId: 1, start: 0, end: 1, text: 'a', createdAt: now, updatedAt: now },
+      { transcriptId: 1, start: 0, end: 2, text: 'b', createdAt: now, updatedAt: now },
+    ])
+
+    await writeChunkResults(1, [
+      processed(0, { start: 0, translation: 'first' }),
+      processed(1, { start: 0, translation: 'second' }),
+    ])
+
+    const stored = await db.segments.where('transcriptId').equals(1).toArray()
+    expect(stored.map((r) => r.translation).sort()).toEqual(['first', 'second'])
   })
 
   it('重译覆盖旧值', async () => {

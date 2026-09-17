@@ -64,16 +64,22 @@ export async function writeChunkResults(
     // （`DBUtils.addSegments` 就不写），所以再按 `start` 建一份精确映射兜底 ——
     // 这些 start 值本来就是从行里读出来传进来的，能逐位对上，不需要容差匹配。
     // 少了这层兜底，一批缺 segmentIndex 的行会导致整片翻译静默写不进去。
+    //
+    // `start` 用**队列**而不是单值：同一时间点可能有多行（两条同时开始的字幕），
+    // 单值映射会让所有结果都写到同一行上，其余行永远拿不到翻译。
     const byIndex = new Map<number, Segment>()
-    const byStart = new Map<number, Segment>()
+    const byStart = new Map<number, Segment[]>()
     for (const row of rows) {
       if (row.segmentIndex !== undefined) byIndex.set(row.segmentIndex, row)
-      byStart.set(row.start, row)
+      const queue = byStart.get(row.start)
+      if (queue) queue.push(row)
+      else byStart.set(row.start, [row])
     }
 
     const updates: Segment[] = []
     for (const p of processed) {
-      const row = byIndex.get(p.segmentIndex) ?? byStart.get(p.start)
+      // 一个结果消费一行，保证同一 start 的多行各自都能被写到
+      const row = byIndex.get(p.segmentIndex) ?? byStart.get(p.start)?.shift()
       if (!row) continue
       updates.push({
         ...row,

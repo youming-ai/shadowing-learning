@@ -84,10 +84,39 @@ describe('buildFuriganaTokens', () => {
     expect(joined(tokens)).toBe('猫が好き')
   })
 
-  it('首个注音对属于后一段时，不消费它，留给后面匹配', () => {
+  /**
+   * 回归：对齐只在**段首**进行。允许段中间对齐时，早段的尾部会吃掉属于后一段的注音对 ——
+   * 模型注的是后一个「曜日」，读音却挂到了「日曜日」里那个「曜日」上。
+   */
+  it('后一段的注音对不会被前一段的尾部吃掉', () => {
+    const tokens = buildFuriganaTokens('日曜日と曜日', '日曜日と曜日(ようび)')
+
+    expect(tokens).toEqual([
+      { text: '日曜日' },
+      { text: 'と' },
+      { text: '曜日', reading: 'ようび' },
+    ])
+  })
+
+  it('同一段文字出现两处、只有单个注音对时，不硬塞给前一处', () => {
+    const tokens = buildFuriganaTokens('日曜日と曜日', '曜日(ようび)')
+
+    expect(tokens).toEqual([
+      { text: '日曜日' },
+      { text: 'と' },
+      { text: '曜日', reading: 'ようび' },
+    ])
+  })
+
+  /**
+   * 段内「只有后半被注音」不再生效 —— 这是上面那条约束的代价，刻意如此：
+   * 无法判断 `犬(いぬ)` 指的是本段的「犬」还是别处的，宁可不注音，也不要猜错。
+   */
+  it('段内只有后半被注音时整段保持原文（不猜读音）', () => {
     const tokens = buildFuriganaTokens('猫犬', '犬(いぬ)')
 
-    expect(tokens).toEqual([{ text: '猫' }, { text: '犬', reading: 'いぬ' }])
+    expect(tokens).toEqual([{ text: '猫犬' }])
+    expect(joined(tokens)).toBe('猫犬')
   })
 
   /** 回归：「々」「ヶ」等记号曾被排除在汉字段之外，`時々` 这类常见词因此完全没有注音。 */
