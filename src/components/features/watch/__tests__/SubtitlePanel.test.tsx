@@ -57,6 +57,20 @@ describe('SubtitlePanel 的重试入口', () => {
     expect(retryButton()).toBeNull()
   })
 
+  /**
+   * 与上一条**刻意不同**：头部的「重新生成字幕」保留。
+   *
+   * 失败行存在时自驱动 effect 不会重跑（只在「没有字幕行」时启动），所以这两个按钮是用户
+   * 仅有的恢复入口 —— 一并隐藏的话，视频日后被补上字幕时用户就没法重新抓取了。
+   * 这条断言把这个不对称钉住，免得下一次评审又把它当漏改「顺手修掉」。
+   */
+  it('无字幕时保留「重新生成字幕」作为唯一恢复入口', () => {
+    renderPanel({ subtitle: failedSubtitle('NO_CAPTIONS') })
+
+    expect(screen.getByRole('button', { name: 'watch.regenerate' })).toBeInTheDocument()
+    expect(retryButton()).toBeNull()
+  })
+
   it('其它失败仍给重试入口，点击触发 onRetry', async () => {
     const { onRetry } = renderPanel({ subtitle: failedSubtitle('EXTRACTOR_FAILED') })
 
