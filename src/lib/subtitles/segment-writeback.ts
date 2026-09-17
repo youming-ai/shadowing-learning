@@ -60,10 +60,14 @@ export async function writeChunkResults(
   await db.transaction('rw', db.segments, async () => {
     const rows = await db.segments.where('transcriptId').equals(subtitleId).toArray()
 
-    // 主匹配靠 segmentIndex。但没有索引可查，且并非所有写入方都会写这个字段
-    // （`DBUtils.addSegments` 就不写），所以再按 `start` 建一份精确映射兜底 ——
-    // 这些 start 值本来就是从行里读出来传进来的，能逐位对上，不需要容差匹配。
-    // 少了这层兜底，一批缺 segmentIndex 的行会导致整片翻译静默写不进去。
+    // 主匹配靠 segmentIndex。但它没有索引可查，而 `Segment.segmentIndex` 是可选的，
+    // 所以再按 `start` 建一份精确映射兜底 —— 这些 start 值本来就是从行里读出来传进来的，
+    // 能逐位对上，不需要容差匹配。
+    //
+    // 这条兜底目前**没有已知的写入方**：唯一写 segments 的 `writeSegments` 总会写
+    // segmentIndex（历史上那个不写它的 `DBUtils.addSegments` 已随「无调用方的 API」删除）。
+    // 仍然保留，是因为它一旦失效，后果是**整片翻译静默写不进去**，而代价只有几行 ——
+    // 这是容错，不是那种「假装有功能」的死代码。
     //
     // `start` 用**队列**而不是单值：同一时间点可能有多行（两条同时开始的字幕），
     // 单值映射会让所有结果都写到同一行上，其余行永远拿不到翻译。

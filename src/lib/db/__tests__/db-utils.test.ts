@@ -1,6 +1,6 @@
 import type { UpdateSpec } from 'dexie'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MediaRow, Segment, SubtitleRow } from '~/types/db/database'
+import type { MediaRow, SubtitleRow } from '~/types/db/database'
 import { DBUtils, db } from '../db'
 
 function makeMedia(title: string): Omit<MediaRow, 'id'> {
@@ -64,15 +64,6 @@ describe('DBUtils', () => {
       expect(result).toBe(1)
     })
 
-    it('should delete an item', async () => {
-      const mockDelete = vi.fn().mockResolvedValue(undefined)
-      db.media.delete = mockDelete
-
-      await DBUtils.delete(db.media, 1)
-
-      expect(mockDelete).toHaveBeenCalledWith(1)
-    })
-
     it('should bulk add items', async () => {
       const mockBulkAdd = vi.fn().mockResolvedValue([1, 2, 3])
       db.media.bulkAdd = mockBulkAdd
@@ -82,20 +73,6 @@ describe('DBUtils', () => {
 
       expect(mockBulkAdd).toHaveBeenCalledWith(items)
       expect(result).toEqual([1, 2, 3])
-    })
-
-    it('should bulk update items', async () => {
-      const mockUpdate = vi.fn().mockResolvedValue(1)
-      db.media.update = mockUpdate
-
-      const items: Array<{ id: number; changes: UpdateSpec<MediaRow> }> = [
-        { id: 1, changes: { title: 'updated1.mp3' } },
-        { id: 2, changes: { title: 'updated2.mp3' } },
-      ]
-      const result = await DBUtils.bulkUpdate(db.media, items)
-
-      expect(mockUpdate).toHaveBeenCalledTimes(2)
-      expect(result).toEqual([1, 1])
     })
 
     it('should bulk put rows that carry an id', async () => {
@@ -218,45 +195,6 @@ describe('DBUtils', () => {
   })
 
   describe('Segment-specific operations', () => {
-    it('should add a segment', async () => {
-      const mockAdd = vi.fn().mockResolvedValue(1)
-      db.segments.add = mockAdd
-
-      const segment: Omit<Segment, 'id'> = {
-        transcriptId: 1,
-        start: 0,
-        end: 3,
-        text: 'Hello world',
-        normalizedText: 'Hello world',
-        translation: '你好世界',
-        annotations: [],
-        furigana: '',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
-      const result = await DBUtils.addSegment(segment)
-
-      expect(mockAdd).toHaveBeenCalledWith(segment)
-      expect(result).toBe(1)
-    })
-
-    it('should get segments by transcript id', async () => {
-      const mockWhere = vi.fn().mockReturnValue({
-        equals: vi.fn().mockReturnThis(),
-        toArray: vi.fn().mockResolvedValue([
-          { id: 1, transcriptId: 1, text: 'Hello' },
-          { id: 2, transcriptId: 1, text: 'World' },
-        ]),
-      })
-      db.segments.where = mockWhere
-
-      const result = await DBUtils.getSegmentsByTranscriptId(1)
-
-      expect(mockWhere).toHaveBeenCalledWith('transcriptId')
-      expect(result).toHaveLength(2)
-    })
-
     it('should get segments by transcript id ordered', async () => {
       const mockWhere = vi.fn().mockReturnValue({
         equals: vi.fn().mockReturnThis(),
@@ -271,43 +209,6 @@ describe('DBUtils', () => {
 
       expect(mockWhere).toHaveBeenCalledWith('transcriptId')
       expect(result[0].start).toBeLessThan(result[1].start)
-    })
-
-    it('should find segments by time range', async () => {
-      const mockWhere = vi.fn().mockReturnValue({
-        equals: vi.fn().mockReturnThis(),
-        and: vi.fn().mockReturnValue({
-          toArray: vi.fn().mockResolvedValue([{ id: 1, start: 2, end: 4, text: 'Segment 1' }]),
-        }),
-      })
-      db.segments.where = mockWhere
-
-      const result = await DBUtils.findSegmentsByTimeRange(1, 1, 5)
-
-      expect(mockWhere).toHaveBeenCalledWith('transcriptId')
-      expect(result).toHaveLength(1)
-    })
-  })
-
-  describe('Database maintenance', () => {
-    it('should clear all data', async () => {
-      const mockClear = vi.fn().mockResolvedValue(undefined)
-      const mockTransaction = vi.fn().mockImplementation((...args) => {
-        const callback = args[args.length - 1]
-        return callback()
-      })
-
-      // Dexie.transaction 是一组重载签名，没有能同时匹配它们的 mock 类型，
-      // 所以这里只能双重断言；实现本身只是"立刻以同一参数调用最后一个回调"。
-      db.transaction = mockTransaction as unknown as typeof db.transaction
-      db.segments.clear = mockClear
-      db.subtitles.clear = mockClear
-      db.media.clear = mockClear
-
-      await DBUtils.clearAll()
-
-      expect(mockTransaction).toHaveBeenCalled()
-      expect(mockClear).toHaveBeenCalledTimes(3)
     })
   })
 })

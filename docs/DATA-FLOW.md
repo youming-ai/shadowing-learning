@@ -102,17 +102,23 @@ this.version(5).stores({ files: null, transcripts: null })
 
 All persistence goes through `DBUtils` (`src/lib/db/db.ts`). Key entry points:
 
-- **Media:** `addMedia`, `getMedia`, `listMedia`, `findMediaByExternalId`, `deleteMedia`, `cleanupOldMedia`, `getStorageUsage`
-- **Subtitles:** `addSubtitle`, `findSubtitleByMediaId`, `updateSubtitleStatus`, `deleteSubtitleWithSegments`
-- **Segments:** `addSegment`, `getSegmentsByTranscriptId`, `getSegmentsByTranscriptIdOrdered`, `addSegments` (bulk), `updateSegmentsByTranscriptId`, `findSegmentsByTimeRange`
-- **Maintenance:** `clearAll`
+- **Generics:** `add`, `get`, `update`, `bulkAdd`, `bulkPut`, `orderBy`
+- **Media:** `addMedia`, `getMedia`, `listMedia`, `findMediaByExternalId`, `deleteMedia`
+- **Subtitles:** `addSubtitle`, `findSubtitleByMediaId`, `deleteSubtitleWithSegments`
+- **Segments:** `getSegmentsByTranscriptIdOrdered`, plus `writeSegments` / `writeChunkResults` in `src/lib/subtitles/segment-writeback.ts` (where segments are actually written)
+
+> This list is kept to what has a caller. A previous version documented 12 more methods
+> (`getStorageUsage`, `cleanupOldMedia`, `updateSubtitleStatus`, `addSegment`, `getSegment`,
+> `getSegmentsByTranscriptId`, `addSegments`, `updateSegmentsByTranscriptId`,
+> `findSegmentsByTimeRange`, `clearAll`, `bulkUpdate`, `where`) that **no production code ever
+> called** — some date from the removed audio/transcription era, the rest were never wired up.
+> They were deleted together with their tests. Subtitle status is updated via
+> `DBUtils.update(db.subtitles, …)`, which is what the pipeline actually does.
 
 **Cascade delete is children-first:**
 
 - `DBUtils.deleteMedia(id)` — within one transaction: delete `segments` (by `transcriptId`) → `subtitles` (by `mediaId`) → `media`.
 - `DBUtils.deleteSubtitleWithSegments(subtitleId)` — delete `segments` (by `transcriptId`) → `subtitles`.
-
-Use `addSegments` (bulk) for large segment sets.
 
 ---
 
