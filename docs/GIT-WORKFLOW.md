@@ -2,52 +2,39 @@
 
 This document describes the Git workflow and conventions for the project.
 
+> **这是订正过的一版。** 之前它描述的是「`main` + `develop` 双分支 + Husky pre-commit + pnpm」，
+> 但这三样在本仓库**都不存在**：只有一个长期分支 `main`、没有 `.husky/`、包管理器是 Bun。
+> 一份与仓库不符的流程文档比没有文档更糟 —— 它会让人以为提交时有一道并不存在的闸门。
+
 ## Branch Strategy
 
-The project uses a two-branch model with feature branches for development.
+**单主干：`main` 是唯一的长期分支，也是部署来源**（`bun run deploy` 从它发布）。
+所有改动都从 `main` 切出，以 PR 形式合回 `main`。
 
-### Permanent Branches
+| Branch | Purpose | Source | Merges To |
+|--------|---------|--------|-----------|
+| main | 生产 / 部署 | - | - |
+| feature/* | 新功能 | main | main |
+| fix/* | 缺陷修复 | main | main |
+| refactor/* | 重构（行为不变） | main | main |
+| docs/* · chore/* | 文档 / 工具链 | main | main |
 
-| Branch | Purpose | Source | Merges To | Protected |
-|--------|---------|--------|-----------|-----------|
-| main | Production | - | - | Yes (PR only) |
-| develop | Integration | main | main | No |
-
-### Feature Branches
-
-| Branch | Purpose | Source | Merges To | Protected |
-|--------|---------|--------|-----------|-----------|
-| feature/* | New features | develop | develop | No |
-| fix/* | Bug fixes | develop | develop | No |
-| refactor/* | Code refactoring | develop | develop | No |
-
-### Branch Diagram
+合并方式为 **squash merge**（历史形如 `fix(scope): … (#NN)`），因此 `main` 上每个 PR 只留一个提交，
+便于回溯与回滚。
 
 ```mermaid
 gitGraph
     commit id: "initial"
-    branch develop
-    checkout develop
-    commit id: "setup"
-    branch feature/player
-    checkout feature/player
-    commit id: "add-player"
-    commit id: "add-controls"
-    checkout develop
-    merge feature/player id: "merge-player"
-    branch fix/transcription
-    checkout fix/transcription
-    commit id: "fix-audio"
-    checkout develop
-    merge fix/transcription id: "merge-fix"
+    branch fix/rate-limit
+    checkout fix/rate-limit
+    commit id: "enable-kv-limit"
     checkout main
-    merge develop id: "release-v1" tag: "v1.0.0"
-    checkout develop
-    branch feature/settings
-    checkout feature/settings
-    commit id: "add-settings"
-    checkout develop
-    merge feature/settings id: "merge-settings"
+    merge fix/rate-limit id: "PR #26 (squash)"
+    branch feat/rhythm-feedback
+    checkout feat/rhythm-feedback
+    commit id: "add-rhythm"
+    checkout main
+    merge feat/rhythm-feedback id: "PR #24 (squash)"
 ```
 
 ## Commit Convention
@@ -83,78 +70,53 @@ test(api): add transcription endpoint tests
 chore(deps): update dependencies
 ```
 
-## Pre-commit Enforcement
+## The Gate: CI, not a commit hook
 
-Husky runs automated checks before every commit.
+**本仓库没有任何 commit-time 钩子**（没有 Husky、没有 lint-staged）。真正的闸门是 CI。
 
-### What Gets Checked
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) 在每次 PR 与 `main` 推送时运行，必须全绿：
 
-- `pnpm lint` runs Biome.js linting on staged files
-- Commits are blocked if lint errors exist
-- Fix lint errors before committing
+| Step | Command |
+|------|---------|
+| Lint | `bun run lint` |
+| Type check | `bun run type-check`（客户端 + Worker 两套 tsconfig） |
+| Tests | `bun run test:run` |
+| Build | `bun run build` |
 
-### Bypass (Emergency Only)
+推送前请在本地跑这同样四条命令 —— 它们与 CI 一一对应。
 
-```bash
-git commit --no-verify
-```
-
-Use `--no-verify` only in emergencies. Fix lint issues properly as soon as possible.
+不要用 `--no-verify` 之类的绕过手段「解决」失败：它在这里本来就没东西可绕，只说明本地没跑过 CI。
+（历史上确实出现过把提交写到 `main` 上、以及「测试通过但测试无效」的情况 —— 见下方 Checklist。）
 
 ## Pull Request Flow
 
-### Standard Flow
+1. 从 `main` 切分支（`fix/*`、`feat/*`、`chore/*`…）
+2. 实现改动，并补/改测试
+3. 本地跑上面四条命令
+4. 推送分支，向 `main` 开 PR
+5. 处理评审意见
+6. squash merge 到 `main`
+7. 需要发布时：`bun run deploy`（构建 SPA + 上传 Worker 与 assets）
 
-1. Create branch from `develop`
-2. Implement changes
-3. Push branch to remote
-4. Create pull request targeting `develop`
-5. Address review feedback
-6. Merge to `develop`
-7. Delete feature branch
+### Reviewers run automatically — and need triage
 
-### Production Releases
-
-When ready for production:
-
-1. Create PR from `develop` to `main`
-2. Review and approve
-3. Merge to `main`
-4. Tag release version
-
-### PR Flow Diagram
-
-```mermaid
-sequenceDiagram
-    participant D as Developer
-    participant F as Feature Branch
-    participant R as Remote
-    participant PR as Pull Request
-    participant Dev as develop
-    participant M as main
-
-    D->>F: git checkout -b feature/new-feature
-    D->>F: make changes
-    D->>F: git commit
-    F->>R: git push origin feature/new-feature
-    R->>PR: create pull request
-    PR->>D: review feedback
-    D->>F: address feedback
-    D->>F: git commit
-    F->>R: git push
-    PR->>Dev: merge to develop
-    Dev->>M: merge for release (tagged)
-```
+仓库接了两个自动评审器（**cubic**、**Codex**），它们会在 PR 上自动留行内评论。
+它们**命中率参差**：实测既报出过真实缺陷（含用户可见的），也报出过误报（例如因为 PR 拆分而
+声称某个模块不存在）与低价值建议。**逐条复现验证后再改**，不要照单全收 —— 但也不要完全不看。
 
 ## Code Review Checklist
 
 Before requesting review, ensure:
 
+- [ ] CI 四条命令本地全绿（lint / type-check / test / build）
 - [ ] Code follows project conventions
 - [ ] TypeScript types are correct (no `any`)
-- [ ] Tests added or updated as needed
+- [ ] **Tests actually verify the claim** —— 「测试通过」不等于「测试有效」：
+      如果实现退化成错误版本而这个用例照样通过，那它就没有守住任何东西
 - [ ] No lint warnings
 - [ ] Commit messages follow convention
+- [ ] 文档与代码一致（本仓库的主要历史问题之一是文档漂移：数据库版本、
+      已移除的功能、并不存在的字段）
 
 ### Reviewer Responsibilities
 
