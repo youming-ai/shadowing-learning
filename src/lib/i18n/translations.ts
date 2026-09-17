@@ -89,6 +89,7 @@ export interface TranslationKey {
   'import.error.YT_BLOCKED': string
   'import.error.EXTRACTOR_UNAVAILABLE': string
   'import.error.EXTRACTOR_FAILED': string
+  'import.error.NO_CAPTIONS': string
   'import.error.QUOTA_EXHAUSTED': string
   'import.error.SERVER_BUSY': string
   'import.error.RATE_LIMITED': string
@@ -262,6 +263,7 @@ export const translations: Record<string, TranslationKey> = {
     'import.error.YT_BLOCKED': '服务器暂时无法访问 YouTube，请稍后再试',
     'import.error.EXTRACTOR_UNAVAILABLE': '服务器未配置转写组件，暂只支持有字幕的视频',
     'import.error.EXTRACTOR_FAILED': 'YouTube 数据获取失败，请稍后重试',
+    'import.error.NO_CAPTIONS': '该视频没有可用字幕，无法生成跟读内容',
     'import.error.QUOTA_EXHAUSTED': '今日 AI 转写额度已用完，请明天再试',
     'import.error.SERVER_BUSY': '已有转写任务进行中，请稍后再试',
     'import.error.RATE_LIMITED': '请求过于频繁，请稍后再试',
@@ -431,6 +433,7 @@ export const translations: Record<string, TranslationKey> = {
     'import.error.YT_BLOCKED': '伺服器暫時無法存取 YouTube，請稍後再試',
     'import.error.EXTRACTOR_UNAVAILABLE': '伺服器未設定轉寫元件，暫只支援有字幕的影片',
     'import.error.EXTRACTOR_FAILED': 'YouTube 資料取得失敗，請稍後重試',
+    'import.error.NO_CAPTIONS': '該影片沒有可用字幕，無法產生跟讀內容',
     'import.error.QUOTA_EXHAUSTED': '今日 AI 轉寫額度已用完，請明天再試',
     'import.error.SERVER_BUSY': '已有轉寫任務進行中，請稍後再試',
     'import.error.RATE_LIMITED': '請求過於頻繁，請稍後再試',
@@ -602,6 +605,7 @@ export const translations: Record<string, TranslationKey> = {
     'import.error.EXTRACTOR_UNAVAILABLE':
       'Transcription unavailable on this server; only captioned videos are supported',
     'import.error.EXTRACTOR_FAILED': 'Failed to fetch YouTube data — please retry',
+    'import.error.NO_CAPTIONS': 'This video has no captions, so there is nothing to shadow',
     'import.error.QUOTA_EXHAUSTED': 'Daily AI transcription quota reached — try tomorrow',
     'import.error.SERVER_BUSY': 'Another transcription is running — try again shortly',
     'import.error.RATE_LIMITED': 'Too many requests — please slow down',
@@ -774,6 +778,7 @@ export const translations: Record<string, TranslationKey> = {
     'import.error.EXTRACTOR_UNAVAILABLE':
       'サーバーに転写コンポーネントがなく、字幕付き動画のみ対応しています',
     'import.error.EXTRACTOR_FAILED': 'YouTube データの取得に失敗しました。後で再試行してください',
+    'import.error.NO_CAPTIONS': 'この動画には字幕がないため、シャドーイング練習に使えません',
     'import.error.QUOTA_EXHAUSTED': '本日の AI 転写枠を使い切りました。明日お試しください',
     'import.error.SERVER_BUSY': '別の転写タスクが実行中です。しばらくしてからお試しください',
     'import.error.RATE_LIMITED': 'リクエストが多すぎます。しばらくお待ちください',
