@@ -120,7 +120,7 @@ describe('DBUtils media/subtitles operations', () => {
     expect(await db.media.count()).toBe(1)
   })
 
-  it('findSubtitleByMediaId / updateSubtitleStatus', async () => {
+  it('findSubtitleByMediaId / 状态更新（经由 DBUtils.update，即生产路径）', async () => {
     const mediaId = await DBUtils.addMedia({
       kind: 'youtube',
       title: 'a',
@@ -138,7 +138,8 @@ describe('DBUtils media/subtitles operations', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     })
-    await DBUtils.updateSubtitleStatus(subId, 'failed')
+    // `updateSubtitleStatus` 已删除（无调用方）；生产代码走 DBUtils.update
+    await DBUtils.update(db.subtitles, subId, { status: 'failed', updatedAt: new Date() })
     const sub = await DBUtils.findSubtitleByMediaId(mediaId)
     expect(sub?.status).toBe('failed')
   })

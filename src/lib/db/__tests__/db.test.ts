@@ -1,15 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { MediaRow, Segment } from '~/types/db/database'
+import type { MediaRow } from '~/types/db/database'
 import { DBUtils, db } from '../db'
+
+/**
+ * 测试用的清库。`DBUtils.clearAll` 已随「无调用方的 API」一起删除（业务代码里没有入口），
+ * 这里按同样的顺序直接清空三张表。
+ */
+async function clearDatabase(): Promise<void> {
+  await db.transaction('rw', db.media, db.subtitles, db.segments, async () => {
+    await db.segments.clear()
+    await db.subtitles.clear()
+    await db.media.clear()
+  })
+}
 
 describe('DBUtils', () => {
   // 每次测试前清空database
   beforeEach(async () => {
-    await DBUtils.clearAll()
+    await clearDatabase()
   })
 
   afterEach(async () => {
-    await DBUtils.clearAll()
+    await clearDatabase()
   })
 
   describe('Media operations', () => {
@@ -118,17 +130,15 @@ describe('DBUtils', () => {
           updatedAt: new Date(),
         })
 
-        // 创建Subtitle段
-        await DBUtils.addSegments([
-          {
-            transcriptId: subtitleId,
-            start: 0,
-            end: 1,
-            text: 'Segment 1',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ])
+        // 创建Subtitle段（直接写表：`DBUtils.addSegments` 已随未使用的 API 删除）
+        await db.segments.add({
+          transcriptId: subtitleId,
+          start: 0,
+          end: 1,
+          text: 'Segment 1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
 
         // DeleteMedia
         await DBUtils.deleteMedia(mediaId)
@@ -173,7 +183,12 @@ describe('DBUtils', () => {
       })
     })
 
-    describe('updateSubtitleStatus', () => {
+    /**
+     * `DBUtils.updateSubtitleStatus` 已删除（业务代码无调用方）。生产路径更新字幕状态用的是
+     * `DBUtils.update(db.subtitles, …)`（见 useSubtitlePipeline），所以这里改为守住那条**真实**
+     * 路径，而不是把这块覆盖一起丢掉。
+     */
+    describe('updateSubtitleStatus（经由 DBUtils.update）', () => {
       it('should update subtitle status', async () => {
         const id = await DBUtils.addSubtitle({
           mediaId,
@@ -185,7 +200,7 @@ describe('DBUtils', () => {
           updatedAt: new Date(),
         })
 
-        await DBUtils.updateSubtitleStatus(id, 'completed')
+        await DBUtils.update(db.subtitles, id, { status: 'completed', updatedAt: new Date() })
 
         const subtitle = await db.subtitles.get(id)
         expect(subtitle?.status).toBe('completed')
@@ -203,7 +218,7 @@ describe('DBUtils', () => {
           updatedAt: initialDate,
         })
 
-        await DBUtils.updateSubtitleStatus(id, 'processing')
+        await DBUtils.update(db.subtitles, id, { status: 'processing', updatedAt: new Date() })
 
         const subtitle = await db.subtitles.get(id)
         expect(subtitle?.updatedAt.getTime()).toBeGreaterThan(initialDate.getTime())
@@ -234,113 +249,35 @@ describe('DBUtils', () => {
       })
     })
 
-    describe('addSegments', () => {
-      it('should add multiple segments', async () => {
-        const segments: Omit<Segment, 'id'>[] = [
-          {
-            transcriptId,
-            start: 0,
-            end: 2,
-            text: 'Hello',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            transcriptId,
-            start: 2,
-            end: 4,
-            text: 'World',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ]
-
-        await DBUtils.addSegments(segments)
-
-        const stored = await DBUtils.getSegmentsByTranscriptId(transcriptId)
-        expect(stored.length).toBe(2)
-      })
-
-      it('should report progress for large batches', async () => {
-        const segments: Omit<Segment, 'id'>[] = Array.from({ length: 100 }, (_, i) => ({
-          transcriptId,
-          start: i,
-          end: i + 1,
-          text: `Segment ${i}`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }))
-
-        const progressUpdates: number[] = []
-        await DBUtils.addSegments(segments, {
-          batchSize: 30,
-          onProgress: (progress) => {
-            progressUpdates.push(progress.percentage)
-          },
-        })
-
-        expect(progressUpdates.length).toBeGreaterThan(0)
-        expect(progressUpdates[progressUpdates.length - 1]).toBe(100)
-      })
-    })
-
-    describe('getSegmentsByTranscriptId', () => {
+    describe('getSegmentsByTranscriptIdOrdered', () => {
       it('should return empty array for non-existent transcript', async () => {
-        const segments = await DBUtils.getSegmentsByTranscriptId(99999)
+        const segments = await DBUtils.getSegmentsByTranscriptIdOrdered(99999)
         expect(segments).toEqual([])
       })
 
-      it('should return segments for given transcript', async () => {
-        await DBUtils.addSegments([
+      it('should return segments for given transcript, ordered by start', async () => {
+        await db.segments.bulkAdd([
+          {
+            transcriptId,
+            start: 5,
+            end: 6,
+            text: 'Later',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
           {
             transcriptId,
             start: 0,
             end: 1,
-            text: 'Test',
+            text: 'Earlier',
             createdAt: new Date(),
             updatedAt: new Date(),
           },
         ])
 
-        const segments = await DBUtils.getSegmentsByTranscriptId(transcriptId)
-        expect(segments.length).toBe(1)
-        expect(segments[0].text).toBe('Test')
+        const segments = await DBUtils.getSegmentsByTranscriptIdOrdered(transcriptId)
+        expect(segments.map((s) => s.text)).toEqual(['Earlier', 'Later'])
       })
-    })
-  })
-
-  describe('clearAll', () => {
-    it('should clear all data from database', async () => {
-      // Add一些数据
-      const mediaId = await DBUtils.addMedia({
-        kind: 'youtube',
-        title: 'test-video',
-        durationSec: null,
-        addedAt: new Date(),
-        updatedAt: new Date(),
-      })
-
-      await DBUtils.addSubtitle({
-        mediaId,
-        source: 'official',
-        status: 'pending',
-        sourceLanguage: '',
-        targetLanguage: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-
-      // 清空
-      await DBUtils.clearAll()
-
-      // Validate
-      const media = await DBUtils.listMedia()
-      const subtitles = await db.subtitles.toArray()
-      const segments = await db.segments.toArray()
-
-      expect(media.length).toBe(0)
-      expect(subtitles.length).toBe(0)
-      expect(segments.length).toBe(0)
     })
   })
 })

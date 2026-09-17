@@ -1,7 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DBUtils, db } from '~/lib/db/db'
+import { db } from '~/lib/db/db'
 import type { ProcessedSegment } from '~/lib/subtitles/chunk-postprocess'
 import { writeChunkResults, writeSegments } from '~/lib/subtitles/segment-writeback'
+
+/**
+ * 直接写入「没有 `segmentIndex`」的行。
+ *
+ * `DBUtils.addSegments`（曾是这样一种写入方）已随「无调用方的 API」一起删除，而当前
+ * **唯一**的 segment 写入方 `writeSegments` 总会写 `segmentIndex`。这里手工造出这种行形状，
+ * 是为了守住 `writeChunkResults` 的 `start` 兜底 —— 那是防御性路径，一旦失效的后果是
+ * **翻译静默写不进去**，所以留着测试，而不是连同 API 一起删掉。
+ */
+async function addKeylessSegments(rows: Array<{ start: number; end: number; text: string }>) {
+  const now = new Date()
+  await db.segments.bulkAdd(
+    rows.map((r) => ({ transcriptId: 1, ...r, createdAt: now, updatedAt: now })),
+  )
+}
 
 afterEach(async () => {
   await db.segments.clear()
@@ -122,15 +137,13 @@ describe('writeChunkResults', () => {
   })
 
   /**
-   * 回归：不是每个写入方都会写 `segmentIndex`（`DBUtils.addSegments` 就不写），
-   * 而回写曾只按它匹配 —— 缺这个字段的行会让整片翻译静默写不进去。
-   * 这里刻意用 `DBUtils.addSegments` 造数据，正是因为它就是那个不写 segmentIndex 的写入方。
+   * 回归：缺 `segmentIndex` 的行曾整片翻译静默写不进去（回写只按它匹配）。
+   * 详见 `addKeylessSegments` 的说明：这条兜底是防御性的，但失效后果是静默丢数据。
    */
   it('行缺 segmentIndex 时按 start 兜底写入，而不是静默丢弃', async () => {
-    const now = new Date()
-    await DBUtils.addSegments([
-      { transcriptId: 1, start: 0, end: 1, text: 'a', createdAt: now, updatedAt: now },
-      { transcriptId: 1, start: 1, end: 2, text: 'b', createdAt: now, updatedAt: now },
+    await addKeylessSegments([
+      { start: 0, end: 1, text: 'a' },
+      { start: 1, end: 2, text: 'b' },
     ])
 
     await writeChunkResults(1, [processed(0), processed(1)])
@@ -144,10 +157,9 @@ describe('writeChunkResults', () => {
    * 结果全部写到后一行，另一行永远没有翻译。
    */
   it('同 start 的多行各自拿到结果，而不是塌到同一行', async () => {
-    const now = new Date()
-    await DBUtils.addSegments([
-      { transcriptId: 1, start: 0, end: 1, text: 'a', createdAt: now, updatedAt: now },
-      { transcriptId: 1, start: 0, end: 2, text: 'b', createdAt: now, updatedAt: now },
+    await addKeylessSegments([
+      { start: 0, end: 1, text: 'a' },
+      { start: 0, end: 2, text: 'b' },
     ])
 
     await writeChunkResults(1, [

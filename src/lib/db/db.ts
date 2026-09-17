@@ -199,14 +199,6 @@ export const DBUtils = {
     }
   },
 
-  async delete<T>(table: Dexie.Table<T, number>, id: number): Promise<void> {
-    try {
-      await table.delete(id)
-    } catch (error) {
-      throw handleError(error, `DBUtils.delete`)
-    }
-  },
-
   // Batch operations
   async bulkAdd<T>(table: Dexie.Table<T, number>, items: Omit<T, 'id'>[]): Promise<number[]> {
     try {
@@ -231,28 +223,6 @@ export const DBUtils = {
       await table.bulkPut(items)
     } catch (error) {
       throw handleError(error, `DBUtils.bulkPut`)
-    }
-  },
-
-  async bulkUpdate<T>(
-    table: Dexie.Table<T, number>,
-    items: Array<{ id: number; changes: UpdateSpec<T> }>,
-  ): Promise<number[]> {
-    try {
-      return await db.transaction('rw', table, async () => {
-        return await Promise.all(items.map(({ id, changes }) => table.update(id, changes)))
-      })
-    } catch (error) {
-      throw handleError(error, `DBUtils.bulkUpdate`)
-    }
-  },
-
-  // Query operations
-  async where<T>(table: Dexie.Table<T, number>, predicate: (item: T) => boolean): Promise<T[]> {
-    try {
-      return await table.filter(predicate).toArray()
-    } catch (error) {
-      throw handleError(error, `DBUtils.where`)
     }
   },
 
@@ -317,57 +287,6 @@ export const DBUtils = {
     }
   },
 
-  async getStorageUsage(): Promise<{
-    totalFiles: number
-    fileCountByType: Record<string, number>
-  }> {
-    try {
-      const media = await db.media.toArray()
-      const fileCountByType = media.reduce(
-        (acc, m) => {
-          const key = m.kind
-          acc[key] = (acc[key] || 0) + 1
-          return acc
-        },
-        {} as Record<string, number>,
-      )
-
-      return {
-        totalFiles: media.length,
-        fileCountByType,
-      }
-    } catch (error) {
-      throw handleError(error, 'DBUtils.getStorageUsage')
-    }
-  },
-
-  async cleanupOldMedia(daysOld: number = 90): Promise<number> {
-    try {
-      const cutoffDate = new Date()
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld)
-      const oldMedia = await db.media.where('addedAt').below(cutoffDate).toArray()
-
-      await db.transaction('rw', db.media, db.subtitles, db.segments, async () => {
-        for (const m of oldMedia) {
-          if (m.id) {
-            const subtitles = await db.subtitles.where('mediaId').equals(m.id).toArray()
-            for (const subtitle of subtitles) {
-              if (subtitle.id) {
-                await db.segments.where('transcriptId').equals(subtitle.id).delete()
-              }
-            }
-            await db.subtitles.where('mediaId').equals(m.id).delete()
-            await db.media.delete(m.id)
-          }
-        }
-      })
-
-      return oldMedia.length
-    } catch (error) {
-      throw handleError(error, 'DBUtils.cleanupOldMedia')
-    }
-  },
-
   /** Subtitle operations (v4) */
   async addSubtitle(subtitle: Omit<SubtitleRow, 'id'>): Promise<number> {
     return await this.add(db.subtitles, subtitle)
@@ -381,10 +300,6 @@ export const DBUtils = {
     }
   },
 
-  async updateSubtitleStatus(id: number, status: SubtitleRow['status']): Promise<void> {
-    await this.update(db.subtitles, id, { status, updatedAt: new Date() })
-  },
-
   async deleteSubtitleWithSegments(subtitleId: number): Promise<void> {
     try {
       await db.transaction('rw', db.subtitles, db.segments, async () => {
@@ -396,119 +311,12 @@ export const DBUtils = {
     }
   },
 
-  /** * Segment-specific operations*/
-  async addSegment(segment: Omit<Segment, 'id'>): Promise<number> {
-    return await this.add(db.segments, segment)
-  },
-
-  async getSegment(id: number): Promise<Segment | undefined> {
-    return await this.get(db.segments, id)
-  },
-
-  async getSegmentsByTranscriptId(transcriptId: number): Promise<Segment[]> {
-    try {
-      return await db.segments.where('transcriptId').equals(transcriptId).toArray()
-    } catch (error) {
-      throw handleError(error, 'DBUtils.getSegmentsByTranscriptId')
-    }
-  },
-
+  /** Segment-specific operations */
   async getSegmentsByTranscriptIdOrdered(transcriptId: number): Promise<Segment[]> {
     try {
       return await db.segments.where('transcriptId').equals(transcriptId).sortBy('start')
     } catch (error) {
       throw handleError(error, 'DBUtils.getSegmentsByTranscriptIdOrdered')
-    }
-  },
-
-  async addSegments(
-    segments: Omit<Segment, 'id'>[],
-    options?: {
-      batchSize?: number
-      onProgress?: (progress: {
-        processed: number
-        total: number
-        percentage: number
-        status: string
-        message: string
-      }) => void
-    },
-  ): Promise<void> {
-    try {
-      const segmentsWithTimestamps = segments.map((segment) => ({
-        ...segment,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }))
-
-      return await db.transaction('rw', db.segments, async () => {
-        if (segmentsWithTimestamps.length <= 50) {
-          await db.segments.bulkAdd(segmentsWithTimestamps as Segment[])
-          return
-        }
-
-        const batchSize = options?.batchSize || 50
-        for (let i = 0; i < segmentsWithTimestamps.length; i += batchSize) {
-          const batch = segmentsWithTimestamps.slice(i, i + batchSize)
-          await db.segments.bulkAdd(batch as Segment[])
-
-          if (options?.onProgress) {
-            const progress = Math.min(
-              100,
-              Math.floor(((i + batch.length) / segmentsWithTimestamps.length) * 100),
-            )
-            options.onProgress({
-              processed: i + batch.length,
-              total: segmentsWithTimestamps.length,
-              percentage: progress,
-              status: 'processing',
-              message: `Processing ${i + batch.length}/${segmentsWithTimestamps.length}`,
-            })
-          }
-        }
-      })
-    } catch (error) {
-      throw handleError(error, 'DBUtils.addSegments')
-    }
-  },
-
-  async updateSegmentsByTranscriptId(
-    transcriptId: number,
-    updates: Partial<Segment>,
-  ): Promise<number> {
-    try {
-      return await db.segments.where('transcriptId').equals(transcriptId).modify(updates)
-    } catch (error) {
-      throw handleError(error, 'DBUtils.updateSegmentsByTranscriptId')
-    }
-  },
-
-  async findSegmentsByTimeRange(
-    transcriptId: number,
-    startTime: number,
-    endTime: number,
-  ): Promise<Segment[]> {
-    try {
-      return await db.segments
-        .where('transcriptId')
-        .equals(transcriptId)
-        .and((segment) => segment.start >= startTime && segment.end <= endTime)
-        .toArray()
-    } catch (error) {
-      throw handleError(error, 'DBUtils.findSegmentsByTimeRange')
-    }
-  },
-
-  /** * Database maintenance operations*/
-  async clearAll(): Promise<void> {
-    try {
-      await db.transaction('rw', db.media, db.subtitles, db.segments, async () => {
-        await db.segments.clear()
-        await db.subtitles.clear()
-        await db.media.clear()
-      })
-    } catch (error) {
-      throw handleError(error, 'DBUtils.clearAll')
     }
   },
 }
