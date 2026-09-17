@@ -5,6 +5,7 @@ import { apiError, apiSuccess } from '../lib/api-response'
 import { readBodyTextWithLimit } from '../lib/body-guard'
 import type { Env } from '../lib/types'
 import { fetchTimedtextSubtitles, mergeShortCues, msCuesToSeconds } from '../lib/youtube-captions'
+import { extractVideoId, VIDEO_ID_PATTERN } from '../lib/youtube-url'
 
 export const youtubeRoute = new Hono<{ Bindings: Env }>()
 
@@ -90,22 +91,6 @@ function getVideoMeta(videoId: string): Promise<VideoMeta> {
   })
 }
 
-function extractVideoId(input: string): string | null {
-  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input
-  try {
-    const url = new URL(input)
-    if (url.hostname.includes('youtube.com')) {
-      return url.searchParams.get('v')
-    }
-    if (url.hostname === 'youtu.be') {
-      return url.pathname.slice(1)
-    }
-  } catch {
-    // pass
-  }
-  return null
-}
-
 const resolveBody = z.object({ url: z.string().min(1).max(2048) })
 const captionsBody = z.object({
   videoId: z.string(),
@@ -161,7 +146,7 @@ youtubeRoute.post('/captions', async (c) => {
       body = null
     }
     const parsed = captionsBody.safeParse(body)
-    if (!parsed.success || !/^[a-zA-Z0-9_-]{11}$/.test(parsed.data.videoId)) {
+    if (!parsed.success || !VIDEO_ID_PATTERN.test(parsed.data.videoId)) {
       return apiError({ code: 'INVALID_URL', message: '无效的 videoId', statusCode: 400 })
     }
 

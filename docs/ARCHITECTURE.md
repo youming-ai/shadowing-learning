@@ -183,7 +183,7 @@ Database version: 5 (v3 → v4 unified the media model; v5 dropped the legacy `f
 |-------|------------|
 | media | id, kind (`'youtube'`), externalId (unique), title, durationSec, channelName, thumbnailUrl, sourceUrl, addedAt, updatedAt |
 | subtitles | id, mediaId, source, status, sourceLanguage, targetLanguage, rawText, error, createdAt, updatedAt |
-| segments | id, transcriptId (`→ subtitles.id`), start, end, text, normalizedText, translation, romaji, annotations, furigana, wordTimestamps, createdAt, updatedAt |
+| segments | id, transcriptId (`→ subtitles.id`), segmentIndex, start, end, text, normalizedText, translation, annotations, furigana, wordTimestamps, createdAt, updatedAt |
 
 `subtitles.status` is the source of truth for subtitle processing state. `segments.transcriptId` references `subtitles.id` (field name retained for backwards compatibility).
 
