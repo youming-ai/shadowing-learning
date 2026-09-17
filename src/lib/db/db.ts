@@ -214,9 +214,17 @@ export const DBUtils = {
     }
   },
 
-  /** 按主键 upsert 一批完整的行（须含 `id`）；错误照旧统一归一化。*/
+  /**
+   * 按主键 upsert 一批完整的行（须含 `id`）；错误照旧统一归一化。
+   *
+   * 必须显式校验 `id`：Dexie 的 `bulkPut` 遇到没有 `id` 的行会**静默插入新行**（自增主键），
+   * 于是「更新」变成「写重复数据」，而且不报错、没人察觉。
+   */
   async bulkPut<T>(table: Dexie.Table<T, number>, items: T[]): Promise<void> {
     try {
+      if (items.some((item) => typeof (item as { id?: unknown }).id !== 'number')) {
+        throw new Error('DBUtils.bulkPut 要求每一项都带数字 id')
+      }
       await table.bulkPut(items)
     } catch (error) {
       throw handleError(error, `DBUtils.bulkPut`)

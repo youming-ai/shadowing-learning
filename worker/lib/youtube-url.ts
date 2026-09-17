@@ -9,17 +9,21 @@
 export const VIDEO_ID_PATTERN = /^[a-zA-Z0-9_-]{11}$/
 
 /**
- * YouTube 的各级域名：`youtube.com`、地区域名（`youtube.com.au` / `youtube.co.uk` / `youtube.de`…）、
+ * YouTube 自有域名：`youtube.com` 与其地区域名（`youtube.com.au` / `youtube.co.uk` / `youtube.de`…）、
  * `youtube-nocookie.com`，以及任意子域（`www` / `m` / `music`）。
  *
- * 刻意**不收紧**成只认 `youtube.com`：旧实现是 `hostname.includes('youtube.com')`，地区域名
- * 本来能用；收紧会把 `youtube.com.au` 这类真实链接判成 `INVALID_URL`，属于把可用输入变成报错。
+ * 后缀形状只接受 `com`（可再跟一个 2 字母国别码）、`co.<国别码>` 或裸的 2–3 字母国别码，
+ * 因此 `youtube.evil.co` / `youtube.evil.com` 这类**攻击者可控域名**会被拒，
+ * 而真实地区域名全部保留。
  *
- * 这里也**不需要**防域名伪装：我们只从链接里取一个 11 位 id，从不请求该域名（真正的请求是
- * youtubei.js 拿 id 发出的），所以伪装域名最多导致后续解析失败，没有安全后果。
- * 「绝不误伤真实链接」比「严格白名单」更划算。
+ * 为什么不必逐个枚举真实地区域名：我们只从链接里取一个 11 位 id，**从不请求该域名**
+ * （真正的请求是 youtubei.js 拿 id 发出的），所以即便放进来一个伪装域名，最坏也只是后续
+ * 解析失败，没有 SSRF 或数据外泄面。反过来，把真实地区域名误判成 `INVALID_URL` 是确凿的
+ * 功能回归（旧实现用 `includes('youtube.com')` 时它们本来可用）。严格程度与误伤之间取
+ * 「宁可多放、不可误伤」。
  */
-const YOUTUBE_HOST_PATTERN = /(^|\.)youtube(-nocookie)?(\.[a-z]{2,3})+$/i
+const YOUTUBE_HOST_PATTERN =
+  /(^|\.)youtube(-nocookie)?\.(com(\.[a-z]{2})?|co\.[a-z]{2}|[a-z]{2,3})$/i
 
 /**
  * 从路径里取第一个合法的 11 位片段。

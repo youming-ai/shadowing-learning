@@ -51,72 +51,48 @@ function parseReadingPairs(furiganaText: string): ReadingPair[] {
  * 一个汉字段该挂哪些读音。
  *
  * 不能只做「整段精确匹配」：原文里连续汉字是**一段**（「日本語」），而模型常常按词注音，
- * 段与对不是一对一。所以这里按顺序把注音对对到这一段上：
+ * 段与对不是一对一。所以按顺序把注音对拼到这一段上：
  *
  * - `日本(にほん)語(ご)` + 原文「日本語」→ 日本(にほん) + 語(ご)
  * - `日本語(にほんご)` + 原文「日本語」→ 日本語(にほんご)
  * - `日(にち)曜日(び)` + 原文「日曜日」→ 日(にち) + 曜日(び)
  * - 只注了一半（`日(にち)` + 「日曜日」）→ 日(にち) + 曜日（余下保持原文）
- * - 只注了后半（`犬(いぬ)` + 「猫犬」）→ 猫 + 犬(いぬ)
  *
- * 每消费一对都用 `startsWith(..., cursor)` 校验它确实落在本段的当前位置，因此读音不会
- * 错位到别的字上。对齐时有三种「对不上」，处理方式各不相同：
+ * **只在段首对齐**，不在段中间找位置。这条约束是必须的，否则会吃掉本不属于本段的注音对：
+ * 原文「日曜日と曜日」+ `日曜日と曜日(ようび)`，模型注的是**后一个**「曜日」，而允许中间对齐
+ * 就会把 `曜日(ようび)` 挂到「日曜日」里那个「曜日」上，真正的注音对象反而没有读音。
+ * 代价是「本段只有后半被注音」（`犬(いぬ)` + 「猫犬」）不再生效 —— 这符合本模块的取舍：
+ * **宁可不注音，也不要猜错读音**。
  *
- * 1. **这一对属于后面的段**（模型按顺序注音，只是当前段没被注）→ 放到后面再用。
+ * 对齐时两类「对不上」处理不同：
+ *
+ * 1. **这一对属于后面的段**（模型按顺序注音，只是当前段没被注）→ 不消费，留给后面的段。
  * 2. **这一对属于原文里根本没有的字** —— 模型顺手改写了句子，例如原文「猫が好き」而
- *    furigana 串是 `私(わたし)は猫(ねこ)が好(すき)です`，多出来的 `私` 曾把指针**永久钉住**，
- *    后面本来正确的读音也一并丢掉。所以要**跳过**它。
- * 3. **本段当前位置没有被注音**（如上面「猫犬」）→ 该字符按原文输出，往后挪一格。
- *
- * 实现上就是「按 cursor 逐位前进 + 找第一个能落在 cursor 上的对」：位置只前进不后退，
- * 所以不会把对错配到已经处理过的文字上；一段都没消费成功时退回原指针，别把可能属于
- * 后续汉字段的注音对白白吃掉。
+ *    furigana 串是 `私(わたし)は猫(ねこ)が好(すき)です`。多出来的 `私` 曾把指针**永久钉住**，
+ *    后面本来正确的读音也一并丢掉，所以段首对不上时要继续往后找、把它跳过。
  */
 function matchRunReadings(
   run: string,
   pairs: ReadingPair[],
   startIndex: number,
 ): { tokens: FuriganaToken[]; nextIndex: number } {
-  const tokens: FuriganaToken[] = []
-  let plain = ''
+  // 找到第一个能落在本段**开头**的注音对；它之前那些对属于原文里没有的文字
   let index = startIndex
+  while (index < pairs.length && !run.startsWith(pairs[index].run, 0)) index += 1
+
+  // 一个都对不上：整段保持原文，且**不消费**任何对（可能属于后面的段）
+  if (index >= pairs.length) return { tokens: [{ text: run }], nextIndex: startIndex }
+
+  // 从段首连续消费，支持「按词拆开注音」
+  const tokens: FuriganaToken[] = []
   let cursor = 0
-  let consumed = 0
-
-  const flushPlain = () => {
-    if (plain) {
-      tokens.push({ text: plain })
-      plain = ''
-    }
+  while (index < pairs.length && run.startsWith(pairs[index].run, cursor)) {
+    tokens.push({ text: pairs[index].run, reading: pairs[index].reading })
+    cursor += pairs[index].run.length
+    index += 1
   }
 
-  while (cursor < run.length && index < pairs.length) {
-    // 跳过那些落不到本段当前位置上的对（成因 2：模型自造的文字）
-    let probe = index
-    while (probe < pairs.length && !run.startsWith(pairs[probe].run, cursor)) probe += 1
-
-    if (probe >= pairs.length) {
-      // 成因 3：剩下的对都不落在当前字符上，先把这个字按原文输出，再往后看一格
-      plain += run[cursor]
-      cursor += 1
-      continue
-    }
-
-    index = probe
-    // 连续消费能一路拼下去的对（成因 1 的「按词拆开注音」就靠这里）
-    while (index < pairs.length && run.startsWith(pairs[index].run, cursor)) {
-      flushPlain()
-      tokens.push({ text: pairs[index].run, reading: pairs[index].reading })
-      cursor += pairs[index].run.length
-      index += 1
-      consumed += 1
-    }
-  }
-
-  if (consumed === 0) return { tokens: [{ text: run }], nextIndex: startIndex }
-
-  if (cursor < run.length) plain += run.slice(cursor)
-  flushPlain()
+  if (cursor < run.length) tokens.push({ text: run.slice(cursor) })
   return { tokens, nextIndex: index }
 }
 
