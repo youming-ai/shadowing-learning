@@ -1,0 +1,45 @@
+# CI：本仓库此前没有任何自动检查，PR 上的 lint / 类型 / 测试全靠人工代跑
+# （`GIT-WORKFLOW.md` 曾声称有 Husky pre-commit，但仓库里从来没有 .husky）。
+# 这里把「本地会跑的那四条命令」变成合并前的硬门槛。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 同一分支连续推送时取消上一次未完成的运行，避免排队堆积
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # 刻意不写死小版本：本仓库要求 bun >=1.2.0，而写死一个本地版本号
+          # 在 CI 上可能并不存在。需要可复现时再固定到具体版本并同步 bun.lock。
+          bun-version: latest
+
+      - name: Install dependencies
+        # --frozen-lockfile：lockfile 与 package.json 不一致时直接失败，
+        # 而不是悄悄改锁文件（bun.lock 是提交进仓库的）
+        run: bun install --frozen-lockfile
+
+      - name: Lint (Biome)
+        run: bun run lint
+
+      - name: Type check (client + worker)
+        run: bun run type-check
+
+      - name: Tests (Vitest)
+        run: bun run test:run
+
+      - name: Build (Vite → dist/)
+        run: bun run build
