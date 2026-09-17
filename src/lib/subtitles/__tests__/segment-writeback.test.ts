@@ -159,6 +159,38 @@ describe('writeChunkResults', () => {
     expect(stored.map((r) => r.translation).sort()).toEqual(['first', 'second'])
   })
 
+  /**
+   * 回归（Codex 在 #34 上指出）：经 `segmentIndex` 命中的行**同时也在** `start` 队列里。
+   * 若同一字幕里既有带 index 的行、又有不带 index 的行且两者 `start` 相同，
+   * 后一个结果会按 `start` 兜底**再次取到同一行**（同一个 id 被写两次），
+   * 而没有 index 的那行始终没被翻译。
+   */
+  it('带 index 的行命中后要摘离 start 队列，避免同一行被写两次', async () => {
+    const now = new Date()
+    // A 带 segmentIndex、B 不带，两者 start 相同
+    await db.segments.bulkAdd([
+      {
+        transcriptId: 1,
+        segmentIndex: 0,
+        start: 5,
+        end: 6,
+        text: 'indexed',
+        createdAt: now,
+        updatedAt: now,
+      },
+      { transcriptId: 1, start: 5, end: 7, text: 'keyless', createdAt: now, updatedAt: now },
+    ])
+
+    await writeChunkResults(1, [
+      processed(0, { start: 5, translation: 'for-indexed' }),
+      processed(1, { start: 5, translation: 'for-keyless' }),
+    ])
+
+    const stored = await db.segments.where('transcriptId').equals(1).toArray()
+    const byText = Object.fromEntries(stored.map((r) => [r.text, r.translation]))
+    expect(byText).toEqual({ indexed: 'for-indexed', keyless: 'for-keyless' })
+  })
+
   it('重译覆盖旧值', async () => {
     await writeSegments(1, [{ start: 0, end: 1, text: 'a' }])
 

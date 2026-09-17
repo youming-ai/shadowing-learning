@@ -76,10 +76,31 @@ export async function writeChunkResults(
       else byStart.set(row.start, [row])
     }
 
+    /**
+     * 把已消费的行从 `start` 队列里摘掉。
+     *
+     * 必须做：经 `segmentIndex` 命中的行**同时也在** `start` 队列里。若同一字幕里既有带
+     * index 的行、又有不带 index 的行、且两者 `start` 相同，后面按 `start` 兜底的结果会
+     * 再次取到那同一行（同一个 id 被写两次，最后一个结果覆盖前一个），而真正没有 index
+     * 的那行始终没被翻译。摘掉后「一个结果消费一行」才真的成立。
+     */
+    const takeFromStartQueue = (row: Segment) => {
+      const queue = byStart.get(row.start)
+      if (!queue) return
+      const at = queue.indexOf(row)
+      if (at !== -1) queue.splice(at, 1)
+    }
+
     const updates: Segment[] = []
     for (const p of processed) {
-      // 一个结果消费一行，保证同一 start 的多行各自都能被写到
-      const row = byIndex.get(p.segmentIndex) ?? byStart.get(p.start)?.shift()
+      const indexed = byIndex.get(p.segmentIndex)
+      let row: Segment | undefined
+      if (indexed) {
+        row = indexed
+        takeFromStartQueue(indexed)
+      } else {
+        row = byStart.get(p.start)?.shift()
+      }
       if (!row) continue
       updates.push({
         ...row,
