@@ -7,7 +7,7 @@
  * 2. 回写规则（按 `segmentIndex` 对齐、空值兜底）只应该有一份，避免两条链路漂移。
  */
 
-import { db } from '~/lib/db/db'
+import { DBUtils, db } from '~/lib/db/db'
 import type { ProcessedSegment } from '~/lib/subtitles/chunk-postprocess'
 import type { Segment } from '~/types/db/database'
 
@@ -17,7 +17,10 @@ export async function writeSegments(
   rows: Array<{ start: number; end: number; text: string }>,
 ): Promise<void> {
   const now = new Date()
-  await db.segments.bulkAdd(
+  // 走 DBUtils 而不是直接 `db.segments.*`：AGENTS.md 要求 CRUD/批量操作统一经它，
+  // 好处是底层异常会被 handleError 归一化成 AppError，而不是在各个调用点冒出 Dexie 原始错误。
+  await DBUtils.bulkAdd(
+    db.segments,
     rows.map((r, index) => ({
       transcriptId: subtitleId,
       segmentIndex: index,
@@ -31,7 +34,7 @@ export async function writeSegments(
 }
 
 /**
- * 把一片 AI 结果按 `segmentIndex` 回写到既有 segments 行。
+ * 把一片 AI 结果回写到既有 segments 行。
  *
  * **必须写全内核返回的四个字段。** `normalizedText` 与 `annotations` 曾经在这里被漏掉：
  * 每次翻译都为它们付了 token 钱，却在入库时被丢掉，于是 `SubtitlePanel` /
@@ -44,7 +47,7 @@ export async function writeSegments(
  *
  * 实现上是「一次读出 + `bulkPut`」而不是逐条 `where(...).modify(...)`：一片最多 100 段，
  * 逐条写就是 100 次查询（N+1），长视频逐片上屏的延迟会明显堆在这一步。
- * `segmentIndex` 没有索引，所以没法直接按它 `where`；整片读进内存再按 index 建映射，
+ * `segmentIndex` 没有索引，所以没法直接按它 `where`；整片读进内存再建映射，
  * 比每条都做一次全表过滤便宜得多。
  */
 export async function writeChunkResults(
@@ -57,14 +60,20 @@ export async function writeChunkResults(
   await db.transaction('rw', db.segments, async () => {
     const rows = await db.segments.where('transcriptId').equals(subtitleId).toArray()
 
+    // 主匹配靠 segmentIndex。但没有索引可查，且并非所有写入方都会写这个字段
+    // （`DBUtils.addSegments` 就不写），所以再按 `start` 建一份精确映射兜底 ——
+    // 这些 start 值本来就是从行里读出来传进来的，能逐位对上，不需要容差匹配。
+    // 少了这层兜底，一批缺 segmentIndex 的行会导致整片翻译静默写不进去。
     const byIndex = new Map<number, Segment>()
+    const byStart = new Map<number, Segment>()
     for (const row of rows) {
       if (row.segmentIndex !== undefined) byIndex.set(row.segmentIndex, row)
+      byStart.set(row.start, row)
     }
 
     const updates: Segment[] = []
     for (const p of processed) {
-      const row = byIndex.get(p.segmentIndex)
+      const row = byIndex.get(p.segmentIndex) ?? byStart.get(p.start)
       if (!row) continue
       updates.push({
         ...row,
@@ -76,6 +85,6 @@ export async function writeChunkResults(
       })
     }
 
-    if (updates.length > 0) await db.segments.bulkPut(updates)
+    if (updates.length > 0) await DBUtils.bulkPut(db.segments, updates)
   })
 }

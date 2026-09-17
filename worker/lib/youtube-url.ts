@@ -8,8 +8,18 @@
 /** YouTube video id 的固定形状：11 位 URL-safe base64 字符。*/
 export const VIDEO_ID_PATTERN = /^[a-zA-Z0-9_-]{11}$/
 
-/** `youtube.com` 的各地区/子域，以及 `youtube-nocookie.com`（嵌入域名）。*/
-const YOUTUBE_HOST_PATTERN = /(^|\.)youtube(-nocookie)?\.com$/
+/**
+ * YouTube 的各级域名：`youtube.com`、地区域名（`youtube.com.au` / `youtube.co.uk` / `youtube.de`…）、
+ * `youtube-nocookie.com`，以及任意子域（`www` / `m` / `music`）。
+ *
+ * 刻意**不收紧**成只认 `youtube.com`：旧实现是 `hostname.includes('youtube.com')`，地区域名
+ * 本来能用；收紧会把 `youtube.com.au` 这类真实链接判成 `INVALID_URL`，属于把可用输入变成报错。
+ *
+ * 这里也**不需要**防域名伪装：我们只从链接里取一个 11 位 id，从不请求该域名（真正的请求是
+ * youtubei.js 拿 id 发出的），所以伪装域名最多导致后续解析失败，没有安全后果。
+ * 「绝不误伤真实链接」比「严格白名单」更划算。
+ */
+const YOUTUBE_HOST_PATTERN = /(^|\.)youtube(-nocookie)?(\.[a-z]{2,3})+$/i
 
 /**
  * 从路径里取第一个合法的 11 位片段。
@@ -43,6 +53,9 @@ export function extractVideoId(input: string): string | null {
   } catch {
     return null
   }
+
+  // 只认 http(s)：`ftp://youtu.be/<id>` 之类同样能解析出 hostname，但不该被当成可用的视频链接
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
 
   if (url.hostname === 'youtu.be') {
     const [id] = url.pathname.split('/').filter(Boolean)

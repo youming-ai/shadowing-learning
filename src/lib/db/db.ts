@@ -214,6 +214,15 @@ export const DBUtils = {
     }
   },
 
+  /** 按主键 upsert 一批完整的行（须含 `id`）；错误照旧统一归一化。*/
+  async bulkPut<T>(table: Dexie.Table<T, number>, items: T[]): Promise<void> {
+    try {
+      await table.bulkPut(items)
+    } catch (error) {
+      throw handleError(error, `DBUtils.bulkPut`)
+    }
+  },
+
   async bulkUpdate<T>(
     table: Dexie.Table<T, number>,
     items: Array<{ id: number; changes: UpdateSpec<T> }>,
