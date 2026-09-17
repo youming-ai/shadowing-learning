@@ -1,11 +1,9 @@
-import { findActiveWordIndex } from '~/lib/player/active-word'
 import { buildFuriganaTokens, type FuriganaToken } from '~/lib/subtitles/furigana'
-import type { Segment, WordTimestamp } from '~/types/db/database'
+import type { Segment } from '~/types/db/database'
 
 interface CurrentSentenceProps {
   segment: Segment | null
   showOriginalOnly: boolean // official 字幕永远显示原文（spec：防 LLM 改写）
-  currentTime?: number
 }
 
 /**
@@ -40,62 +38,22 @@ function RubyText({ tokens }: { tokens: FuriganaToken[] }) {
   )
 }
 
-function KaraokeLine({ words, currentTime }: { words: WordTimestamp[]; currentTime: number }) {
-  const active = findActiveWordIndex(words, currentTime)
-  // Space-separated for Latin; no extra space for CJK / kana runs.
-  const spaced = !words.some((w) => /[\u3040-\u30ff\u3400-\u9fff]/.test(w.word))
-  return (
-    <p className="font-heading text-xl font-bold leading-relaxed sm:text-2xl" aria-live="polite">
-      {words.map((w, i) => {
-        const isActive = i === active
-        const isPast = active >= 0 && i < active
-        return (
-          <span
-            key={`${w.start}:${w.end}:${w.word}`}
-            className={
-              isActive
-                ? 'text-[var(--rhythm-beat)] underline decoration-[var(--rhythm-beat)] decoration-2 underline-offset-4 transition-colors'
-                : isPast
-                  ? 'text-[var(--text-primary)] opacity-90'
-                  : 'text-[var(--text-secondary)] opacity-70'
-            }
-          >
-            {w.word}
-            {spaced && i < words.length - 1 ? ' ' : ''}
-          </span>
-        )
-      })}
-    </p>
-  )
-}
-
-export function CurrentSentence({
-  segment,
-  showOriginalOnly,
-  currentTime = 0,
-}: CurrentSentenceProps) {
+export function CurrentSentence({ segment, showOriginalOnly }: CurrentSentenceProps) {
   if (!segment) {
     return <div className="min-h-[5rem]" />
   }
 
   const original = showOriginalOnly ? segment.text : (segment.normalizedText ?? segment.text)
   const furigana = segment.furigana?.trim()
-  const words = segment.wordTimestamps?.filter((w) => w.word.trim().length > 0) ?? []
-  // Karaoke only when we have real timings; don't invent karaoke from plain text.
-  const useKaraoke = words.length > 0
   /**
-   * furigana 与 `showOriginalOnly` **不冲突**：注音只是叠加在原句上的读音，
-   * 显示文本仍是 `original`（官方字幕 = 原文）。所以这里不再拿 showOriginalOnly 挡它 ——
-   * 以前那条 `!showOriginalOnly` 让整个分支永久不可达（source 只可能是 'official'）。
-   * 逐段注音 / 整词注音的区别见 `buildFuriganaTokens`。
+   * 注音只是叠加在原句上的读音，显示文本仍是 `original`（官方字幕 = 原文），
+   * 因此 furigana 与 `showOriginalOnly` 不冲突。逐段注音 / 整词注音的区别见 `buildFuriganaTokens`。
    */
-  const useFurigana = !useKaraoke && Boolean(furigana)
+  const useFurigana = Boolean(furigana)
 
   return (
     <div className="flex min-h-[5rem] flex-col items-center gap-2 px-4 py-3 text-center">
-      {useKaraoke ? (
-        <KaraokeLine words={words} currentTime={currentTime} />
-      ) : useFurigana && furigana ? (
+      {useFurigana && furigana ? (
         <RubyText tokens={buildFuriganaTokens(original, furigana)} />
       ) : (
         <p className="font-heading text-xl font-bold leading-relaxed text-[var(--text-primary)] sm:text-2xl">
