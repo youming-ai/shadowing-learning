@@ -18,7 +18,7 @@ Shadowing Learning is an offline-first language learning application. Media, sub
 
 ## Database Schema
 
-Database version: **4** (`src/lib/db/db.ts`). The live tables are **`media`**, **`subtitles`**, and **`segments`**. `subtitles.status` is the single source of truth for subtitle processing state.
+Database version: **5** (`src/lib/db/db.ts`). The live tables are **`media`**, **`subtitles`**, and **`segments`**. `subtitles.status` is the single source of truth for subtitle processing state.
 
 ### media table
 
@@ -193,7 +193,7 @@ The YouTube path runs `runChunkedPostProcess` (`src/lib/subtitles/chunk-postproc
 - `MAX_SEGMENTS_PER_CHUNK = 100` mirrors the server's real limit. `MAX_CHARS_PER_CHUNK = 10_000` is **client policy only** — the endpoint validates no character budget, so that number is a self-imposed payload/latency guard, not a server rule.
 - Chunks run **serially**. Serial execution avoids concurrency but is not itself a rate-limit guarantee: `/api/postprocess` allows 20 req / 60s while the client posts one request per chunk, so any job over 20 chunks will hit `429`.
 - The loop therefore **retries** `RetryableEngineError` (429 / 408 / 5xx) with exponential backoff and jitter, honouring the server's `Retry-After` when present (`RETRY_POLICY` in `src/lib/subtitles/chunk-postprocess.ts`). Non-retryable failures — systemic ones such as an invalid key or a wrong endpoint (`FatalEngineError`) — abort immediately without retrying, and the result carries `completedChunks` so the pipeline can resume. When retries are exhausted the error message says so (`…（已重试 N 次）`).
-- Each `onChunkDone` writes results back to `segments` by matching `segmentIndex` (`translation`, `furigana`) and invalidates `subtitleKeys.forMedia`, so enhanced text appears progressively.
+- Each `onChunkDone` writes results back to `segments` by matching `segmentIndex` (`normalizedText`, `translation`, `annotations`, `furigana` — `src/lib/subtitles/segment-writeback.ts`) and invalidates `subtitleKeys.forMedia`, so enhanced text appears progressively. The whole chunk is written in one transaction (one read + `bulkPut`) rather than one query per segment.
 - If `sourceLanguage` and `targetLanguage` share a base language, post-processing is skipped and `postProcessStatus` is set to `completed` directly.
 - **Failure semantics differ by kind.** A *systemic* failure (invalid key, wrong endpoint/model, quota exhausted, network/CORS, unexpected response shape) is thrown as `FatalEngineError` and propagates: the chunk is marked failed and `postProcessStatus` becomes `failed`, so a bad BYOK key is surfaced and retrying after fixing it works. A *single-call* failure (5xx, timeout) degrades in place to the original text so one hiccup does not ruin the whole subtitle. A *content-level* failure (model returned non-JSON) also degrades. The distinction is declared by the transport, not guessed by the core — see [AI-ENGINES.md](./AI-ENGINES.md).
 
@@ -252,9 +252,9 @@ export const subtitleKeys = {
 Only these are consumed by the current application code:
 
 - **`GROQ_API_KEY`** — required Worker secret used by `/api/postprocess`. Locally put it in `.dev.vars` (gitignored; copy `.dev.vars.example`); in production set it with `wrangler secret put GROQ_API_KEY`.
-- **`RATE_LIMIT_KV`** — an **optional** KV namespace binding. It is not declared in `wrangler.jsonc` by default, and the rate limiter no-ops when it is unbound.
+- **`RATE_LIMIT_KV`** — KV namespace binding, **present in `wrangler.jsonc`, so rate limiting is live**. The middleware still no-ops when it is unbound (a bare deploy keeps working), but do not remove the binding: `/api/postprocess` spends our own Groq quota. It is a matched pair with the client's chunk retry — see "Chunked Post-Processing" above.
 
-`VITE_APP_URL` and `PERFORMANCE_ADMIN_TOKEN` (and the `.env.example` file that documented them) have been removed — nothing read them after the Worker migration. SEO/meta tags are static in `index.html`, and `robots.txt` / `sitemap.xml` are static files in `public/`.
+`VITE_APP_URL` and `PERFORMANCE_ADMIN_TOKEN` (and the `.env.example` file that documented them) have been removed — nothing read them after the Worker migration. SEO/meta tags are static in `index.html`; `robots.txt` / `sitemap.xml` are **generated at build time** by the `site-metadata` Vite plugin (`src/lib/config/site-metadata.ts`, unit-tested), which emits no sitemap at all unless `SITE_URL` is set.
 
 ---
 
