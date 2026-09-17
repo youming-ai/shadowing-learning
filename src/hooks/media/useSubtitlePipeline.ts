@@ -4,9 +4,10 @@ import { useTranscriptionLanguage } from '~/components/layout/contexts/Transcrip
 import { subtitleKeys } from '~/hooks/media/subtitle-keys'
 import { resolveEngine } from '~/lib/ai/transports'
 import { DBUtils, db } from '~/lib/db/db'
-import { type ProcessedSegment, runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
+import { runChunkedPostProcess } from '~/lib/subtitles/chunk-postprocess'
+import { writeChunkResults, writeSegments } from '~/lib/subtitles/segment-writeback'
 import { transcriptionLogger } from '~/lib/utils/logger'
-import type { MediaRow, Segment } from '~/types/db/database'
+import type { MediaRow } from '~/types/db/database'
 
 export { subtitleKeys } from '~/hooks/media/subtitle-keys'
 
@@ -19,35 +20,6 @@ interface TranslateProgress {
 
 function baseLang(code: string): string {
   return code.toLowerCase().split('-')[0]
-}
-
-async function writeSegments(
-  subtitleId: number,
-  rows: Array<{ start: number; end: number; text: string }>,
-): Promise<void> {
-  const now = new Date()
-  await db.segments.bulkAdd(
-    rows.map((r, index) => ({
-      transcriptId: subtitleId,
-      segmentIndex: index,
-      start: r.start,
-      end: r.end,
-      text: r.text,
-      createdAt: now,
-      updatedAt: now,
-    })),
-  )
-}
-
-async function writeChunkResults(subtitleId: number, processed: ProcessedSegment[]): Promise<void> {
-  // ponytail: per-segment modify (N queries), bulkPut by id if translating large media becomes slow
-  for (const p of processed) {
-    await db.segments
-      .where('transcriptId')
-      .equals(subtitleId)
-      .and((s: Segment) => s.segmentIndex === p.segmentIndex)
-      .modify({ translation: p.translation, furigana: p.furigana })
-  }
 }
 
 export function useSubtitlePipeline(media: MediaRow | null) {

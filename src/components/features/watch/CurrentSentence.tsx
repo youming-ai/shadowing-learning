@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
 import { findActiveWordIndex } from '~/lib/player/active-word'
+import { buildFuriganaTokens, type FuriganaToken } from '~/lib/subtitles/furigana'
 import type { Segment, WordTimestamp } from '~/types/db/database'
 
 interface CurrentSentenceProps {
@@ -8,32 +8,36 @@ interface CurrentSentenceProps {
   currentTime?: number
 }
 
-/** Render ruby furigana when the string contains simple 漢字(かな) patterns. */
-function FuriganaText({ text }: { text: string }) {
-  const parts = text.split(/([\u4e00-\u9fff\u3400-\u4dbf]+)\(([ぁ-んァ-ンー]+)\)/g)
-  if (parts.length === 1) {
-    return <>{text}</>
-  }
-  const nodes: ReactNode[] = []
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i]
-    if (!part) continue
-    if (i % 3 === 1) {
-      const kana = parts[i + 1]
-      nodes.push(
-        <ruby key={i}>
-          {part}
-          <rp>(</rp>
-          <rt className="text-[0.55em] text-[var(--text-tertiary)]">{kana}</rt>
-          <rp>)</rp>
-        </ruby>,
-      )
-      i += 1
-    } else if (i % 3 === 0) {
-      nodes.push(<span key={i}>{part}</span>)
-    }
-  }
-  return <>{nodes}</>
+/**
+ * 用纯函数产出的 token 渲染 ruby 注音。
+ *
+ * 关键：显示文本逐字来自 `original`（`segment.text`），`reading` 只是叠加在上面的读音。
+ * 绝不显示 `segment.furigana` 那串模型改写过的文本 —— 那会违反「官方字幕防 LLM 改写」。
+ */
+function RubyText({ tokens }: { tokens: FuriganaToken[] }) {
+  // key 用「在原句中的累积偏移」而不是数组下标：同一句里同一个字可能出现多次，
+  // 下标做 key 会在重渲染时错配（Biome 的 noArrayIndexKey 也正是不允许这么写）。
+  let offset = 0
+  const nodes = tokens.map((token) => {
+    const key = `${offset}:${token.text}`
+    offset += token.text.length
+    return token.reading ? (
+      <ruby key={key}>
+        {token.text}
+        <rp>(</rp>
+        <rt className="text-[0.55em] text-[var(--text-tertiary)]">{token.reading}</rt>
+        <rp>)</rp>
+      </ruby>
+    ) : (
+      <span key={key}>{token.text}</span>
+    )
+  })
+
+  return (
+    <p className="font-heading text-xl font-bold leading-relaxed text-[var(--text-primary)] sm:text-2xl">
+      {nodes}
+    </p>
+  )
 }
 
 function KaraokeLine({ words, currentTime }: { words: WordTimestamp[]; currentTime: number }) {
@@ -79,17 +83,23 @@ export function CurrentSentence({
   const words = segment.wordTimestamps?.filter((w) => w.word.trim().length > 0) ?? []
   // Karaoke only when we have real timings; don't invent karaoke from plain text.
   const useKaraoke = words.length > 0
-  // Furigana is whole-line when karaoke is off (avoid misaligned word/ruby pairs).
-  const useFurigana = !useKaraoke && !showOriginalOnly && Boolean(furigana)
-  const displayText = useFurigana && furigana ? furigana : original
+  /**
+   * furigana 与 `showOriginalOnly` **不冲突**：注音只是叠加在原句上的读音，
+   * 显示文本仍是 `original`（官方字幕 = 原文）。所以这里不再拿 showOriginalOnly 挡它 ——
+   * 以前那条 `!showOriginalOnly` 让整个分支永久不可达（source 只可能是 'official'）。
+   * 逐段注音 / 整词注音的区别见 `buildFuriganaTokens`。
+   */
+  const useFurigana = !useKaraoke && Boolean(furigana)
 
   return (
     <div className="flex min-h-[5rem] flex-col items-center gap-2 px-4 py-3 text-center">
       {useKaraoke ? (
         <KaraokeLine words={words} currentTime={currentTime} />
+      ) : useFurigana && furigana ? (
+        <RubyText tokens={buildFuriganaTokens(original, furigana)} />
       ) : (
         <p className="font-heading text-xl font-bold leading-relaxed text-[var(--text-primary)] sm:text-2xl">
-          {useFurigana ? <FuriganaText text={displayText} /> : displayText}
+          {original}
         </p>
       )}
       {segment.translation && (
